@@ -27,7 +27,7 @@ assert.equal(
   "package.json and openclaw.plugin.json versions must stay aligned",
 );
 
-for (const changelogPath of ["CHANGELOG.md", "CHANGELOG-v1.1.0.md"]) {
+for (const changelogPath of ["CHANGELOG.md", "CHANGELOG-2026.9.5-port.md"]) {
   const changelog = readText(changelogPath);
   assert.match(
     changelog,

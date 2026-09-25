@@ -1,3 +1,13 @@
+## 1.2.0
+
+Full rename to **Memory LanceDB CIP** (`memory-lancedb-cip`):
+
+- Plugin id and display name: `memory-lancedb-pro` / "Memory (LanceDB Pro)" -> `memory-lancedb-cip` / "Memory (LanceDB CIP)".
+- Default data path: `~/.openclaw/memory/lancedb-pro` -> `~/.openclaw/memory/lancedb-cip`.
+- Docs, log/error prefixes, hook registration ids, CLI docs and tests follow the new naming.
+- Upstream attribution to `CortexReach/memory-lancedb-pro` (MIT, author win4r) is preserved in READMEs and changelogs.
+- No install migration: there is no installed base that uses the previous id/path.
+
 ## 1.1.0-beta.11 (OpenClaw 2026.5 runtime compatibility)
 
 - Ship compiled `dist/index.js` runtime and point package/OpenClaw extension entries at it.
