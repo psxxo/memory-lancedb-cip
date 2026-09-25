@@ -1,3 +1,7 @@
+## 1.2.3
+
+Republished under the original package name at the owner's request; content identical to 1.2.2.
+
 ## 1.2.2
 
 Zero-trace rename — the legacy `pro` token no longer appears anywhere in the tree (source, docs, tests, CI, manifest, compiled `dist/`).
