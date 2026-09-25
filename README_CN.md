@@ -295,6 +295,8 @@ Requirements:
 
 </details>
 
+> `memory_search` / `memory_get` 仅在名称仍空闲时才注册为兼容别名，因此不会与内置记忆运行时已提供的记忆工具冲突。
+
 ---
 
 ## 核心功能

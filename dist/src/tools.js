@@ -4,9 +4,11 @@
  */
 import { Type } from "@sinclair/typebox";
 import { textResult } from "openclaw/plugin-sdk/tool-results";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { isNoise } from "./noise-filter.js";
 import { stripEnvelopeMetadata } from "./smart-extractor.js";
 import { isSystemBypassId, resolveScopeFilter, parseAgentIdFromSessionKey } from "./scopes.js";
@@ -827,6 +829,163 @@ export function registerMemoryRecallTool(api, context) {
             description: "Search through long-term memories using hybrid retrieval (vector + keyword search). Use when you need context about user preferences, past decisions, or previously discussed topics.",
         });
     }, { name: "memory_recall" });
+}
+// ============================================================================
+// Tool-name ownership probe
+// ============================================================================
+//
+// `memory_search` / `memory_get` are generic memory tool names that the host and
+// other memory plugins also provide (the bundled memory-core plugin declares
+// both in contracts.tools). The host refuses to pick a winner: a plugin tool
+// whose name is already provided is skipped and reported as
+// "plugin tool name conflict (<pluginId>): <name>".
+//
+// The compatibility aliases below must therefore only be registered when no
+// other enabled plugin claims the name. The probe mirrors the host's own
+// manifest-based ownership model (contracts.tools + plugins.entries[].enabled)
+// instead of guessing from a hardcoded plugin id, so it stays correct when the
+// provider is memory-core, another memory plugin, or nothing at all.
+const OWN_PLUGIN_ID = "memory-lancedb-cip";
+/** Memoized per tool name: one filesystem scan per name per process. */
+const toolOwnershipProbeCache = new Map();
+function resolveOpenClawPackageRoots() {
+    const roots = new Set();
+    try {
+        const requireFromHere = createRequire(import.meta.url);
+        roots.add(dirname(requireFromHere.resolve("openclaw/package.json")));
+    }
+    catch {
+        // openclaw is not resolvable from this plugin (packaged install): fall back
+        // to the standard global locations below.
+    }
+    const env = process.env;
+    const candidates = process.platform === "win32"
+        ? [
+            env.APPDATA ? join(env.APPDATA, "npm", "node_modules", "openclaw") : "",
+            env.ProgramFiles ? join(env.ProgramFiles, "nodejs", "node_modules", "openclaw") : "",
+        ]
+        : [
+            "/usr/lib/node_modules/openclaw",
+            "/usr/local/lib/node_modules/openclaw",
+            "/opt/homebrew/lib/node_modules/openclaw",
+        ];
+    for (const candidate of candidates) {
+        if (!candidate)
+            continue;
+        try {
+            if (existsSync(candidate))
+                roots.add(candidate);
+        }
+        catch {
+            // unreadable candidates are simply skipped
+        }
+    }
+    return [...roots];
+}
+/** Directories that may contain plugin packages: configured load paths + bundled extensions. */
+function listPluginSearchDirs(api) {
+    const dirs = [];
+    const config = api.config;
+    const configuredPaths = config?.plugins?.load?.paths;
+    if (Array.isArray(configuredPaths)) {
+        for (const entry of configuredPaths) {
+            if (typeof entry === "string" && entry.trim())
+                dirs.push(entry.trim());
+        }
+    }
+    for (const root of resolveOpenClawPackageRoots())
+        dirs.push(join(root, "dist", "extensions"));
+    return dirs;
+}
+function readPluginManifestAt(dir) {
+    const manifestPath = join(dir, "openclaw.plugin.json");
+    try {
+        if (!statSync(manifestPath).isFile())
+            return undefined;
+        const parsed = JSON.parse(readFileSync(manifestPath, "utf8"));
+        const tools = Array.isArray(parsed.contracts?.tools)
+            ? parsed.contracts.tools.filter((tool) => typeof tool === "string")
+            : [];
+        return {
+            id: typeof parsed.id === "string" ? parsed.id : undefined,
+            tools,
+        };
+    }
+    catch {
+        return undefined;
+    }
+}
+/**
+ * True when another enabled plugin already declares `toolName`.
+ *
+ * Fails open (returns false) on any discovery error so the alias still registers
+ * on hosts where the provider cannot be enumerated.
+ */
+/** Manifests of every plugin package discoverable from the host + configured load paths. */
+function collectProviderManifests(api) {
+    const manifests = [];
+    for (const dir of listPluginSearchDirs(api)) {
+        const direct = readPluginManifestAt(dir);
+        if (direct) {
+            manifests.push(direct);
+            continue;
+        }
+        // A configured load path may be a parent directory holding plugin packages.
+        try {
+            for (const child of readdirSync(dir, { withFileTypes: true })) {
+                if (!child.isDirectory() && !child.isSymbolicLink())
+                    continue;
+                const manifest = readPluginManifestAt(join(dir, child.name));
+                if (manifest)
+                    manifests.push(manifest);
+            }
+        }
+        catch {
+            // missing/unreadable directories are skipped
+        }
+    }
+    return manifests;
+}
+/**
+ * True when another enabled plugin already declares `toolName`.
+ *
+ * Fails open (returns false) on any discovery error so the alias still registers
+ * on hosts where the provider cannot be enumerated.
+ */
+export function isToolNameProvidedByAnotherPlugin(api, toolName) {
+    const cached = toolOwnershipProbeCache.get(toolName);
+    if (cached !== undefined)
+        return cached;
+    let provided = false;
+    try {
+        const config = api.config;
+        // No host config means there is no plugin inventory to inspect (bare test
+        // doubles and non-host callers): fail open so the alias still registers.
+        if (config) {
+            const entries = config.plugins?.entries;
+            const isEnabled = (pluginId) => !pluginId || entries?.[pluginId]?.enabled !== false;
+            provided = collectProviderManifests(api).some((manifest) => manifest.id !== OWN_PLUGIN_ID
+                && isEnabled(manifest.id)
+                && manifest.tools.includes(toolName));
+        }
+    }
+    catch {
+        provided = false;
+    }
+    toolOwnershipProbeCache.set(toolName, provided);
+    return provided;
+}
+/**
+ * Register the compatibility alias only when the name is still free.
+ * Returns true when the alias was registered.
+ */
+export function registerMemoryRecallAliasToolIfFree(api, context, alias) {
+    if (isToolNameProvidedByAnotherPlugin(api, alias)) {
+        api.logger.debug?.(`memory-lancedb-cip: skipping ${alias} alias — an enabled plugin already provides it`);
+        return false;
+    }
+    registerMemoryRecallAliasTool(api, context, alias);
+    return true;
 }
 export function registerMemoryRecallAliasTool(api, context, alias) {
     const label = alias === "memory_get" ? "Memory Get" : "Memory Search";
@@ -2214,8 +2373,11 @@ export function registerMemoryExplainRankTool(api, context) {
 export function registerAllMemoryTools(api, context, options = {}) {
     // Core tools (always enabled)
     registerMemoryRecallTool(api, context);
-    registerMemoryRecallAliasTool(api, context, "memory_search");
-    registerMemoryRecallAliasTool(api, context, "memory_get");
+    // Compatibility aliases: register only while the name is unclaimed, so an
+    // enabled provider of memory_search/memory_get (host memory-core) is not
+    // reported as a plugin tool name conflict.
+    registerMemoryRecallAliasToolIfFree(api, context, "memory_search");
+    registerMemoryRecallAliasToolIfFree(api, context, "memory_get");
     registerMemoryFactQueryTool(api, context);
     registerMemoryStoreTool(api, context);
     registerMemoryForgetTool(api, context);

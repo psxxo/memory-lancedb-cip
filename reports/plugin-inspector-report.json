@@ -600,7 +600,7 @@
   },
   "fixtures": [
     {
-      "id": "memory-lancedb-cip",
+      "id": "lancedb-cip",
       "name": "Memory (LanceDB CIP)",
       "priority": "high",
       "seams": [
@@ -622,242 +622,242 @@
         {
           "name": "after_tool_call",
           "file": "dist/index.js",
-          "line": 4257,
-          "ref": "dist/index.js:4257"
+          "line": 4289,
+          "ref": "dist/index.js:4289"
         },
         {
           "name": "after_tool_call",
           "file": "index.ts",
-          "line": 5442,
-          "ref": "index.ts:5442"
+          "line": 5475,
+          "ref": "index.ts:5475"
         },
         {
           "name": "agent_end",
           "file": "dist/index.js",
-          "line": 3926,
-          "ref": "dist/index.js:3926"
+          "line": 3958,
+          "ref": "dist/index.js:3958"
         },
         {
           "name": "agent_end",
           "file": "dist/index.js",
-          "line": 3975,
-          "ref": "dist/index.js:3975"
+          "line": 4007,
+          "ref": "dist/index.js:4007"
         },
         {
           "name": "agent_end",
           "file": "index.ts",
-          "line": 5065,
-          "ref": "index.ts:5065"
+          "line": 5098,
+          "ref": "index.ts:5098"
         },
         {
           "name": "agent_end",
           "file": "index.ts",
-          "line": 5119,
-          "ref": "index.ts:5119"
+          "line": 5152,
+          "ref": "index.ts:5152"
         },
         {
           "name": "before_message_write",
           "file": "dist/index.js",
-          "line": 2520,
-          "ref": "dist/index.js:2520"
+          "line": 2546,
+          "ref": "dist/index.js:2546"
         },
         {
           "name": "before_message_write",
           "file": "index.ts",
-          "line": 3380,
-          "ref": "index.ts:3380"
+          "line": 3407,
+          "ref": "index.ts:3407"
         },
         {
           "name": "before_prompt_build",
           "file": "dist/index.js",
-          "line": 2665,
-          "ref": "dist/index.js:2665"
+          "line": 2697,
+          "ref": "dist/index.js:2697"
         },
         {
           "name": "before_prompt_build",
           "file": "dist/index.js",
-          "line": 3998,
-          "ref": "dist/index.js:3998"
+          "line": 4030,
+          "ref": "dist/index.js:4030"
         },
         {
           "name": "before_prompt_build",
           "file": "dist/index.js",
-          "line": 4177,
-          "ref": "dist/index.js:4177"
+          "line": 4209,
+          "ref": "dist/index.js:4209"
         },
         {
           "name": "before_prompt_build",
           "file": "dist/index.js",
-          "line": 4300,
-          "ref": "dist/index.js:4300"
+          "line": 4332,
+          "ref": "dist/index.js:4332"
         },
         {
           "name": "before_prompt_build",
           "file": "dist/index.js",
-          "line": 4335,
-          "ref": "dist/index.js:4335"
+          "line": 4367,
+          "ref": "dist/index.js:4367"
         },
         {
           "name": "before_prompt_build",
           "file": "index.ts",
-          "line": 3545,
-          "ref": "index.ts:3545"
+          "line": 3578,
+          "ref": "index.ts:3578"
         },
         {
           "name": "before_prompt_build",
           "file": "index.ts",
-          "line": 5144,
-          "ref": "index.ts:5144"
+          "line": 5177,
+          "ref": "index.ts:5177"
         },
         {
           "name": "before_prompt_build",
           "file": "index.ts",
-          "line": 5351,
-          "ref": "index.ts:5351"
+          "line": 5384,
+          "ref": "index.ts:5384"
         },
         {
           "name": "before_prompt_build",
           "file": "index.ts",
-          "line": 5487,
-          "ref": "index.ts:5487"
+          "line": 5520,
+          "ref": "index.ts:5520"
         },
         {
           "name": "before_prompt_build",
           "file": "index.ts",
-          "line": 5521,
-          "ref": "index.ts:5521"
+          "line": 5554,
+          "ref": "index.ts:5554"
         },
         {
           "name": "before_reset",
           "file": "dist/index.js",
-          "line": 5040,
-          "ref": "dist/index.js:5040"
+          "line": 5072,
+          "ref": "dist/index.js:5072"
         },
         {
           "name": "before_reset",
           "file": "dist/index.js",
-          "line": 5108,
-          "ref": "dist/index.js:5108"
+          "line": 5140,
+          "ref": "dist/index.js:5140"
         },
         {
           "name": "before_reset",
           "file": "index.ts",
-          "line": 6319,
-          "ref": "index.ts:6319"
+          "line": 6352,
+          "ref": "index.ts:6352"
         },
         {
           "name": "before_reset",
           "file": "index.ts",
-          "line": 6413,
-          "ref": "index.ts:6413"
+          "line": 6446,
+          "ref": "index.ts:6446"
         },
         {
           "name": "gateway_start",
           "file": "dist/index.js",
-          "line": 2559,
-          "ref": "dist/index.js:2559"
+          "line": 2585,
+          "ref": "dist/index.js:2585"
         },
         {
           "name": "gateway_start",
           "file": "index.ts",
-          "line": 3430,
-          "ref": "index.ts:3430"
+          "line": 3457,
+          "ref": "index.ts:3457"
         },
         {
           "name": "message_received",
           "file": "dist/index.js",
-          "line": 2499,
-          "ref": "dist/index.js:2499"
+          "line": 2525,
+          "ref": "dist/index.js:2525"
         },
         {
           "name": "message_received",
           "file": "dist/index.js",
-          "line": 2653,
-          "ref": "dist/index.js:2653"
+          "line": 2685,
+          "ref": "dist/index.js:2685"
         },
         {
           "name": "message_received",
           "file": "index.ts",
-          "line": 3350,
-          "ref": "index.ts:3350"
+          "line": 3377,
+          "ref": "index.ts:3377"
         },
         {
           "name": "message_received",
           "file": "index.ts",
-          "line": 3533,
-          "ref": "index.ts:3533"
+          "line": 3566,
+          "ref": "index.ts:3566"
         },
         {
           "name": "session_end",
           "file": "dist/index.js",
-          "line": 3048,
-          "ref": "dist/index.js:3048"
+          "line": 3080,
+          "ref": "dist/index.js:3080"
         },
         {
           "name": "session_end",
           "file": "dist/index.js",
-          "line": 3092,
-          "ref": "dist/index.js:3092"
+          "line": 3124,
+          "ref": "dist/index.js:3124"
         },
         {
           "name": "session_end",
           "file": "dist/index.js",
-          "line": 3933,
-          "ref": "dist/index.js:3933"
+          "line": 3965,
+          "ref": "dist/index.js:3965"
         },
         {
           "name": "session_end",
           "file": "dist/index.js",
-          "line": 4072,
-          "ref": "dist/index.js:4072"
+          "line": 4104,
+          "ref": "dist/index.js:4104"
         },
         {
           "name": "session_end",
           "file": "dist/index.js",
-          "line": 4191,
-          "ref": "dist/index.js:4191"
+          "line": 4223,
+          "ref": "dist/index.js:4223"
         },
         {
           "name": "session_end",
           "file": "dist/index.js",
-          "line": 4396,
-          "ref": "dist/index.js:4396"
+          "line": 4428,
+          "ref": "dist/index.js:4428"
         },
         {
           "name": "session_end",
           "file": "index.ts",
-          "line": 4003,
-          "ref": "index.ts:4003"
+          "line": 4036,
+          "ref": "index.ts:4036"
         },
         {
           "name": "session_end",
           "file": "index.ts",
-          "line": 4051,
-          "ref": "index.ts:4051"
+          "line": 4084,
+          "ref": "index.ts:4084"
         },
         {
           "name": "session_end",
           "file": "index.ts",
-          "line": 5073,
-          "ref": "index.ts:5073"
+          "line": 5106,
+          "ref": "index.ts:5106"
         },
         {
           "name": "session_end",
           "file": "index.ts",
-          "line": 5238,
-          "ref": "index.ts:5238"
+          "line": 5271,
+          "ref": "index.ts:5271"
         },
         {
           "name": "session_end",
           "file": "index.ts",
-          "line": 5365,
-          "ref": "index.ts:5365"
+          "line": 5398,
+          "ref": "index.ts:5398"
         },
         {
           "name": "session_end",
           "file": "index.ts",
-          "line": 5589,
-          "ref": "index.ts:5589"
+          "line": 5622,
+          "ref": "index.ts:5622"
         }
       ],
       "registrations": [
@@ -871,302 +871,302 @@
         {
           "name": "registerCli",
           "file": "dist/index.js",
-          "line": 2588,
-          "ref": "dist/index.js:2588"
+          "line": 2614,
+          "ref": "dist/index.js:2614"
         },
         {
           "name": "registerCli",
           "file": "index.ts",
-          "line": 3466,
-          "ref": "index.ts:3466"
+          "line": 3493,
+          "ref": "index.ts:3493"
         },
         {
           "name": "registerHook",
           "file": "dist/index.js",
-          "line": 4098,
-          "ref": "dist/index.js:4098"
+          "line": 4130,
+          "ref": "dist/index.js:4130"
         },
         {
           "name": "registerHook",
           "file": "dist/index.js",
-          "line": 4196,
-          "ref": "dist/index.js:4196"
+          "line": 4228,
+          "ref": "dist/index.js:4228"
         },
         {
           "name": "registerHook",
           "file": "dist/index.js",
-          "line": 4200,
-          "ref": "dist/index.js:4200"
+          "line": 4232,
+          "ref": "dist/index.js:4232"
         },
         {
           "name": "registerHook",
           "file": "dist/index.js",
-          "line": 5032,
-          "ref": "dist/index.js:5032"
+          "line": 5064,
+          "ref": "dist/index.js:5064"
         },
         {
           "name": "registerHook",
           "file": "dist/index.js",
-          "line": 5036,
-          "ref": "dist/index.js:5036"
+          "line": 5068,
+          "ref": "dist/index.js:5068"
         },
         {
           "name": "registerHook",
           "file": "index.ts",
-          "line": 5267,
-          "ref": "index.ts:5267"
+          "line": 5300,
+          "ref": "index.ts:5300"
         },
         {
           "name": "registerHook",
           "file": "index.ts",
-          "line": 5370,
-          "ref": "index.ts:5370"
+          "line": 5403,
+          "ref": "index.ts:5403"
         },
         {
           "name": "registerHook",
           "file": "index.ts",
-          "line": 5374,
-          "ref": "index.ts:5374"
+          "line": 5407,
+          "ref": "index.ts:5407"
         },
         {
           "name": "registerHook",
           "file": "index.ts",
-          "line": 6311,
-          "ref": "index.ts:6311"
+          "line": 6344,
+          "ref": "index.ts:6344"
         },
         {
           "name": "registerHook",
           "file": "index.ts",
-          "line": 6315,
-          "ref": "index.ts:6315"
+          "line": 6348,
+          "ref": "index.ts:6348"
         },
         {
           "name": "registerMemoryCapability",
           "file": "dist/index.js",
-          "line": 2494,
-          "ref": "dist/index.js:2494"
+          "line": 2520,
+          "ref": "dist/index.js:2520"
         },
         {
           "name": "registerMemoryCapability",
           "file": "index.ts",
-          "line": 3345,
-          "ref": "index.ts:3345"
+          "line": 3372,
+          "ref": "index.ts:3372"
         },
         {
           "name": "registerService",
           "file": "dist/index.js",
-          "line": 5308,
-          "ref": "dist/index.js:5308"
+          "line": 5340,
+          "ref": "dist/index.js:5340"
         },
         {
           "name": "registerService",
           "file": "index.ts",
-          "line": 6649,
-          "ref": "index.ts:6649"
+          "line": 6682,
+          "ref": "index.ts:6682"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1298,
-          "ref": "dist/src/tools.js:1298"
+          "line": 1063,
+          "ref": "dist/src/tools.js:1063"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1388,
-          "ref": "dist/src/tools.js:1388"
+          "line": 1450,
+          "ref": "dist/src/tools.js:1450"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1588,
-          "ref": "dist/src/tools.js:1588"
+          "line": 1540,
+          "ref": "dist/src/tools.js:1540"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1658,
-          "ref": "dist/src/tools.js:1658"
+          "line": 1740,
+          "ref": "dist/src/tools.js:1740"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1750,
-          "ref": "dist/src/tools.js:1750"
+          "line": 1810,
+          "ref": "dist/src/tools.js:1810"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1830,
-          "ref": "dist/src/tools.js:1830"
+          "line": 1902,
+          "ref": "dist/src/tools.js:1902"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1903,
-          "ref": "dist/src/tools.js:1903"
+          "line": 1982,
+          "ref": "dist/src/tools.js:1982"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 1951,
-          "ref": "dist/src/tools.js:1951"
+          "line": 2055,
+          "ref": "dist/src/tools.js:2055"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 2080,
-          "ref": "dist/src/tools.js:2080"
+          "line": 2103,
+          "ref": "dist/src/tools.js:2103"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 2148,
-          "ref": "dist/src/tools.js:2148"
+          "line": 2232,
+          "ref": "dist/src/tools.js:2232"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 499,
-          "ref": "dist/src/tools.js:499"
+          "line": 2300,
+          "ref": "dist/src/tools.js:2300"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 555,
-          "ref": "dist/src/tools.js:555"
+          "line": 501,
+          "ref": "dist/src/tools.js:501"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 647,
-          "ref": "dist/src/tools.js:647"
+          "line": 557,
+          "ref": "dist/src/tools.js:557"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 822,
-          "ref": "dist/src/tools.js:822"
+          "line": 649,
+          "ref": "dist/src/tools.js:649"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 836,
-          "ref": "dist/src/tools.js:836"
+          "line": 824,
+          "ref": "dist/src/tools.js:824"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 846,
-          "ref": "dist/src/tools.js:846"
+          "line": 988,
+          "ref": "dist/src/tools.js:988"
         },
         {
           "name": "registerTool",
           "file": "dist/src/tools.js",
-          "line": 911,
-          "ref": "dist/src/tools.js:911"
+          "line": 998,
+          "ref": "dist/src/tools.js:998"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 1089,
-          "ref": "src/tools.ts:1089"
+          "line": 1091,
+          "ref": "src/tools.ts:1091"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 1113,
-          "ref": "src/tools.ts:1113"
+          "line": 1283,
+          "ref": "src/tools.ts:1283"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 1130,
-          "ref": "src/tools.ts:1130"
+          "line": 1300,
+          "ref": "src/tools.ts:1300"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 1229,
-          "ref": "src/tools.ts:1229"
+          "line": 1399,
+          "ref": "src/tools.ts:1399"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 1703,
-          "ref": "src/tools.ts:1703"
+          "line": 1873,
+          "ref": "src/tools.ts:1873"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 1823,
-          "ref": "src/tools.ts:1823"
+          "line": 1993,
+          "ref": "src/tools.ts:1993"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2071,
-          "ref": "src/tools.ts:2071"
+          "line": 2241,
+          "ref": "src/tools.ts:2241"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2168,
-          "ref": "src/tools.ts:2168"
+          "line": 2338,
+          "ref": "src/tools.ts:2338"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2280,
-          "ref": "src/tools.ts:2280"
+          "line": 2450,
+          "ref": "src/tools.ts:2450"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2399,
-          "ref": "src/tools.ts:2399"
+          "line": 2569,
+          "ref": "src/tools.ts:2569"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2511,
-          "ref": "src/tools.ts:2511"
+          "line": 2681,
+          "ref": "src/tools.ts:2681"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2581,
-          "ref": "src/tools.ts:2581"
+          "line": 2751,
+          "ref": "src/tools.ts:2751"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2739,
-          "ref": "src/tools.ts:2739"
+          "line": 2909,
+          "ref": "src/tools.ts:2909"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 2838,
-          "ref": "src/tools.ts:2838"
+          "line": 3008,
+          "ref": "src/tools.ts:3008"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 676,
-          "ref": "src/tools.ts:676"
+          "line": 678,
+          "ref": "src/tools.ts:678"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 752,
-          "ref": "src/tools.ts:752"
+          "line": 754,
+          "ref": "src/tools.ts:754"
         },
         {
           "name": "registerTool",
           "file": "src/tools.ts",
-          "line": 856,
-          "ref": "src/tools.ts:856"
+          "line": 858,
+          "ref": "src/tools.ts:858"
         }
       ],
       "manifestContracts": [
@@ -1307,8 +1307,9 @@
           "path": "openclaw.plugin.json",
           "id": "memory-lancedb-cip",
           "name": "Memory (LanceDB CIP)",
-          "version": "1.2.2",
+          "version": "1.2.3",
           "keys": [
+            "cliCommands",
             "commandAliases",
             "configSchema",
             "contracts",
@@ -1331,8 +1332,8 @@
       "securityManifests": [],
       "package": {
         "path": "package.json",
-        "name": "@psxxo/memory-lancedb-cip",
-        "version": "1.2.2",
+        "name": "@psxxo/lancedb-cip",
+        "version": "1.2.3",
         "type": "module",
         "main": "dist/index.js",
         "npmPack": {
@@ -1394,8 +1395,8 @@
       "packages": [
         {
           "path": "package.json",
-          "name": "@psxxo/memory-lancedb-cip",
-          "version": "1.2.2",
+          "name": "@psxxo/lancedb-cip",
+          "version": "1.2.3",
           "type": "module",
           "main": "dist/index.js",
           "npmPack": {
@@ -1479,7 +1480,7 @@
   "contractProbes": [],
   "logs": [
     {
-      "fixture": "memory-lancedb-cip",
+      "fixture": "lancedb-cip",
       "code": "seam-inventory",
       "level": "log",
       "message": "observed 8 hooks, 5 registrations, and 1 manifest contracts",
@@ -1501,7 +1502,7 @@
       ]
     },
     {
-      "fixture": "memory-lancedb-cip",
+      "fixture": "lancedb-cip",
       "code": "hook-names-present",
       "level": "log",
       "message": "all observed hooks exist in the target OpenClaw hook registry",
@@ -1517,7 +1518,7 @@
       ]
     },
     {
-      "fixture": "memory-lancedb-cip",
+      "fixture": "lancedb-cip",
       "code": "api-registrars-present",
       "level": "log",
       "message": "all observed api.register* calls exist in the target OpenClaw plugin API builder",
@@ -1530,7 +1531,7 @@
       ]
     },
     {
-      "fixture": "memory-lancedb-cip",
+      "fixture": "lancedb-cip",
       "code": "sdk-exports-present",
       "level": "log",
       "message": "all observed plugin SDK imports exist in target OpenClaw package exports",
@@ -1539,18 +1540,18 @@
       ]
     },
     {
-      "fixture": "memory-lancedb-cip",
+      "fixture": "lancedb-cip",
       "code": "package-metadata",
       "level": "log",
       "message": "selected package metadata for plugin contract checks",
       "evidence": [
         "package.json",
-        "@psxxo/memory-lancedb-cip",
-        "version:1.2.2"
+        "@psxxo/lancedb-cip",
+        "version:1.2.3"
       ]
     },
     {
-      "fixture": "memory-lancedb-cip",
+      "fixture": "lancedb-cip",
       "code": "declarative-contracts",
       "level": "log",
       "message": "fixture declares manifest contracts that can be checked without executing plugin code",

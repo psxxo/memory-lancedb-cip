@@ -241,6 +241,8 @@ Requirements:
 
 </details>
 
+> `memory_search` / `memory_get` 僅在名稱仍空閒時才註冊為相容別名，因此不會與內建記憶執行時已提供的記憶工具衝突。
+
 ---
 
 ## 核心功能

@@ -14,6 +14,13 @@
       "cliCommand": "memory"
     }
   ],
+  "cliCommands": [
+    {
+      "name": "memory-cip",
+      "description": "Enhanced memory management commands (LanceDB CIP)",
+      "hasSubcommands": true
+    }
+  ],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

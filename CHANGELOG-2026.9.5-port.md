@@ -1,6 +1,11 @@
 ## 1.2.3
 
-Republished under the original package name at the owner's request; content identical to 1.2.2.
+Published as `@psxxo/lancedb-cip` (the previously used `@psxxo/memory-lancedb-cip` name is soft-deleted on ClawHub).
+
+Fixes two host-integration defects:
+
+- **CLI metadata no longer touches plugin runtime.** `openclaw --help` / `openclaw plugins list` no longer emit `smart extraction init failed ... runtime is intentionally unavailable during "cli-metadata" registration`. The root command is now declared in the manifest (`cliCommands`) and `register()` returns before singleton init in `cli-metadata` mode; `runtime.llm` probing is defensive.
+- **No more `plugin tool name conflict (memory-core)` warnings.** The `memory_search` / `memory_get` compatibility aliases are registered only while those names are still free, so they never collide with the memory tools already provided by the built-in memory runtime (no ambiguous or fragmented memory surface) and they still exist on hosts with no alternative provider.
 
 ## 1.2.2
 

@@ -343,6 +343,8 @@ Requirements:
 
 </details>
 
+> The `memory_search` / `memory_get` tools are registered as compatibility aliases only while those names are still free, so they never collide with the memory tools already provided by the built-in memory runtime.
+
 ---
 
 ## Core Features

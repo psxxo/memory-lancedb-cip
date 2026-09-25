@@ -664,7 +664,16 @@ function asNonEmptyString(value) {
  * expose it yet, so callers can fall back to the direct/oauth transport.
  */
 export function resolveRuntimeLlmComplete(api) {
-    const runtimeLlm = api.runtime?.llm;
+    let runtimeLlm;
+    try {
+        // api.runtime is a throwing getter in "cli-metadata"/"setup-only"
+        // registration, so this probe must stay defensive: the caller only needs
+        // the optional host-completion helper, never the absence to be fatal.
+        runtimeLlm = api.runtime?.llm;
+    }
+    catch {
+        return undefined;
+    }
     return typeof runtimeLlm?.complete === "function"
         ? runtimeLlm.complete.bind(runtimeLlm)
         : undefined;
@@ -2144,6 +2153,15 @@ export function warnForDisabledChannelPlugin(openclawConfig, logger) {
             `Run "openclaw plugin enable ${channelName}" and restart the gateway.`);
     }
 }
+// Root CLI command metadata. Keep this row byte-identical to the
+// `cliCommands` entry in openclaw.plugin.json: the manifest row is the
+// canonical help text the host reads during "cli-metadata" registration,
+// while the runtime descriptors below let the host keep the command lazy.
+const MEMORY_CIP_CLI_COMMAND_DESCRIPTOR = {
+    name: "memory-cip",
+    description: "Enhanced memory management commands (LanceDB CIP)",
+    hasSubcommands: true,
+};
 const memoryLanceDBCipPlugin = {
     id: "memory-lancedb-cip",
     name: "Memory (LanceDB CIP)",
@@ -2153,6 +2171,14 @@ const memoryLanceDBCipPlugin = {
         // Idempotent guard: skip re-init if this exact API instance has already registered.
         if (_registeredApis.has(api)) {
             api.logger.debug?.("memory-lancedb-cip: register() called again — skipping re-init (idempotent)");
+            return;
+        }
+        // "cli-metadata" registration only collects root-command metadata for
+        // `openclaw --help`; api.runtime is intentionally unavailable in that mode,
+        // so any runtime/singleton access would throw. The root command row lives in
+        // the manifest's cliCommands, which is the metadata source the host reads
+        // before plugin code loads — return before the shared singleton init below.
+        if (api.registrationMode === "cli-metadata") {
             return;
         }
         // Parse and validate configuration
@@ -2636,7 +2662,13 @@ const memoryLanceDBCipPlugin = {
                     return undefined;
                 }
             })() : undefined,
-        }), { commands: ["memory-cip"] });
+        }), {
+            commands: ["memory-cip"],
+            // Parse-time descriptors mirror the manifest cliCommands row so the host
+            // can advertise/route this root command without executing plugin
+            // runtime (docs: plugins/manifest/surfaces#clicommands-reference).
+            descriptors: [MEMORY_CIP_CLI_COMMAND_DESCRIPTOR],
+        });
         // ========================================================================
         // Lifecycle Hooks
         // ========================================================================

@@ -241,6 +241,8 @@ Requirements:
 
 </details>
 
+> `memory_search` / `memory_get` werden nur als Kompatibilitäts-Aliase registriert, solange diese Namen noch frei sind, sodass sie nie mit den von der integrierten Speicher-Laufzeit bereitgestellten Speicherwerkzeugen kollidieren.
+
 ---
 
 ## Kernfunktionen

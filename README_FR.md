@@ -241,6 +241,8 @@ Requirements:
 
 </details>
 
+> `memory_search` / `memory_get` ne sont enregistrés comme alias de compatibilité que tant que ces noms restent libres, afin qu'ils n'entrent jamais en conflit avec les outils de mémoire déjà fournis par le moteur de mémoire intégré.
+
 ---
 
 ## Fonctionnalités principales
