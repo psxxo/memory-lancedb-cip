@@ -20,7 +20,12 @@ const manifest = readJson("openclaw.plugin.json");
 const releaseChecklist = readText("docs/release-checklist.md");
 
 assert.equal(pkg.version, manifest.version, "package and plugin manifest versions must match before release");
-assert.match(pkg.version, /^1\.1\.0-beta\.\d+$/, "current release target should remain an explicit v1.1.0 beta");
+assert.match(pkg.version, /^\d+\.\d+\.\d+$/, "release version must be an explicit semver");
+assert.equal(
+  pkg.version,
+  manifest.version,
+  "package.json and openclaw.plugin.json versions must stay aligned",
+);
 
 for (const changelogPath of ["CHANGELOG.md", "CHANGELOG-v1.1.0.md"]) {
   const changelog = readText(changelogPath);
