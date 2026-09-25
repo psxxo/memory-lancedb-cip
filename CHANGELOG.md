@@ -1,3 +1,45 @@
+## 1.2.5
+
+Hang-hardening: a stuck memory store can no longer look like a dead process, and
+no failure path is allowed to discard data.
+
+- **Bounded, observable write-lock waits.** The cross-process write lock now has a
+  configurable ceiling (`storage.writeLockTimeoutMs` / `MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS`,
+  default 30s) instead of the previous exponential-backoff budget that could stay
+  silent for ~151s. Once a waiter passes `storage.writeLockWarnAfterMs` (default 5s)
+  it logs the lock path, how long it has waited, a suspected holder pid/host from a
+  sidecar hint file, and the recovery steps — repeated every 5s, so any wait over
+  10s is guaranteed to be logged. On timeout the write fails with an
+  `ELOCKWAITTIMEOUT` error naming the artifact and the exact fix, and this attempt
+  writes nothing.
+- **Bounded, staged store open.** `ensureInitialized()` now logs each phase
+  (`opening store`, `db opened`, `table opened`, `FTS index present/created`,
+  `ready in Xms`) with elapsed time, and the connect/table-open phase is bounded by
+  `storage.openTimeoutMs` (default 120s) so an unresponsive filesystem surfaces as a
+  readable error instead of an indefinite wait. The steady-state read path no longer
+  takes the write lock at all: the FTS index is probed read-only and only a genuinely
+  missing index pays for a lock.
+- **Index/optimize maintenance is bounded and skippable.** The startup FTS catch-up
+  fold stays off the read path, logs when it starts and finishes, is bounded by
+  `storage.indexCatchUpTimeoutMs` (default 60s), and can be disabled entirely with
+  `storage.indexCatchUp=false`.
+- **New `memory-cip doctor` command** (with `--json`): reports dbPath existence and
+  writability, write-lock artifact state and age, suspected holder, row/live counts,
+  FTS/index state and unindexed backlog, LanceDB version-directory health, and
+  actionable warnings.
+- **Corruption is never silently destructive.** A structurally damaged
+  `memories.lance` (table directory present with no version manifest) is detected and
+  loudly reported. Quarantine is by rename only —
+  `memories.lance.corrupt-<UTC>` — never deletion, and it is opt-in
+  (`doctor --quarantine-corrupt`, `storage.quarantineCorruptTable`, or
+  `MEMORY_LANCEDB_QUARANTINE_CORRUPT=1`) so a transient open failure can never move a
+  healthy table; by default the store refuses to touch the directory and tells you
+  what to do.
+- **Crash-safety coverage.** New tests kill a process mid-`bulkStore` with `SIGKILL`
+  and assert the reopened store reads cleanly with no half-written rows and no
+  stale-lock hang, alongside coverage for lock-wait warnings/timeouts, staged open
+  logs, `doctor` output, and non-blocking FTS catch-up.
+
 ## 1.2.4
 
 CLI robustness fixes:

@@ -162,6 +162,10 @@ export const CI_TEST_MANIFEST = [
   { group: "core-regression", runner: "node", file: "test/invalidated-rows-visibility.test.mjs", args: ["--test"] },
   { group: "core-regression", runner: "node", file: "test/store-excludeinactive-default.test.mjs", args: ["--test"] },
   { group: "core-regression", runner: "node", file: "test/manual-echo-guard.test.mjs", args: ["--test"] },
+  { group: "storage-and-schema", runner: "node", file: "test/lock-wait-observability.test.mjs", args: ["--test"] },
+  { group: "storage-and-schema", runner: "node", file: "test/store-open-observability.test.mjs", args: ["--test"] },
+  { group: "storage-and-schema", runner: "node", file: "test/corrupt-table-quarantine.test.mjs", args: ["--test"] },
+  { group: "storage-and-schema", runner: "node", file: "test/crash-safety-sigkill.test.mjs", args: ["--test"] },
 ];
 
 export function getEntriesForGroup(group) {

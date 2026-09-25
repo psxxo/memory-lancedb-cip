@@ -16,14 +16,21 @@ import { getDefaultOauthModelForProvider, getOAuthProviderLabel, isOauthModelSup
 // Utility Functions
 // ============================================================================
 function getPluginVersion() {
-    try {
-        const pkgUrl = new URL("./package.json", import.meta.url);
-        const pkg = JSON.parse(readFileSync(pkgUrl, "utf8"));
-        return pkg.version || "unknown";
+    // Resolve package.json from the source tree (ts/cli.ts + repo package.json),
+    // and from the published layout (dist/cli.js + package root one level up).
+    // Without the fallback a deployed `memory-cip version` answers "unknown".
+    for (const candidate of ["./package.json", "../package.json"]) {
+        try {
+            const pkgUrl = new URL(candidate, import.meta.url);
+            const pkg = JSON.parse(readFileSync(pkgUrl, "utf8"));
+            if (pkg.version)
+                return pkg.version;
+        }
+        catch {
+            // Try the next candidate; the final fallback keeps the old behaviour.
+        }
     }
-    catch {
-        return "unknown";
-    }
+    return "unknown";
 }
 function clampInt(value, min, max) {
     const n = Number.isFinite(value) ? value : min;
@@ -1928,6 +1935,66 @@ export function registerMemoryCLI(program, context) {
         }
         catch (error) {
             console.error("FTS rebuild error:", error);
+            process.exit(1);
+        }
+    });
+    // doctor: bounded, read-only health report for the store and its write lock.
+    // Exists so "is my memory store stuck or damaged?" has an answer that never
+    // hangs: every probe is bounded by storage.writeLockTimeoutMs/storage.openTimeoutMs.
+    memory
+        .command("doctor")
+        .description("Diagnose store health: dbPath, write-lock state and age, row counts, FTS/index status, and LanceDB version-dir health")
+        .option("--json", "Emit machine-readable JSON instead of the human report", false)
+        .option("--quarantine-corrupt", "If a structurally corrupt memories.lance is detected, rename it to memories.lance.corrupt-<UTC> (never deletes data) and start empty", false)
+        .action(async (options) => {
+        try {
+            if (options.quarantineCorrupt) {
+                context.store.setCorruptQuarantine(true);
+            }
+            const report = await context.store.diagnose();
+            if (options.json) {
+                console.log(JSON.stringify(report, null, 2));
+                return;
+            }
+            const ms = (value) => (value === null ? "n/a" : `${Math.max(0, Math.round(value))}ms`);
+            const yesNo = (value) => (value ? "yes" : "no");
+            console.log("Memory store doctor");
+            console.log(`  dbPath: ${report.dbPath}`);
+            console.log(`    exists=${yesNo(report.dbPathExists)} writable=${yesNo(report.dbPathWritable)}`);
+            console.log(`  write-lock wait limit: ${report.writeLockTimeoutMs}ms`);
+            console.log(`  lock path: ${report.lock.lockPath}`);
+            console.log(`    artifact=${yesNo(report.lock.artifactExists)} ` +
+                `age=${ms(report.lock.artifactAgeMs)} stale=${yesNo(report.lock.stale)}`);
+            console.log(`    owner hint: pid=${report.lock.ownerPid ?? "unknown"} ` +
+                `host=${report.lock.ownerHost ?? "unknown"} ` +
+                `since=${report.lock.ownerStartedAt ?? "unknown"} age=${ms(report.lock.ownerHintAgeMs)}`);
+            console.log(`  store: opened=${yesNo(report.store.opened)} table=${yesNo(report.store.tableExists)} ` +
+                `rows=${report.store.rowCount ?? "n/a"} live=${report.store.liveCount ?? "n/a"} ` +
+                `init=${ms(report.store.initDurationMs)}`);
+            console.log(`  FTS: available=${yesNo(report.fts.available)} index=${report.fts.indexName ?? "none"} ` +
+                `unindexedRows=${report.fts.unindexedRows ?? "n/a"} indices=${report.fts.indexCount ?? "n/a"} ` +
+                `lastError=${report.fts.lastError ?? "none"}`);
+            console.log(`  lance: manifests=${report.lancedb.manifestCount} ` +
+                `versionsDir=${yesNo(report.lancedb.versionsDirExists)} dataDir=${yesNo(report.lancedb.dataDirExists)} ` +
+                `latest=${report.lancedb.latestManifest ?? "n/a"} structurallyCorrupt=${yesNo(report.lancedb.structurallyCorrupt)}`);
+            console.log(`    ${report.lancedb.detail}`);
+            if (report.warnings.length === 0) {
+                console.log("  warnings: none");
+            }
+            else {
+                console.log(`  warnings (${report.warnings.length}):`);
+                for (const warning of report.warnings) {
+                    console.log(`    - ${warning}`);
+                }
+            }
+            console.log("  recovery hints:");
+            console.log("    - stuck lock with a dead holder: rm -rf \"<lock path>.lock\"");
+            console.log("    - raise the wait limit: storage.writeLockTimeoutMs (or MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS)");
+            console.log("    - skip background index catch-up: storage.indexCatchUp=false");
+            console.log("    - corrupt table, never delete data: mv \"<dbPath>/memories.lance\" \"<dbPath>/memories.lance.corrupt-<UTC>\"");
+        }
+        catch (error) {
+            console.error("doctor failed:", error);
             process.exit(1);
         }
     });

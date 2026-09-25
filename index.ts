@@ -168,6 +168,25 @@ interface PluginConfig {
     readConsistencyIntervalSeconds?: number;
   };
   redisUrl?: string;
+  storage?: {
+    /** Hard ceiling (ms) for waiting on the cross-process write lock. Once
+     *  exceeded, the write fails with a readable error carrying recovery
+     *  steps instead of waiting silently. Env: MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS. */
+    writeLockTimeoutMs?: number;
+    /** Wait (ms) after which the first progress warning is logged while
+     *  contending for the write lock. Env: MEMORY_LANCEDB_WRITE_LOCK_WARN_AFTER_MS. */
+    writeLockWarnAfterMs?: number;
+    /** Hard ceiling (ms) for opening the store. Env: MEMORY_LANCEDB_OPEN_TIMEOUT_MS. */
+    openTimeoutMs?: number;
+    /** Run the background FTS/index catch-up fold after init (reads never
+     *  block either way). Env: MEMORY_LANCEDB_INDEX_CATCHUP=0. */
+    indexCatchUp?: boolean;
+    /** Hard ceiling (ms) for a single index/optimize fold. Env: MEMORY_LANCEDB_INDEX_CATCHUP_TIMEOUT_MS. */
+    indexCatchUpTimeoutMs?: number;
+    /** Quarantine a structurally corrupt memories.lance by renaming (never
+     *  deleting) it. Env: MEMORY_LANCEDB_QUARANTINE_CORRUPT=1. Default false. */
+    quarantineCorruptTable?: boolean;
+  };
   locking?: {
     redis?: {
       enabled?: boolean;
@@ -2453,6 +2472,12 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
     disableNativeCosine: config.retrieval?.disableNativeCosine === true,
     readConsistencyInterval: config.storageMaintenance?.readConsistencyIntervalSeconds ?? 0,
     redisLock: config.locking?.redis,
+    writeLockTimeoutMs: config.storage?.writeLockTimeoutMs,
+    writeLockWarnAfterMs: config.storage?.writeLockWarnAfterMs,
+    openTimeoutMs: config.storage?.openTimeoutMs,
+    indexCatchUp: config.storage?.indexCatchUp,
+    indexCatchUpTimeoutMs: config.storage?.indexCatchUpTimeoutMs,
+    quarantineCorruptTable: config.storage?.quarantineCorruptTable,
     onStoragePathWarning: (message) => api.logger.warn(message),
     onLockWarning: (message) => api.logger.warn(message),
   });
@@ -6979,6 +7004,9 @@ export function parsePluginConfig(value: unknown): PluginConfig {
   const lockingRaw = typeof cfg.locking === "object" && cfg.locking !== null
     ? cfg.locking as Record<string, unknown>
     : null;
+  const storageRaw = typeof cfg.storage === "object" && cfg.storage !== null
+    ? cfg.storage as Record<string, unknown>
+    : null;
   const redisLockRaw = typeof lockingRaw?.redis === "object" && lockingRaw.redis !== null
     ? lockingRaw.redis as Record<string, unknown>
     : null;
@@ -7093,6 +7121,20 @@ export function parsePluginConfig(value: unknown): PluginConfig {
           retryDelayMs: parsePositiveInt(redisLockRaw?.retryDelayMs) ?? 50,
           connectTimeoutMs: parsePositiveInt(redisLockRaw?.connectTimeoutMs) ?? 1_000,
         },
+      }
+      : undefined,
+    storage: storageRaw
+      ? {
+        writeLockTimeoutMs: parsePositiveInt(storageRaw.writeLockTimeoutMs),
+        writeLockWarnAfterMs: parsePositiveInt(storageRaw.writeLockWarnAfterMs),
+        openTimeoutMs: parsePositiveInt(storageRaw.openTimeoutMs),
+        indexCatchUp:
+          typeof storageRaw.indexCatchUp === "boolean" ? storageRaw.indexCatchUp : undefined,
+        indexCatchUpTimeoutMs: parsePositiveInt(storageRaw.indexCatchUpTimeoutMs),
+        quarantineCorruptTable:
+          typeof storageRaw.quarantineCorruptTable === "boolean"
+            ? storageRaw.quarantineCorruptTable
+            : undefined,
       }
       : undefined,
     autoCapture: cfg.autoCapture !== false,

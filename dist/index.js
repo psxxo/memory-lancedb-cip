@@ -1783,6 +1783,12 @@ function _initPluginState(api) {
         disableNativeCosine: config.retrieval?.disableNativeCosine === true,
         readConsistencyInterval: config.storageMaintenance?.readConsistencyIntervalSeconds ?? 0,
         redisLock: config.locking?.redis,
+        writeLockTimeoutMs: config.storage?.writeLockTimeoutMs,
+        writeLockWarnAfterMs: config.storage?.writeLockWarnAfterMs,
+        openTimeoutMs: config.storage?.openTimeoutMs,
+        indexCatchUp: config.storage?.indexCatchUp,
+        indexCatchUpTimeoutMs: config.storage?.indexCatchUpTimeoutMs,
+        quarantineCorruptTable: config.storage?.quarantineCorruptTable,
         onStoragePathWarning: (message) => api.logger.warn(message),
         onLockWarning: (message) => api.logger.warn(message),
     });
@@ -5576,6 +5582,9 @@ export function parsePluginConfig(value) {
     const lockingRaw = typeof cfg.locking === "object" && cfg.locking !== null
         ? cfg.locking
         : null;
+    const storageRaw = typeof cfg.storage === "object" && cfg.storage !== null
+        ? cfg.storage
+        : null;
     const redisLockRaw = typeof lockingRaw?.redis === "object" && lockingRaw.redis !== null
         ? lockingRaw.redis
         : null;
@@ -5676,6 +5685,18 @@ export function parsePluginConfig(value) {
                     retryDelayMs: parsePositiveInt(redisLockRaw?.retryDelayMs) ?? 50,
                     connectTimeoutMs: parsePositiveInt(redisLockRaw?.connectTimeoutMs) ?? 1_000,
                 },
+            }
+            : undefined,
+        storage: storageRaw
+            ? {
+                writeLockTimeoutMs: parsePositiveInt(storageRaw.writeLockTimeoutMs),
+                writeLockWarnAfterMs: parsePositiveInt(storageRaw.writeLockWarnAfterMs),
+                openTimeoutMs: parsePositiveInt(storageRaw.openTimeoutMs),
+                indexCatchUp: typeof storageRaw.indexCatchUp === "boolean" ? storageRaw.indexCatchUp : undefined,
+                indexCatchUpTimeoutMs: parsePositiveInt(storageRaw.indexCatchUpTimeoutMs),
+                quarantineCorruptTable: typeof storageRaw.quarantineCorruptTable === "boolean"
+                    ? storageRaw.quarantineCorruptTable
+                    : undefined,
             }
             : undefined,
         autoCapture: cfg.autoCapture !== false,

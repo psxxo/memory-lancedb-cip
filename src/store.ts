@@ -10,6 +10,7 @@ import {
   accessSync,
   constants,
   mkdirSync,
+  readdirSync,
   realpathSync,
   lstatSync,
   unlinkSync,
@@ -19,12 +20,16 @@ import {
   access as accessAsync,
   lstat as lstatAsync,
   mkdir as mkdirAsync,
+  readdir as readdirAsync,
+  readFile as readFileAsync,
   realpath as realpathAsync,
+  rename as renameAsync,
   rmdir as rmdirAsync,
   stat as statAsync,
   unlink as unlinkAsync,
   writeFile as writeFileAsync,
 } from "node:fs/promises";
+import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { matchesMemoryCategoryFilter, resolveCategoryFilterCandidates } from "./memory-categories.js";
@@ -77,12 +82,75 @@ export interface StoreConfig {
   redisLock?: RedisLockConfig;
   onStoragePathWarning?: (message: string) => void;
   onLockWarning?: (message: string) => void;
+  /** Hard ceiling for waiting on the cross-process write lock. Once exceeded,
+   *  the write fails with a readable error carrying recovery steps instead of
+   *  waiting silently. Env override: MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS.
+   *  Default: DEFAULT_WRITE_LOCK_TIMEOUT_MS (30s). */
+  writeLockTimeoutMs?: number;
+  /** Wait duration after which the first progress warning is logged while
+   *  contending for the write lock. Env override:
+   *  MEMORY_LANCEDB_WRITE_LOCK_WARN_AFTER_MS. Default: 5000. */
+  writeLockWarnAfterMs?: number;
+  /** Hard ceiling for opening the store (connect + table open). Prevents an
+   *  unbounded open from looking like a hang. Env override:
+   *  MEMORY_LANCEDB_OPEN_TIMEOUT_MS. Default: 120000. */
+  openTimeoutMs?: number;
+  /** Run the background FTS/index catch-up fold after init. Set false to make
+   *  maintenance strictly opt-in (reads never block either way). Env override:
+   *  MEMORY_LANCEDB_INDEX_CATCHUP=0. Default: true. */
+  indexCatchUp?: boolean;
+  /** Hard ceiling for a single index/optimize fold. Env override:
+   *  MEMORY_LANCEDB_INDEX_CATCHUP_TIMEOUT_MS. Default: 60000. */
+  indexCatchUpTimeoutMs?: number;
+  /** Quarantine a structurally corrupt `memories.lance` at open time by
+   *  renaming (never deleting) it to `memories.lance.corrupt-<UTC>`. Opt-in:
+   *  detection is deliberately narrow, and the default is off so a transient
+   *  open failure can never move a healthy table. Env override:
+   *  MEMORY_LANCEDB_QUARANTINE_CORRUPT=1. Default: false. */
+  quarantineCorruptTable?: boolean;
 }
 
 export interface StorageMaintenanceResult {
   retentionDays: number;
   cleanupOlderThan: string;
   stats: unknown;
+}
+
+/** Machine-readable store health snapshot emitted by `memory-cip doctor`. */
+export interface StoreDiagnostics {
+  dbPath: string;
+  dbPathExists: boolean;
+  dbPathWritable: boolean;
+  writeLockTimeoutMs: number;
+  lock: {
+    lockPath: string;
+    artifactPath: string;
+    artifactExists: boolean;
+    artifactAgeMs: number | null;
+    stale: boolean;
+    ownerPath: string;
+    ownerPid: number | null;
+    ownerHost: string | null;
+    ownerStartedAt: string | null;
+    ownerHintAgeMs: number | null;
+    hint: string;
+  };
+  store: {
+    opened: boolean;
+    initDurationMs: number | null;
+    tableExists: boolean;
+    rowCount: number | null;
+    liveCount: number | null;
+  };
+  fts: {
+    available: boolean;
+    lastError: string | null;
+    indexName: string | null;
+    unindexedRows: number | null;
+    indexCount: number | null;
+  };
+  lancedb: MemoryTableStructureAssessment;
+  warnings: string[];
 }
 
 export interface MetadataPatch {
@@ -413,6 +481,307 @@ function parseBooleanEnvFlag(value: string | undefined): boolean {
   return /^(1|true|yes|on)$/i.test((value ?? "").trim());
 }
 
+// ============================================================================
+// Bounded, observable lock waits and store opens (v1.2.5)
+// ============================================================================
+
+/** Default ceiling for waiting on the cross-process write lock. Deliberately
+ *  far below the historical ~151s exponential-backoff budget: a contended or
+ *  stale lock must surface as a readable error, never as a silent hang. */
+export const DEFAULT_WRITE_LOCK_TIMEOUT_MS = 30_000;
+export const MIN_WRITE_LOCK_TIMEOUT_MS = 100;
+export const MAX_WRITE_LOCK_TIMEOUT_MS = 600_000;
+/** First progress warning once a waiter has waited this long. */
+export const WRITE_LOCK_WARN_AFTER_MS = 5_000;
+/** Error code carried by a write-lock wait timeout. */
+export const WRITE_LOCK_TIMEOUT_CODE = "ELOCKWAITTIMEOUT";
+/** Sidecar holding the holder pid, so a waiter can name a suspected holder. */
+export const WRITE_LOCK_OWNER_SUFFIX = ".owner.json";
+/** proper-lockfile's own staleness window for the write-lock artifact. */
+export const WRITE_LOCK_STALE_MS = 10_000;
+
+export const DEFAULT_OPEN_TIMEOUT_MS = 120_000;
+export const DEFAULT_INDEX_CATCHUP_TIMEOUT_MS = 60_000;
+
+function resolveBoundedMs(raw: unknown, fallback: number, min: number, max: number): number {
+  const value = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(value)));
+}
+
+/** Resolve the write-lock wait ceiling from env, then config, then default. */
+export function resolveWriteLockTimeoutMs(config: { writeLockTimeoutMs?: number }): number {
+  const envRaw = process.env.MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS;
+  const fromEnv = envRaw === undefined || envRaw === "" ? undefined : Number(envRaw);
+  const candidate = Number.isFinite(fromEnv as number) ? fromEnv : config.writeLockTimeoutMs;
+  return resolveBoundedMs(
+    candidate,
+    DEFAULT_WRITE_LOCK_TIMEOUT_MS,
+    MIN_WRITE_LOCK_TIMEOUT_MS,
+    MAX_WRITE_LOCK_TIMEOUT_MS,
+  );
+}
+
+/** Resolve when contention progress warnings start. */
+export function resolveWriteLockWarnAfterMs(config: { writeLockWarnAfterMs?: number }): number {
+  const envRaw = process.env.MEMORY_LANCEDB_WRITE_LOCK_WARN_AFTER_MS;
+  const fromEnv = envRaw === undefined || envRaw === "" ? undefined : Number(envRaw);
+  const candidate = Number.isFinite(fromEnv as number) ? fromEnv : config.writeLockWarnAfterMs;
+  return resolveBoundedMs(candidate, WRITE_LOCK_WARN_AFTER_MS, 100, 300_000);
+}
+
+/** Resolve the store-open ceiling (connect + table open). */
+export function resolveOpenTimeoutMs(config: { openTimeoutMs?: number }): number {
+  const envRaw = process.env.MEMORY_LANCEDB_OPEN_TIMEOUT_MS;
+  const fromEnv = envRaw === undefined || envRaw === "" ? undefined : Number(envRaw);
+  const candidate = Number.isFinite(fromEnv as number) ? fromEnv : config.openTimeoutMs;
+  return resolveBoundedMs(candidate, DEFAULT_OPEN_TIMEOUT_MS, 1_000, 3_600_000);
+}
+
+/** Resolve whether the background index catch-up fold runs after init. */
+export function resolveIndexCatchUpEnabled(config: { indexCatchUp?: boolean }): boolean {
+  const envRaw = (process.env.MEMORY_LANCEDB_INDEX_CATCHUP ?? "").trim();
+  if (/^(0|false|no|off)$/i.test(envRaw)) return false;
+  if (/^(1|true|yes|on)$/i.test(envRaw)) return true;
+  return config.indexCatchUp !== false;
+}
+
+/** Resolve the ceiling for a single index fold. */
+export function resolveIndexCatchUpTimeoutMs(config: { indexCatchUpTimeoutMs?: number }): number {
+  const envRaw = process.env.MEMORY_LANCEDB_INDEX_CATCHUP_TIMEOUT_MS;
+  const fromEnv = envRaw === undefined || envRaw === "" ? undefined : Number(envRaw);
+  const candidate = Number.isFinite(fromEnv as number) ? fromEnv : config.indexCatchUpTimeoutMs;
+  return resolveBoundedMs(candidate, DEFAULT_INDEX_CATCHUP_TIMEOUT_MS, 1_000, 3_600_000);
+}
+
+function resolveQuarantineCorruptEnabled(raw: boolean | undefined): boolean {
+  const envRaw = (process.env.MEMORY_LANCEDB_QUARANTINE_CORRUPT ?? "").trim();
+  if (/^(1|true|yes|on)$/i.test(envRaw)) return true;
+  if (/^(0|false|no|off)$/i.test(envRaw)) return false;
+  return raw === true;
+}
+
+function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms)) return "unknown";
+  return ms < 1000 ? `${Math.max(0, Math.round(ms))}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Race a promise against a deadline. The losing promise keeps its own
+ *  handlers attached so a late rejection can never surface as unhandled. */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, description: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          const err = new Error(`${description} (timed out after ${timeoutMs}ms)`);
+          (err as NodeJS.ErrnoException).code = "ETIMEDOUT";
+          reject(err);
+        }, timeoutMs);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    promise.catch(() => {});
+  }
+}
+
+/**
+ * Describe who is currently holding the write lock, for progress warnings and
+ * timeout errors. proper-lockfile's artifact is a bare directory with no owner
+ * metadata, so the pid comes from the sidecar this module writes on acquire;
+ * treat it as a hint (a crashed holder leaves the hint behind).
+ */
+export async function describeLockContention(
+  lockArtifactPath: string,
+  ownerPath: string,
+): Promise<string> {
+  const lines: string[] = [];
+
+  try {
+    const stat = await statAsync(lockArtifactPath);
+    const ageMs = Date.now() - stat.mtimeMs;
+    lines.push(
+      `Lock artifact: ${lockArtifactPath} (age=${formatDurationMs(ageMs)}, ` +
+      `holder-mtime=${new Date(stat.mtimeMs).toISOString()}, ` +
+      `stale=${ageMs > WRITE_LOCK_STALE_MS ? "yes" : "no"})`,
+    );
+  } catch {
+    lines.push(`Lock artifact: ${lockArtifactPath} (absent — the lock may have just been released)`);
+  }
+
+  try {
+    const parsed = JSON.parse(await readFileAsync(ownerPath, "utf8")) as {
+      pid?: unknown;
+      host?: unknown;
+      startedAt?: unknown;
+    };
+    let ownerAgeMs: number | null = null;
+    try {
+      ownerAgeMs = Date.now() - (await statAsync(ownerPath)).mtimeMs;
+    } catch {}
+    lines.push(
+      `Suspected holder: pid=${typeof parsed.pid === "number" ? parsed.pid : "unknown"} ` +
+      `host=${typeof parsed.host === "string" ? parsed.host : "unknown"} ` +
+      `heldSince=${typeof parsed.startedAt === "string" ? parsed.startedAt : "unknown"} ` +
+      `hintAge=${ownerAgeMs === null ? "unknown" : formatDurationMs(ownerAgeMs)} ` +
+      `(hint file: ${ownerPath}; stale if the holder crashed)`,
+    );
+  } catch {
+    lines.push(`Suspected holder: unknown (no owner hint at ${ownerPath})`);
+  }
+
+  return lines.join("\n  ");
+}
+
+// ---------------------------------------------------------------------------
+// Structural health of the LanceDB table directory
+// ---------------------------------------------------------------------------
+
+export interface MemoryTableStructureAssessment {
+  dbPath: string;
+  tableDir: string;
+  tableDirExists: boolean;
+  versionsDir: string;
+  versionsDirExists: boolean;
+  manifestCount: number;
+  /** Manifests that are non-empty. A zero-byte manifest cannot be parsed by
+   *  LanceDB, so only these count as evidence of a healthy version history. */
+  usableManifestCount: number;
+  latestManifest: string | null;
+  dataDirExists: boolean;
+  /** True only for damage a transient failure cannot explain: the table
+   *  directory exists but holds no usable version manifest, so no LanceDB
+   *  version can be opened from it. Deliberately narrow. */
+  structurallyCorrupt: boolean;
+  detail: string;
+}
+
+/**
+ * Inspect the on-disk shape of `<dbPath>/memories.lance`.
+ *
+ * The corruption signal is intentionally conservative: a missing table
+ * directory, a transient stat failure, or a table directory LanceDB can
+ * rebuild are NOT reported as corruption. Only "the table directory is
+ * present and holds no usable (non-empty) version manifest" is — a healthy
+ * writer never produces that shape, and LanceDB cannot open it (verified:
+ * both openTable and createTable fail on it).
+ *
+ * Known limitation, deliberately not guessed at: a manifest that is present
+ * and non-empty but has torn contents still fails to open, and is NOT flagged
+ * as corruption — validating LanceDB's FlatBuffers manifest without the SDK
+ * is not reliable, and a false positive would move a healthy table. Such a
+ * store refuses to open with a readable error instead.
+ */
+export function assessMemoryTableStructure(dbPath: string): MemoryTableStructureAssessment {
+  const tableDir = join(dbPath, `${TABLE_NAME}.lance`);
+  const versionsDir = join(tableDir, "_versions");
+  const dataDir = join(tableDir, "data");
+
+  const tableDirExists = safeIsDirectory(tableDir);
+  const versionsDirExists = tableDirExists && safeIsDirectory(versionsDir);
+  const dataDirExists = tableDirExists && safeIsDirectory(dataDir);
+
+  const manifestNames = versionsDirExists
+    ? safeReadDirNames(versionsDir).filter((name) => name.endsWith(".manifest"))
+    : [];
+  const usable = manifestNames.filter((name) => safeFileSize(join(versionsDir, name)) > 0);
+  const manifests = usable.sort((left, right) => Number(left.split(".")[0]) - Number(right.split(".")[0]));
+  const latestManifest = manifests.length > 0 ? manifests[manifests.length - 1] : null;
+
+  const structurallyCorrupt = tableDirExists && usable.length === 0;
+
+  const detail = !tableDirExists
+    ? `table directory absent (fresh store or different dbPath): ${tableDir}`
+    : structurallyCorrupt
+      ? `table directory exists but holds no usable version manifest ` +
+        `(${versionsDirExists ? `${manifestNames.length} manifest file(s) in ${versionsDir}, none non-empty` : `${versionsDir} is missing`}); ` +
+        `LanceDB cannot open or rebuild any version from this state`
+      : `table directory healthy: ${usable.length} usable manifest(s), dataDir=${dataDirExists}, latest=${latestManifest}`;
+
+  return {
+    dbPath,
+    tableDir,
+    tableDirExists,
+    versionsDir,
+    versionsDirExists,
+    manifestCount: manifestNames.length,
+    usableManifestCount: usable.length,
+    latestManifest,
+    dataDirExists,
+    structurallyCorrupt,
+    detail,
+  };
+}
+
+function safeFileSize(path: string): number {
+  try {
+    const stat = lstatSync(path);
+    return stat.isFile() && stat.size > 0 ? stat.size : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function safeIsDirectory(path: string): boolean {
+  try {
+    return existsSync(path) && lstatSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function safeHostname(): string {
+  try {
+    return hostname();
+  } catch {
+    return "unknown";
+  }
+}
+
+function safeReadDirNames(path: string): string[] {
+  try {
+    return readdirSync(path) as string[];
+  } catch {
+    return [];
+  }
+}
+
+/** Open errors that a retry (not a quarantine) is the right answer for. */
+const TRANSIENT_OPEN_ERROR_CODES = new Set([
+  "EMFILE",
+  "ENFILE",
+  "ENOMEM",
+  "ENOSPC",
+  "EAGAIN",
+  "EBUSY",
+  "EACCES",
+  "EPERM",
+  "ENOENT",
+  "ETIMEDOUT",
+  "ETXTBSY",
+  "ECOMPROMISED",
+  "ELOCKWAITTIMEOUT",
+  "ERR_LOCKED",
+]);
+
+function isTransientOpenError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException | undefined)?.code;
+  return typeof code === "string" && TRANSIENT_OPEN_ERROR_CODES.has(code);
+}
+
+function corruptQuarantineTargetName(tableDir: string, at: Date = new Date()): string {
+  // UTC, filesystem-safe: memories.lance.corrupt-2026-09-25T12-34-56-789Z
+  const stamp = at.toISOString().replace(/[:.]/g, "-");
+  return `${tableDir}.corrupt-${stamp}`;
+}
+
 function toNumberVector(value: unknown): number[] {
   if (!value || typeof value !== "object") return [];
 
@@ -634,6 +1003,10 @@ export class MemoryStore {
   private nativeCosineFallbackLogged = false;
   private dataModsSinceIndexFold = 0;
   private indexFoldInFlight = false;
+  /** Wall-clock duration of the last successful doInitialize(), for doctor. */
+  private initDurationMs: number | null = null;
+  /** Explicit opt-in/out for corrupt-table quarantine, overriding config/env. */
+  private corruptQuarantineOverride: boolean | null = null;
 
   // Cross-call batch accumulator（Issue #690）
   // 多個 concurrent bulkStore() 會先累積在這裡，每 100ms flush 一次，
@@ -699,9 +1072,18 @@ export class MemoryStore {
       try { await writeFileAsync(lockPath, "", { flag: "wx" }); } catch {}
     };
     await ensureLockTargetExists();
-    // 【修復 #415】調整 retries：max wait 從 ~3100ms → ~151秒
-    // 指數退避：1s, 2s, 4s, 8s, 16s, 30s×5，總計約 151 秒
-    // ECOMPROMISED 透過 onCompromised callback 觸發（非 throw），使用 flag 機制正確處理
+
+    // 【v1.2.5】有界等待 + 可观测：等待上限可配置（storage.writeLockTimeoutMs /
+    // MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS），默认 30s（历史值曾达 ~151s 且全程静默）。
+    // 超过 warnAfterMs 后周期性打印进度（锁路径、已等待时长、疑似持有者 PID、恢复方式）。
+    // ECOMPROMISED 透過 onCompromised callback 觸發（非 throw），使用 flag 機制正確處理。
+    const writeLockTimeoutMs = resolveWriteLockTimeoutMs(this.config);
+    const writeLockWarnAfterMs = resolveWriteLockWarnAfterMs(this.config);
+    // Warn once the threshold is crossed and then once per further threshold of
+    // waiting, so the default 5s threshold guarantees a line for any wait >5s
+    // (and at least two lines for any wait >10s) — never a silent wait.
+    const writeLockWarnIntervalMs = Math.max(100, writeLockWarnAfterMs);
+    const ownerPath = `${lockPath}${WRITE_LOCK_OWNER_SUFFIX}`;
     let isCompromised = false;
     let compromisedErr: unknown = null;
     let fnSucceeded = false;
@@ -733,13 +1115,10 @@ export class MemoryStore {
       // 根本原因：v4 proper-lockfile 的 resolveCanonicalPath 預設呼叫 fs.realpath()。
       // 解決：realpath:false 完全繞過 realpath()，對 lock file 場景完全無副作用。
       realpath: false,
-      retries: {
-        retries: 10,
-        factor: 2,
-        minTimeout: 1000, // James 保守設定：避免高負載下過度密集重試
-        maxTimeout: 30000, // James 保守設定：支撐更久的 event loop 阻塞
-      },
-      stale: 10000, // 10 秒後視為 stale，觸發 ECOMPROMISED callback
+      // 【v1.2.5】單次嘗試。重試節奏、deadline 與進度日誌由下方 runWithFileLock
+      // 的迴圈統一負責，這樣等待中的 caller 永遠能報告「為何還在等」與「何時放棄」。
+      retries: 0,
+      stale: WRITE_LOCK_STALE_MS, // 10 秒後視為 stale，觸發 ECOMPROMISED callback
                      // 注意：ECOMPROMISED 是 ambiguous degradation 訊號，mtime 無法區分
                      // "holder 崩潰" vs "holder event loop 阻塞"，所以不嘗試區分
       onCompromised: (err: unknown) => {
@@ -750,17 +1129,56 @@ export class MemoryStore {
       },
     });
 
-    let release: Awaited<ReturnType<typeof acquireLock>>;
-    try {
-      release = await acquireLock();
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-        await ensureLockTargetExists();
+    const waitStartedAt = Date.now();
+    const waitDeadline = waitStartedAt + writeLockTimeoutMs;
+    let attempt = 0;
+    let lastWarnAt = waitStartedAt;
+    let release: Awaited<ReturnType<typeof acquireLock>> | null = null;
+
+    while (release === null) {
+      try {
         release = await acquireLock();
-      } else {
-        throw err;
+        break;
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === "ENOENT") {
+          // Lock target vanished between the existence probe and lock():
+          // recreate it and retry, still bounded by the same deadline.
+          await ensureLockTargetExists();
+        } else if (code !== "ELOCKED") {
+          // Anything else (EBADF/EPERM/…) is a real failure, not contention.
+          throw err;
+        }
+        attempt += 1;
+        const waitedMs = Date.now() - waitStartedAt;
+        if (Date.now() >= waitDeadline) {
+          throw await this.buildLockWaitTimeoutError(
+            lockPath,
+            lockArtifactPath,
+            ownerPath,
+            waitedMs,
+            writeLockTimeoutMs,
+          );
+        }
+        if (waitedMs >= writeLockWarnAfterMs && Date.now() - lastWarnAt >= writeLockWarnIntervalMs) {
+          lastWarnAt = Date.now();
+          console.warn(
+            `[memory-lancedb-cip] still waiting for the memory write lock after ${formatDurationMs(waitedMs)} ` +
+            `(limit ${formatDurationMs(writeLockTimeoutMs)})\n` +
+            `  Lock: ${lockPath}\n` +
+            `  ${await describeLockContention(lockArtifactPath, ownerPath)}\n` +
+            `  Recovery: if the holder is gone, remove the stale artifact: rm -rf "${lockArtifactPath}"\n` +
+            `            run \`memory-cip doctor\` for a full lock/store report.`,
+          );
+        }
+        // Bounded, responsive backoff: 250ms → 500ms → 1s, never past the deadline.
+        const backoffMs = Math.min(1000, 250 * 2 ** Math.min(attempt, 2));
+        const remainingMs = waitDeadline - Date.now();
+        await sleepMs(remainingMs > 0 ? Math.min(backoffMs, remainingMs) : 1);
       }
     }
+
+    this.writeLockOwnerHint(ownerPath);
 
     try {
       const result = await fn();
@@ -772,16 +1190,22 @@ export class MemoryStore {
     } finally {
       // 【修復 #415 BUG】release() 必須在 isCompromised 判斷之前呼叫
       // 否則當 fnError !== null 且 isCompromised === true 時，release() 不會被呼叫，lock 永久洩漏
+      let releaseError: unknown = null;
       try {
-        await release();
+        await release!();
       } catch (e: unknown) {
         if ((e as NodeJS.ErrnoException).code === 'ERELEASED') {
           // ERELEASED 是預期行為（compromised lock release），忽略
         } else {
           // release() 錯誤優先於 fn() 錯誤：若 release 本身失敗，視為更嚴重的問題
           // 而非靜默忽略（這是有意的設計選擇，不反映 fn 的錯誤）
-          throw e;
+          releaseError = e;
         }
+      }
+      // The owner hint is bookkeeping only — it must never mask a lock result.
+      this.clearLockOwnerHint(ownerPath);
+      if (releaseError !== null) {
+        throw releaseError;
       }
       if (isCompromised) {
         // fnError 優先：fn() 失敗時，fn 的錯誤比 compromised 重要
@@ -800,6 +1224,64 @@ export class MemoryStore {
         );
       }
     }
+  }
+
+  /**
+   * Build the readable error thrown when a write-lock wait exceeds its bound.
+   * Carries WRITE_LOCK_TIMEOUT_CODE, names the artifact, the suspected holder
+   * and the exact recovery steps, so a stuck lock never looks like a hang.
+   */
+  private async buildLockWaitTimeoutError(
+    lockPath: string,
+    lockArtifactPath: string,
+    ownerPath: string,
+    waitedMs: number,
+    timeoutMs: number,
+  ): Promise<Error> {
+    const err = new Error(
+      `Timed out after ${formatDurationMs(waitedMs)} waiting for the memory write lock.\n` +
+      `  Lock: ${lockPath}\n` +
+      `  Limit: ${timeoutMs}ms (storage.writeLockTimeoutMs / MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS)\n` +
+      `  ${await describeLockContention(lockArtifactPath, ownerPath)}\n` +
+      `  Recovery:\n` +
+      `    1) Identify the writer: check the suspected holder PID above, or run \`memory-cip doctor --json\`.\n` +
+      `    2) If the holder is gone (stale lock), remove the artifact: rm -rf "${lockArtifactPath}"\n` +
+      `    3) If a writer is genuinely busy, raise the limit: set storage.writeLockTimeoutMs (e.g. 120000).\n` +
+      `  This attempt wrote nothing: no data was modified or lost.`,
+    );
+    (err as NodeJS.ErrnoException).code = WRITE_LOCK_TIMEOUT_CODE;
+    return err;
+  }
+
+  /**
+   * Record the lock holder so a contending process can name a suspected holder.
+   * proper-lockfile's artifact holds no owner metadata, hence this sidecar.
+   * Best-effort: a failure here must never affect lock correctness.
+   */
+  private writeLockOwnerHint(ownerPath: string): void {
+    try {
+      writeFileSync(
+        ownerPath,
+        JSON.stringify({
+          pid: process.pid,
+          host: safeHostname(),
+          startedAt: new Date().toISOString(),
+        }),
+        { mode: 0o600 },
+      );
+    } catch {}
+  }
+
+  private clearLockOwnerHint(ownerPath: string): void {
+    try {
+      unlinkSync(ownerPath);
+    } catch {}
+  }
+
+  /** Opt in (or out) of quarantining a structurally corrupt memories.lance at
+   *  open time. Wired to `memory-cip doctor --quarantine-corrupt`. */
+  setCorruptQuarantine(enabled: boolean): void {
+    this.corruptQuarantineOverride = enabled === true;
   }
 
   private async runWithWriteLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -869,18 +1351,27 @@ export class MemoryStore {
     this.indexFoldInFlight = true;
     const mods = this.dataModsSinceIndexFold;
     this.dataModsSinceIndexFold = 0;
+    const startedAt = Date.now();
+    const foldTimeoutMs = resolveIndexCatchUpTimeoutMs(this.config);
+    console.log(
+      `[memory-lancedb-cip] index fold starting (reason=${reason}, modsSinceLast=${mods}, timeout=${formatDurationMs(foldTimeoutMs)})`,
+    );
     try {
       await this.runWithWriteLock(async () => {
-        await this.table!.optimize({ cleanupOlderThan: new Date(0) });
+        await withTimeout(
+          this.table!.optimize({ cleanupOlderThan: new Date(0) }),
+          foldTimeoutMs,
+          `index fold (reason=${reason}) at "${this.config.dbPath}" did not return`,
+        );
       });
       console.log(
-        `[memory-lancedb-cip] index fold completed (reason=${reason}, modsSinceLast=${mods})`,
+        `[memory-lancedb-cip] index fold completed (reason=${reason}, modsSinceLast=${mods}, elapsed=${formatDurationMs(Date.now() - startedAt)})`,
       );
     } catch (err) {
       // Re-arm the counter so a transient failure retries on later writes.
       this.dataModsSinceIndexFold += mods;
       console.warn(
-        `[memory-lancedb-cip] index fold failed (reason=${reason}): ${err instanceof Error ? err.message : String(err)}`,
+        `[memory-lancedb-cip] index fold failed (reason=${reason}, elapsed=${formatDurationMs(Date.now() - startedAt)}): ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       this.indexFoldInFlight = false;
@@ -902,6 +1393,12 @@ export class MemoryStore {
   }
 
   private async scheduleStartupIndexCatchUp(): Promise<void> {
+    if (!resolveIndexCatchUpEnabled(this.config)) {
+      console.log(
+        "[memory-lancedb-cip] FTS catch-up fold skipped (storage.indexCatchUp=false / MEMORY_LANCEDB_INDEX_CATCHUP=0)",
+      );
+      return;
+    }
     try {
       const table = this.table;
       if (!table || typeof table.indexStats !== "function") return;
@@ -914,7 +1411,8 @@ export class MemoryStore {
       const backlog = stats?.numUnindexedRows ?? 0;
       if (backlog >= MemoryStore.INDEX_FOLD_OP_THRESHOLD) {
         console.log(
-          `[memory-lancedb-cip] FTS index has ${backlog} unindexed rows; scheduling catch-up fold`,
+          `[memory-lancedb-cip] FTS index has ${backlog} unindexed rows; scheduling background catch-up fold ` +
+          `(reads are not blocked; bounded by indexCatchUpTimeoutMs)`,
         );
         void this.foldIndices("startup-backlog");
       }
@@ -941,6 +1439,12 @@ export class MemoryStore {
   }
 
   private async doInitialize(): Promise<void> {
+    const initStartedAt = Date.now();
+    const openTimeoutMs = resolveOpenTimeoutMs(this.config);
+    const logStage = (message: string) =>
+      console.log(`[memory-lancedb-cip] ${message} (+${formatDurationMs(Date.now() - initStartedAt)})`);
+
+    logStage(`opening store at "${this.config.dbPath}" (open timeout ${openTimeoutMs}ms)`);
     try {
       this.config.dbPath = await validateStoragePathAsync(this.config.dbPath);
     } catch (err) {
@@ -953,20 +1457,31 @@ export class MemoryStore {
     const lancedb = await loadLanceDB();
 
     let db: LanceDB.Connection;
+    let table: LanceDB.Table;
     try {
-      db = await lancedb.connect(this.config.dbPath, {
-        readConsistencyInterval: this.config.readConsistencyInterval,
-      });
-    } catch (err: any) {
-      const code = err.code || "";
-      const message = err.message || String(err);
-      throw new Error(
-        `Failed to open LanceDB at "${this.config.dbPath}": ${code} ${message}\n` +
-        `  Fix: Verify the path exists and is writable. Check parent directory permissions.`,
+      const connectStartedAt = Date.now();
+      db = await withTimeout(
+        lancedb.connect(this.config.dbPath, {
+          readConsistencyInterval: this.config.readConsistencyInterval,
+        }),
+        openTimeoutMs,
+        `LanceDB connect at "${this.config.dbPath}" did not return`,
       );
-    }
+      logStage(`db opened in ${formatDurationMs(Date.now() - connectStartedAt)}`);
 
-    const table = await this.openOrCreateMemoryTable(db);
+      // A structurally corrupt table must never be opened silently, and must
+      // never be deleted. openTableWithCorruptionRecovery() either opens the
+      // existing table, quarantines it by rename (opt-in only) and starts
+      // empty with a loud warning, or fails with the original error intact.
+      table = await withTimeout(
+        this.openTableWithCorruptionRecovery(db),
+        openTimeoutMs,
+        `opening table "${TABLE_NAME}" at "${this.config.dbPath}" did not return`,
+      );
+      logStage(`table "${TABLE_NAME}" opened`);
+    } catch (err: any) {
+      throw this.buildStoreOpenError(err, openTimeoutMs);
+    }
 
     await this.backfillLegacySecondTimestamps(table);
 
@@ -983,11 +1498,20 @@ export class MemoryStore {
       }
     }
 
-    // Create FTS index for BM25 search (graceful fallback if unavailable)
+    // Create FTS index for BM25 search (graceful fallback if unavailable).
+    // The read-only probe below means the steady state takes NO write lock at
+    // all: only a genuinely missing index pays for one, so a read-only CLI
+    // invocation can never queue behind index maintenance.
+    const ftsStartedAt = Date.now();
     try {
-      await this.createFtsIndexWithWriteLock(table);
+      const ftsExisted = await this.hasFtsIndexRow(table);
+      if (!ftsExisted) {
+        logStage("FTS index missing; creating (takes the write lock)");
+      }
+      await this.createFtsIndexIfMissing(table);
       this.ftsIndexCreated = true;
       this._lastFtsError = null;
+      logStage(`FTS index ${ftsExisted ? "present" : "created"} in ${formatDurationMs(Date.now() - ftsStartedAt)}`);
     } catch (err) {
       console.warn(
         "Failed to create FTS index, falling back to vector-only search:",
@@ -999,9 +1523,14 @@ export class MemoryStore {
 
     this.db = db;
     this.table = table;
+    this.initDurationMs = Date.now() - initStartedAt;
+    logStage(
+      `ready in ${formatDurationMs(this.initDurationMs)} ` +
+      `(table=${TABLE_NAME}, fts=${this.ftsIndexCreated ? "available" : "unavailable"})`,
+    );
 
     // Fold any unindexed backlog accumulated while no maintenance ran
-    // (best-effort, runs in the background, never blocks initialization).
+    // (best-effort, runs in the background, never blocks initialization or reads).
     void this.scheduleStartupIndexCatchUp();
   }
 
@@ -1067,6 +1596,30 @@ export class MemoryStore {
     }
   }
 
+  /**
+   * Lock-free probe for legacy-timestamp work. Mirrors the WHERE clause the
+   * locked migration uses, then applies the same legacy predicates, so a
+   * `false` result means the locked path would have found nothing to do.
+   * Any read failure returns true (fall through to the locked path) rather
+   * than silently skipping a migration.
+   */
+  private async hasLegacySecondTimestampWork(table: LanceDB.Table): Promise<boolean> {
+    try {
+      const candidateRows = await table.query()
+        .where(
+          `(timestamp > 0 AND timestamp < ${LEGACY_SECONDS_TIMESTAMP_MAX}) OR ` +
+          `(metadata IS NOT NULL AND metadata != '{}' AND metadata != '')`
+        )
+        .toArray();
+      return candidateRows.some((row) =>
+        isLegacySecondTimestamp(row.timestamp) ||
+        metadataHasLegacySecondTimestamp(row.metadata),
+      );
+    } catch {
+      return true;
+    }
+  }
+
   private async openOrCreateMemoryTable(db: LanceDB.Connection): Promise<LanceDB.Table> {
     // Idempotent table init: try openTable first, create only if missing,
     // and handle the race where tableNames() misses an existing table but
@@ -1118,6 +1671,16 @@ export class MemoryStore {
 
   private async backfillLegacySecondTimestamps(table: LanceDB.Table): Promise<void> {
     try {
+      // Read-only pre-probe: in the steady state there is nothing legacy to
+      // normalize, and the write lock is the one thing an idle open could
+      // contend for. That is what lets a read-only CLI invocation open an
+      // already-migrated store without touching the write lock at all. The
+      // migration below re-checks under the lock, so skipping here can never
+      // skip real work.
+      if (!(await this.hasLegacySecondTimestampWork(table))) {
+        return;
+      }
+
       let normalizedCount = 0;
 
       await this.runWithWriteLock(async () => {
@@ -1252,6 +1815,110 @@ export class MemoryStore {
 
   private async createFtsIndexWithWriteLock(table: LanceDB.Table): Promise<void> {
     await this.runWithWriteLock(() => this.createFtsIndex(table));
+  }
+
+  /** Read-only FTS presence probe: takes NO lock, so read paths never queue. */
+  private async hasFtsIndexRow(table: LanceDB.Table): Promise<boolean> {
+    const indices = await table.listIndices();
+    return hasFtsIndex(indices);
+  }
+
+  /**
+   * Ensure the BM25 index exists, paying for the write lock only when it is
+   * genuinely missing. An already-indexed store resolves this with a plain
+   * listIndices() read, which is what keeps `memory-cip list` from blocking on
+   * FTS maintenance during a cold start.
+   */
+  private async createFtsIndexIfMissing(table: LanceDB.Table): Promise<void> {
+    if (await this.hasFtsIndexRow(table)) return;
+    await this.createFtsIndexWithWriteLock(table);
+  }
+
+  /** Readable open failure: path + reason + suggested commands, never a hang. */
+  private buildStoreOpenError(err: unknown, openTimeoutMs: number): Error {
+    const original = err instanceof Error ? err : new Error(String(err));
+    const code = (original as NodeJS.ErrnoException).code ?? "";
+    const structure = assessMemoryTableStructure(this.config.dbPath);
+    const enhanced = new Error(
+      `Failed to open LanceDB store at "${this.config.dbPath}": ${code} ${original.message}\n` +
+      `  Open timeout: ${openTimeoutMs}ms (storage.openTimeoutMs / MEMORY_LANCEDB_OPEN_TIMEOUT_MS)\n` +
+      `  Table directory: ${structure.detail}\n` +
+      `  Fix:\n` +
+      `    1) Verify the path exists and is writable, then check parent directory permissions.\n` +
+      `    2) Run \`memory-cip doctor\` for dbPath, lock, row-count, index and version-dir health.\n` +
+      `    3) If a writer holds the lock, its wait/timeout is now bounded and logged; see the lock lines above.\n` +
+      `    4) If the table directory is structurally damaged, quarantine it WITHOUT deleting data:\n` +
+      `       mv "${structure.tableDir}" "${corruptQuarantineTargetName(structure.tableDir)}"`,
+    );
+    if (code) (enhanced as NodeJS.ErrnoException).code = code;
+    return enhanced;
+  }
+
+  /**
+   * Open (or create) the memories table, with narrow, opt-in corruption
+   * recovery.
+   *
+   * Quarantine rules — deliberately conservative, because a false positive
+   * would move a healthy table:
+   *   - the open error must NOT be a transient code (EMFILE/ENOMEM/EACCES/…);
+   *   - assessMemoryTableStructure() must report a table directory that holds
+   *     no version manifest at all;
+   *   - quarantine is opt-in (config storage.quarantineCorruptTable,
+   *     MEMORY_LANCEDB_QUARANTINE_CORRUPT=1, or `doctor --quarantine-corrupt`).
+   * When the signal fires but the opt-in is off, the store logs the loud
+   * warning and fails with the original error instead of touching any data.
+   * The rename preserves every byte; nothing is ever deleted.
+   */
+  private async openTableWithCorruptionRecovery(db: LanceDB.Connection): Promise<LanceDB.Table> {
+    try {
+      return await this.openOrCreateMemoryTable(db);
+    } catch (err) {
+      if (isTransientOpenError(err)) throw err;
+
+      const structure = assessMemoryTableStructure(this.config.dbPath);
+      if (!structure.structurallyCorrupt) throw err;
+
+      const quarantineTarget = corruptQuarantineTargetName(structure.tableDir);
+      const quarantineEnabled = this.corruptQuarantineOverride === null
+        ? resolveQuarantineCorruptEnabled(this.config.quarantineCorruptTable)
+        : this.corruptQuarantineOverride;
+
+      if (!quarantineEnabled) {
+        console.error(
+          `[memory-lancedb-cip] STRUCTURAL CORRUPTION DETECTED — the store will NOT be modified.\n` +
+          `  Table dir: ${structure.tableDir}\n` +
+          `  Reason: ${structure.detail}\n` +
+          `  Original error: ${err instanceof Error ? err.message : String(err)}\n` +
+          `  No data was deleted or renamed. Inspect it first: ls -la "${structure.tableDir}" && memory-cip doctor --json\n` +
+          `  To START EMPTY while keeping every byte, quarantine the directory yourself:\n` +
+          `    mv "${structure.tableDir}" "${quarantineTarget}"\n` +
+          `  Or re-run with the opt-in flag: memory-cip doctor --quarantine-corrupt\n` +
+          `  To restore a quarantined directory later, stop all writers and move it back.`,
+        );
+        throw err;
+      }
+
+      console.error(
+        `[memory-lancedb-cip] STRUCTURAL CORRUPTION DETECTED — quarantining (NO DATA DELETED).\n` +
+        `  Table dir: ${structure.tableDir}\n` +
+        `  Reason: ${structure.detail}\n` +
+        `  Original error: ${err instanceof Error ? err.message : String(err)}\n` +
+        `  Quarantined to: ${quarantineTarget}\n` +
+        `  Starting with an EMPTY store. Recover manually from the quarantine path;\n` +
+        `  to restore, stop all writers and run: mv "${quarantineTarget}" "${structure.tableDir}"`,
+      );
+      try {
+        await renameAsync(structure.tableDir, quarantineTarget);
+      } catch (renameErr) {
+        console.error(
+          `[memory-lancedb-cip] quarantine rename failed, original table left untouched: ` +
+          `${renameErr instanceof Error ? renameErr.message : String(renameErr)}`,
+        );
+        throw err;
+      }
+      console.error(`[memory-lancedb-cip] quarantine complete: ${quarantineTarget} (data preserved)`);
+      return await this.openOrCreateMemoryTable(db);
+    }
   }
 
   async store(
@@ -3444,6 +4111,151 @@ export class MemoryStore {
   async refreshFtsSupport(): Promise<boolean> {
     await this.ensureInitialized();
     return this.refreshFtsSupportFromTable();
+  }
+
+  /**
+   * Collect a bounded, best-effort health snapshot of this store.
+   *
+   * Every probe is individually guarded: doctor must still produce useful
+   * output for a store that cannot open at all (that is exactly when it is
+   * needed), so failures become entries in `warnings` instead of throws.
+   */
+  async diagnose(): Promise<StoreDiagnostics> {
+    const dbPath = this.config.dbPath;
+    const warnings: string[] = [];
+    const lockPath = join(dbPath, ".memory-write.lock");
+    const artifactPath = `${lockPath}.lock`;
+    const ownerPath = `${lockPath}${WRITE_LOCK_OWNER_SUFFIX}`;
+    const structure = assessMemoryTableStructure(dbPath);
+
+    let dbPathExists = false;
+    try {
+      dbPathExists = (await statAsync(dbPath)).isDirectory();
+    } catch {}
+    let dbPathWritable = false;
+    try {
+      await accessAsync(dbPath, constants.W_OK);
+      dbPathWritable = true;
+    } catch {}
+    if (!dbPathExists) warnings.push(`dbPath does not exist yet: ${dbPath}`);
+    else if (!dbPathWritable) warnings.push(`dbPath is not writable: ${dbPath}`);
+
+    let artifactExists = false;
+    let artifactAgeMs: number | null = null;
+    let artifactStale = false;
+    try {
+      const stat = await statAsync(artifactPath);
+      artifactExists = true;
+      artifactAgeMs = Date.now() - stat.mtimeMs;
+      artifactStale = artifactAgeMs > WRITE_LOCK_STALE_MS;
+    } catch {}
+
+    let ownerPid: number | null = null;
+    let ownerHost: string | null = null;
+    let ownerStartedAt: string | null = null;
+    let ownerHintAgeMs: number | null = null;
+    try {
+      const parsed = JSON.parse(await readFileAsync(ownerPath, "utf8")) as {
+        pid?: unknown;
+        host?: unknown;
+        startedAt?: unknown;
+      };
+      if (typeof parsed.pid === "number") ownerPid = parsed.pid;
+      if (typeof parsed.host === "string") ownerHost = parsed.host;
+      if (typeof parsed.startedAt === "string") ownerStartedAt = parsed.startedAt;
+      try {
+        ownerHintAgeMs = Date.now() - (await statAsync(ownerPath)).mtimeMs;
+      } catch {}
+    } catch {}
+
+    let tableExists = false;
+    let rowCount: number | null = null;
+    let liveCount: number | null = null;
+    let opened = false;
+    try {
+      await this.ensureInitialized();
+      opened = true;
+      tableExists = Boolean(this.table);
+      const stats = await this.stats();
+      rowCount = stats.totalCount;
+      liveCount = stats.liveCount;
+    } catch (err) {
+      warnings.push(`store open/read failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    let indexName: string | null = null;
+    let unindexedRows: number | null = null;
+    let indexCount: number | null = null;
+    if (this.table && typeof (this.table as any).listIndices === "function") {
+      try {
+        const indices = await this.table.listIndices();
+        const list = Array.isArray(indices) ? indices : [];
+        indexCount = list.length;
+        const fts = list.find(
+          (idx: any) => idx?.indexType === "FTS" || idx?.columns?.includes("text"),
+        );
+        if (fts) {
+          indexName = (fts as any).name ?? "text";
+          if (typeof this.table.indexStats === "function") {
+            const stats = await this.table.indexStats(indexName!);
+            unindexedRows = stats?.numUnindexedRows ?? null;
+          }
+        }
+      } catch (err) {
+        warnings.push(`index inspection failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    } else if (opened) {
+      warnings.push("table handle unavailable for index inspection");
+    }
+
+    if (structure.structurallyCorrupt) {
+      warnings.push(
+        `structural corruption: ${structure.detail}. No data was modified. ` +
+        `Quarantine by rename (never delete): mv "${structure.tableDir}" "${corruptQuarantineTargetName(structure.tableDir)}"`,
+      );
+    }
+    if (artifactStale) {
+      warnings.push(
+        `write-lock artifact looks stale (age ${formatDurationMs(artifactAgeMs ?? 0)} > ${WRITE_LOCK_STALE_MS}ms): ${artifactPath}. ` +
+        `If no holder is alive, remove it: rm -rf "${artifactPath}"`,
+      );
+    }
+
+    return {
+      dbPath,
+      dbPathExists,
+      dbPathWritable,
+      writeLockTimeoutMs: resolveWriteLockTimeoutMs(this.config),
+      lock: {
+        lockPath,
+        artifactPath,
+        artifactExists,
+        artifactAgeMs,
+        stale: artifactStale,
+        ownerPath,
+        ownerPid,
+        ownerHost,
+        ownerStartedAt,
+        ownerHintAgeMs,
+        hint: await describeLockContention(artifactPath, ownerPath),
+      },
+      store: {
+        opened,
+        initDurationMs: this.initDurationMs,
+        tableExists,
+        rowCount,
+        liveCount,
+      },
+      fts: {
+        available: this.ftsIndexCreated,
+        lastError: this._lastFtsError,
+        indexName,
+        unindexedRows,
+        indexCount,
+      },
+      lancedb: structure,
+      warnings,
+    };
   }
 
   /** Get FTS index health status */
