@@ -198,7 +198,7 @@ describe("memory_forget direct-id references stay exact (destructive-path guard)
     workDir = mkdtempSync(path.join(tmpdir(), "lancedb-exact-ref-test-"));
     resetRegistration();
     harness = createPluginApiHarness({
-      // management tools on: memory_governance_promote / memory_archive share the
+      // management tools on: memory_promote / memory_archive share the
       // destructive-path exact-reference contract under test here
       pluginConfig: { ...makePluginConfig(workDir), enableManagementTools: true },
       resolveRoot: workDir,
@@ -271,8 +271,8 @@ describe("memory_forget direct-id references stay exact (destructive-path guard)
     assert.notEqual(meta.state, "archived", "the unrelated row must not be archived");
   });
 
-  it("memory_governance_promote with a malformed direct memoryId cannot touch an unrelated row, while the explicit query selector still resolves semantically", async () => {
-    const malformed = await callTool(harness.toolFactories, "memory_governance_promote", {
+  it("memory_promote with a malformed direct memoryId cannot touch an unrelated row, while the explicit query selector still resolves semantically", async () => {
+    const malformed = await callTool(harness.toolFactories, "memory_promote", {
       memoryId: "12345678-1234-1234-1234-123456789012,",
     });
     const malformedText = malformed.content?.[0]?.text ?? "";
@@ -280,7 +280,7 @@ describe("memory_forget direct-id references stay exact (destructive-path guard)
 
     // The dual selector keeps its documented contract: an explicit `query`
     // is the deliberate semantic path and must still resolve.
-    const byQuery = await callTool(harness.toolFactories, "memory_governance_promote", {
+    const byQuery = await callTool(harness.toolFactories, "memory_promote", {
       query: "unrelated durable note",
     });
     const byQueryText = JSON.stringify(byQuery?.content ?? "");

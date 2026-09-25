@@ -2392,7 +2392,7 @@ export function registerMemoryListTool(
   );
 }
 
-export function registerMemoryGovernancePromoteTool(
+export function registerMemoryPromoteTool(
   api: OpenClawPluginApi,
   context: ToolContext,
 ) {
@@ -2400,8 +2400,8 @@ export function registerMemoryGovernancePromoteTool(
     (toolCtx) => {
       const runtimeContext = resolveToolContext(context, toolCtx);
       return {
-        name: "memory_governance_promote",
-        label: "Memory Governance Promote",
+        name: "memory_promote",
+        label: "Memory Promote",
         description:
           "Promote a memory into confirmed/durable governance state so it can participate in conservative auto-recall.",
         parameters: Type.Object({
@@ -2500,7 +2500,7 @@ export function registerMemoryGovernancePromoteTool(
         },
       };
     },
-    { name: "memory_governance_promote" },
+    { name: "memory_promote" },
   );
 }
 
@@ -2933,7 +2933,7 @@ export function registerAllMemoryTools(
     registerMemoryStatsTool(api, context);
     registerMemoryDebugTool(api, context);
     registerMemoryListTool(api, context);
-    registerMemoryGovernancePromoteTool(api, context);
+    registerMemoryPromoteTool(api, context);
     registerMemoryArchiveTool(api, context);
     registerMemoryReflectionResolveTool(api, context);
     registerMemoryCompactTool(api, context);

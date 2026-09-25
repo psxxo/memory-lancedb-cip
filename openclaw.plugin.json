@@ -2477,7 +2477,7 @@
       "memory_debug",
       "memory_compact",
       "memory_archive",
-      "memory_governance_promote",
+      "memory_promote",
       "memory_explain_rank",
       "memory_reflection_resolve",
       "self_improvement_log",

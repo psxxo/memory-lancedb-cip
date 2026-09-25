@@ -5,7 +5,7 @@ Zero-trace rename — the legacy `pro` token no longer appears anywhere in the t
 - CLI command namespace is now `memory-cip` (the host routing declaration, every log/error prefix, the docs and the tests all follow it).
 - Plugin manifest `id` is `memory-lancedb-cip` (the old ClawHub-locked id is gone).
 - Env vars use the new forms: `MEMORY_CIP_OAUTH_*` and `MEMORY_LANCEDB_CIP_DB_PATH`.
-- The governance tool is now `memory_governance_promote` (label "Memory Governance Promote").
+- The governance tool is now `memory_promote` (label "Memory Promote").
 - Upstream repository / release / setup-script / skill URLs and their install sections removed; the npm badge, issues and contributors links now point at this fork.
 - Attribution reduced to one credit line per README; `LICENSE` unchanged (MIT, original copyright text intact).
 - `dist/` regenerated from the renamed sources.

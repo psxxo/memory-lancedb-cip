@@ -304,7 +304,7 @@ describe("memory governance tools", () => {
     };
 
     const tools = createToolSet(context);
-    const promote = tools.get("memory_governance_promote");
+    const promote = tools.get("memory_promote");
     const archive = tools.get("memory_archive");
 
     const promoteRes = await promote.execute(null, { query: "coffee" });
