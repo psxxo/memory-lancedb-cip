@@ -1,0 +1,1099 @@
+/**
+ * Embedding Abstraction Layer
+ * OpenAI-compatible API for various embedding providers.
+ * Supports automatic chunking for documents exceeding embedding context limits.
+ *
+ * Note: Some providers (e.g. Jina) support extra parameters like `task` and
+ * `normalized` on the embeddings endpoint. The OpenAI SDK types do not include
+ * these fields, so we pass them via a narrow `any` cast.
+ */
+import OpenAI from "openai";
+import { createHash } from "node:crypto";
+import { smartChunk } from "./chunker.js";
+class EmbeddingCache {
+    cache = new Map();
+    maxSize;
+    ttlMs;
+    hits = 0;
+    misses = 0;
+    constructor(maxSize = 256, ttlMinutes = 30) {
+        this.maxSize = maxSize;
+        this.ttlMs = ttlMinutes * 60_000;
+    }
+    /** Remove all expired entries. Called on every set() when cache is near capacity. */
+    _evictExpired() {
+        const now = Date.now();
+        for (const [k, entry] of this.cache) {
+            if (now - entry.createdAt > this.ttlMs) {
+                this.cache.delete(k);
+            }
+        }
+    }
+    key(text, task) {
+        const hash = createHash("sha256").update(`${task || ""}:${text}`).digest("hex").slice(0, 24);
+        return hash;
+    }
+    get(text, task) {
+        const k = this.key(text, task);
+        const entry = this.cache.get(k);
+        if (!entry) {
+            this.misses++;
+            return undefined;
+        }
+        if (Date.now() - entry.createdAt > this.ttlMs) {
+            this.cache.delete(k);
+            this.misses++;
+            return undefined;
+        }
+        // Move to end (most recently used)
+        this.cache.delete(k);
+        this.cache.set(k, entry);
+        this.hits++;
+        return entry.vector;
+    }
+    set(text, task, vector) {
+        const k = this.key(text, task);
+        // If key already exists, delete to update insertion order for correct LRU semantics
+        if (this.cache.has(k)) {
+            this.cache.delete(k);
+        }
+        // When cache is full, run TTL eviction first (removes expired + oldest).
+        // This prevents unbounded growth from stale entries while keeping writes O(1).
+        if (this.cache.size >= this.maxSize) {
+            this._evictExpired();
+            // If eviction didn't free enough slots, evict the single oldest LRU entry.
+            if (this.cache.size >= this.maxSize) {
+                const firstKey = this.cache.keys().next().value;
+                if (firstKey !== undefined)
+                    this.cache.delete(firstKey);
+            }
+        }
+        this.cache.set(k, { vector, createdAt: Date.now() });
+    }
+    get size() { return this.cache.size; }
+    get stats() {
+        const total = this.hits + this.misses;
+        return {
+            size: this.cache.size,
+            hits: this.hits,
+            misses: this.misses,
+            hitRate: total > 0 ? `${((this.hits / total) * 100).toFixed(1)}%` : "N/A",
+        };
+    }
+}
+class EmbeddingHttpError extends Error {
+    status;
+    statusCode;
+    constructor(provider, status, statusText, body) {
+        const detail = body.trim().slice(0, 200);
+        super(`${provider} embedding failed: ${status} ${statusText}${detail ? ` ${detail}` : ""}`);
+        this.name = "EmbeddingHttpError";
+        this.status = status;
+        this.statusCode = status;
+    }
+}
+// Known embedding model dimensions
+const EMBEDDING_DIMENSIONS = {
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+    "text-embedding-004": 768,
+    "gemini-embedding-001": 3072,
+    "nomic-embed-text": 768,
+    "mxbai-embed-large": 1024,
+    "bge-m3": 1024,
+    "BAAI/bge-m3": 1024,
+    "all-MiniLM-L6-v2": 384,
+    "all-mpnet-base-v2": 512,
+    // Jina v5
+    "jina-embeddings-v5-text-small": 1024,
+    "jina-embeddings-v5-text-nano": 768,
+    // Voyage recommended models
+    "voyage-4": 1024,
+    "voyage-4-lite": 1024,
+    "voyage-4-large": 1024,
+    // Voyage legacy models
+    "voyage-3": 1024,
+    "voyage-3-lite": 512,
+    "voyage-3-large": 1024,
+};
+// ============================================================================
+// Utility Functions
+// ============================================================================
+function resolveEnvVars(value) {
+    return value.replace(/\$\{([^}]+)\}/g, (_, envVar) => {
+        const envValue = process.env[envVar];
+        if (!envValue) {
+            throw new Error(`Environment variable ${envVar} is not set`);
+        }
+        return envValue;
+    });
+}
+function getErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+function defaultMaxInputChars(model) {
+    const normalized = model.toLowerCase();
+    if (normalized.includes("nomic-embed-text"))
+        return 1400;
+    return undefined;
+}
+function truncateForEmbeddingInput(text, maxChars) {
+    const trimmed = text.trim();
+    if (!maxChars || trimmed.length <= maxChars)
+        return trimmed;
+    if (maxChars <= 3)
+        return trimmed.slice(0, maxChars);
+    return `${trimmed.slice(0, maxChars - 3).trimEnd()}...`;
+}
+function getErrorStatus(error) {
+    if (!error || typeof error !== "object")
+        return undefined;
+    const err = error;
+    if (typeof err.status === "number")
+        return err.status;
+    if (typeof err.statusCode === "number")
+        return err.statusCode;
+    if (err.error && typeof err.error === "object") {
+        const nested = err.error;
+        if (typeof nested.status === "number")
+            return nested.status;
+        if (typeof nested.statusCode === "number")
+            return nested.statusCode;
+    }
+    return undefined;
+}
+function getErrorCode(error) {
+    if (!error || typeof error !== "object")
+        return undefined;
+    const err = error;
+    if (typeof err.code === "string")
+        return err.code;
+    if (err.error && typeof err.error === "object") {
+        const nested = err.error;
+        if (typeof nested.code === "string")
+            return nested.code;
+    }
+    return undefined;
+}
+function getProviderLabel(baseURL, model) {
+    const profile = detectEmbeddingProviderProfile(baseURL, model);
+    const base = baseURL || "";
+    if (/localhost:11434|127\.0\.0\.1:11434|\/ollama\b/i.test(base))
+        return "Ollama";
+    if (base) {
+        if (profile === "jina" && /api\.jina\.ai/i.test(base))
+            return "Jina";
+        if (profile === "voyage-compatible" && /api\.voyageai\.com/i.test(base))
+            return "Voyage";
+        if (profile === "openai" && /api\.openai\.com/i.test(base))
+            return "OpenAI";
+        if (profile === "azure-openai" || /\.openai\.azure\.com/i.test(base))
+            return "Azure OpenAI";
+        if (profile === "nvidia")
+            return "NVIDIA NIM";
+        try {
+            return new URL(base).host;
+        }
+        catch {
+            return base;
+        }
+    }
+    switch (profile) {
+        case "jina":
+            return "Jina";
+        case "voyage-compatible":
+            return "Voyage";
+        case "openai":
+        case "azure-openai":
+            return "OpenAI";
+        case "nvidia":
+            return "NVIDIA NIM";
+        default:
+            return "embedding provider";
+    }
+}
+function detectEmbeddingProviderProfile(baseURL, model) {
+    const base = baseURL || "";
+    let host = "";
+    try {
+        host = new URL(base).hostname.toLowerCase();
+    }
+    catch { /* invalid URL — skip host checks */ }
+    // Host-based detection runs first — endpoint owner semantics take precedence
+    // over model-name heuristics to avoid misclassifying e.g. a jina-xxx model
+    // served from .nvidia.com as Jina instead of NVIDIA.
+    // Match on parsed hostname to avoid false positives from proxy URLs that
+    // contain provider domains in their path or query string.
+    if (host.endsWith("api.openai.com"))
+        return "openai";
+    if (host.endsWith(".openai.azure.com"))
+        return "azure-openai";
+    if (host.endsWith("api.jina.ai"))
+        return "jina";
+    if (host.endsWith("api.voyageai.com"))
+        return "voyage-compatible";
+    if (host.endsWith(".nvidia.com") || host === "nvidia.com")
+        return "nvidia";
+    // Model-prefix fallback — only when baseURL didn't match a known host
+    if (/^jina-/i.test(model))
+        return "jina";
+    if (/^voyage\b/i.test(model))
+        return "voyage-compatible";
+    if (/^nvidia\//i.test(model) || /^nv-embed/i.test(model))
+        return "nvidia";
+    return "generic-openai-compatible";
+}
+function getEmbeddingCapabilities(profile) {
+    switch (profile) {
+        case "openai":
+            return {
+                encoding_format: true,
+                normalized: false,
+                taskField: null,
+                dimensionsField: "dimensions",
+            };
+        case "jina":
+            return {
+                encoding_format: true,
+                normalized: true,
+                taskField: "task",
+                dimensionsField: "dimensions",
+            };
+        case "voyage-compatible":
+            return {
+                encoding_format: false,
+                normalized: false,
+                taskField: "input_type",
+                taskValueMap: {
+                    "retrieval.query": "query",
+                    "retrieval.passage": "document",
+                    "query": "query",
+                    "passage": "document",
+                    "document": "document",
+                },
+                dimensionsField: "output_dimension",
+            };
+        case "nvidia":
+            return {
+                encoding_format: true,
+                normalized: false,
+                taskField: "input_type",
+                taskValueMap: {
+                    "retrieval.query": "query",
+                    "retrieval.passage": "passage",
+                    "query": "query",
+                    "passage": "passage",
+                },
+                dimensionsField: "dimensions",
+            };
+        case "generic-openai-compatible":
+        default:
+            return {
+                encoding_format: true,
+                normalized: false,
+                taskField: null,
+                dimensionsField: "dimensions",
+            };
+    }
+}
+function isAuthError(error) {
+    const status = getErrorStatus(error);
+    if (status === 401 || status === 403)
+        return true;
+    const code = getErrorCode(error);
+    if (code && /invalid.*key|auth|forbidden|unauthorized/i.test(code))
+        return true;
+    const msg = getErrorMessage(error);
+    return /\b401\b|\b403\b|invalid api key|api key expired|expired api key|forbidden|unauthorized|authentication failed|access denied/i.test(msg);
+}
+function isNetworkError(error) {
+    const code = getErrorCode(error);
+    if (code && /ECONNREFUSED|ECONNRESET|ENOTFOUND|EHOSTUNREACH|ETIMEDOUT/i.test(code)) {
+        return true;
+    }
+    const msg = getErrorMessage(error);
+    return /ECONNREFUSED|ECONNRESET|ENOTFOUND|EHOSTUNREACH|ETIMEDOUT|fetch failed|network error|socket hang up|connection refused|getaddrinfo/i.test(msg);
+}
+export function formatEmbeddingProviderError(error, opts) {
+    const raw = getErrorMessage(error).trim();
+    if (raw.startsWith("Embedding provider authentication failed") ||
+        raw.startsWith("Embedding provider unreachable") ||
+        raw.startsWith("Failed to generate embedding from ") ||
+        raw.startsWith("Failed to generate batch embeddings from ")) {
+        return raw;
+    }
+    const status = getErrorStatus(error);
+    const code = getErrorCode(error);
+    const provider = getProviderLabel(opts.baseURL, opts.model);
+    const detail = raw.length > 0 ? raw : "unknown error";
+    const suffix = [status, code].filter(Boolean).join(" ");
+    const detailText = suffix ? `${suffix}: ${detail}` : detail;
+    const genericPrefix = opts.mode === "batch"
+        ? `Failed to generate batch embeddings from ${provider}: `
+        : `Failed to generate embedding from ${provider}: `;
+    if (isAuthError(error)) {
+        let hint = `Check embedding.apiKey and endpoint for ${provider}.`;
+        // Use profile rather than provider label so Jina-specific hint also fires
+        // when model is jina-* but baseURL is a proxy (not api.jina.ai).
+        const profile = detectEmbeddingProviderProfile(opts.baseURL, opts.model);
+        if (profile === "jina") {
+            hint +=
+                " If your Jina key expired or lost access, replace the key or switch to a local OpenAI-compatible endpoint such as Ollama (for example baseURL http://127.0.0.1:11434/v1, with a matching model and embedding.dimensions).";
+        }
+        else if (provider === "Ollama") {
+            hint +=
+                " Ollama usually works with a dummy apiKey; verify the local server is running, the model is pulled, and embedding.dimensions matches the model output.";
+        }
+        return `Embedding provider authentication failed (${detailText}). ${hint}`;
+    }
+    if (isNetworkError(error)) {
+        let hint = `Verify the endpoint is reachable`;
+        if (opts.baseURL) {
+            hint += ` at ${opts.baseURL}`;
+        }
+        hint += ` and that model \"${opts.model}\" is available.`;
+        return `Embedding provider unreachable (${detailText}). ${hint}`;
+    }
+    return `${genericPrefix}${detailText}`;
+}
+// ============================================================================
+// Safety Constants
+// ============================================================================
+/** Maximum recursion depth for embedSingle chunking retries. */
+const MAX_EMBED_DEPTH = 3;
+/** Global timeout for a single embedding operation (ms). */
+const EMBED_TIMEOUT_MS = 10_000;
+/** Default SDK-level HTTP timeout for embedding requests, including batch calls. */
+const DEFAULT_EMBED_CLIENT_TIMEOUT_MS = 30_000;
+/** Bounded startup health probe timeout; normal embeddings keep the larger client timeout. */
+const EMBED_HEALTH_CHECK_TIMEOUT_MS = 7_500;
+const DEFAULT_QWEN3_QUERY_TASK = "Given a memory search query, retrieve relevant stored knowledge entries that match the query";
+/**
+ * Strictly decreasing character limit for forced truncation.
+ * Each recursion level MUST reduce input by this factor to guarantee progress.
+ */
+const STRICT_REDUCTION_FACTOR = 0.5; // Each retry must be at most 50% of previous
+export function getVectorDimensions(model, overrideDims) {
+    if (overrideDims && overrideDims > 0) {
+        return overrideDims;
+    }
+    const dims = EMBEDDING_DIMENSIONS[model];
+    if (!dims) {
+        throw new Error(`Unsupported embedding model: ${model}. Either add it to EMBEDDING_DIMENSIONS or set embedding.dimensions in config.`);
+    }
+    return dims;
+}
+export function getEffectiveVectorDimensions(model, dimensions, requestDimensions) {
+    return getVectorDimensions(model, requestDimensions ?? dimensions);
+}
+// ============================================================================
+// Embedder Class
+// ============================================================================
+export class Embedder {
+    /** Pool of OpenAI clients — one per API key for round-robin rotation. */
+    clients;
+    /** Round-robin index for client rotation. */
+    _clientIndex = 0;
+    dimensions;
+    _cache;
+    _model;
+    _baseURL;
+    _taskQuery;
+    _taskPassage;
+    _normalized;
+    _providerProfile;
+    _capabilities;
+    _apiKeys;
+    _clientTimeoutMs;
+    /** Optional requested dimensions to pass through to the embedding provider (OpenAI-compatible). */
+    _requestDimensions;
+    /** Optional maximum characters sent to the embedding provider per input. */
+    _maxInputChars;
+    /** When true, omit the dimensions parameter even if _requestDimensions is set. */
+    _omitDimensions;
+    /** Enable automatic chunking for long documents (default: true) */
+    _autoChunk;
+    /** Optional code-boundary-aware chunking configuration */
+    _astChunking;
+    constructor(config) {
+        // Normalize apiKey to array and resolve environment variables
+        const apiKeys = Array.isArray(config.apiKey) ? config.apiKey : [config.apiKey];
+        const resolvedKeys = apiKeys.map(k => resolveEnvVars(k));
+        this._apiKeys = resolvedKeys;
+        this._model = config.model;
+        this._baseURL = config.baseURL;
+        this._taskQuery = config.taskQuery;
+        this._taskPassage = config.taskPassage;
+        this._normalized = config.normalized;
+        this._requestDimensions = config.requestDimensions;
+        this._maxInputChars = Number.isFinite(config.maxInputChars) && config.maxInputChars > 0
+            ? Math.floor(config.maxInputChars)
+            : defaultMaxInputChars(config.model);
+        this._omitDimensions = config.omitDimensions === true;
+        // Enable auto-chunking by default for better handling of long documents
+        this._autoChunk = config.chunking !== false;
+        this._astChunking = config.astChunking;
+        const profile = detectEmbeddingProviderProfile(this._baseURL, this._model);
+        this._providerProfile = profile;
+        this._capabilities = getEmbeddingCapabilities(profile);
+        const clientTimeoutMs = Number.isFinite(config.clientTimeoutMs) && config.clientTimeoutMs > 0
+            ? Math.floor(config.clientTimeoutMs)
+            : DEFAULT_EMBED_CLIENT_TIMEOUT_MS;
+        this._clientTimeoutMs = clientTimeoutMs;
+        // Warn if configured fields will be silently ignored by this provider profile
+        if (config.normalized !== undefined && !this._capabilities.normalized) {
+            console.debug(`[memory-lancedb-pro] embedding.normalized is set but provider profile "${profile}" does not support it — value will be ignored`);
+        }
+        if ((config.taskPassage || (config.taskQuery && !this.isQwen3EmbeddingModel())) && !this._capabilities.taskField) {
+            console.debug(`[memory-lancedb-pro] embedding.taskQuery/taskPassage is set but provider profile "${profile}" does not support task hints — values will be ignored`);
+        }
+        // Create a client pool — one OpenAI client per key
+        this.clients = resolvedKeys.map(key => {
+            let defaultHeaders = {};
+            let baseURL = config.baseURL;
+            if (config.provider === "azure-openai" || profile === "azure-openai") {
+                defaultHeaders["api-key"] = key;
+                if (baseURL && config.apiVersion) {
+                    const url = new URL(baseURL);
+                    url.searchParams.set("api-version", config.apiVersion);
+                    baseURL = url.toString();
+                }
+            }
+            return new OpenAI({
+                apiKey: key,
+                ...(baseURL ? { baseURL } : {}),
+                timeout: clientTimeoutMs,
+                maxRetries: 0,
+                defaultHeaders: Object.keys(defaultHeaders).length > 0 ? defaultHeaders : undefined,
+            });
+        });
+        if (this.clients.length > 1) {
+            console.log(`[memory-lancedb-pro] Initialized ${this.clients.length} API keys for round-robin rotation`);
+        }
+        this.dimensions = getEffectiveVectorDimensions(config.model, config.dimensions, config.requestDimensions);
+        this._cache = new EmbeddingCache(256, 30); // 256 entries, 30 min TTL
+    }
+    normalizeInput(input) {
+        return input.trim();
+    }
+    prepareInput(input) {
+        return truncateForEmbeddingInput(this.normalizeInput(input), this._maxInputChars);
+    }
+    shouldChunkForInputCap(input) {
+        return this._autoChunk && Boolean(this._maxInputChars && this.normalizeInput(input).length > this._maxInputChars);
+    }
+    splitChunkByInputCap(chunk) {
+        const input = this.normalizeInput(chunk);
+        if (!input)
+            return [];
+        if (!this._maxInputChars || input.length <= this._maxInputChars)
+            return [input];
+        const chunks = [];
+        for (let start = 0; start < input.length; start += this._maxInputChars) {
+            const next = this.normalizeInput(input.slice(start, start + this._maxInputChars));
+            if (next)
+                chunks.push(next);
+        }
+        return chunks;
+    }
+    // --------------------------------------------------------------------------
+    // Multi-key rotation helpers
+    // --------------------------------------------------------------------------
+    /** Return the next client in round-robin order. */
+    nextClient() {
+        const client = this.clients[this._clientIndex % this.clients.length];
+        this._clientIndex = (this._clientIndex + 1) % this.clients.length;
+        return client;
+    }
+    /** Return the next raw API key in the same round-robin order as clients. */
+    nextApiKey() {
+        const key = this._apiKeys[this._clientIndex % this._apiKeys.length];
+        this._clientIndex = (this._clientIndex + 1) % this._apiKeys.length;
+        return key;
+    }
+    /** Check whether an error is a rate-limit / quota-exceeded / overload error. */
+    isRateLimitError(error) {
+        if (!error || typeof error !== "object")
+            return false;
+        const err = error;
+        // HTTP status: 429 (rate limit) or 503 (service overload)
+        if (err.status === 429 || err.status === 503)
+            return true;
+        // OpenAI SDK structured error code
+        if (err.code === "rate_limit_exceeded" || err.code === "insufficient_quota")
+            return true;
+        // Nested error object (some providers)
+        const nested = err.error;
+        if (nested && typeof nested === "object") {
+            const nestedError = nested;
+            if (nestedError.type === "rate_limit_exceeded" || nestedError.type === "insufficient_quota")
+                return true;
+            if (nestedError.code === "rate_limit_exceeded" || nestedError.code === "insufficient_quota")
+                return true;
+        }
+        // Fallback: message text matching
+        const msg = error instanceof Error ? error.message : String(error);
+        return /rate.limit|quota|too many requests|insufficient.*credit|429|503.*overload/i.test(msg);
+    }
+    /**
+     * Detect if the configured baseURL points to a local Ollama instance.
+     * Ollama's HTTP server does not properly handle AbortController signals through
+     * the OpenAI SDK's HTTP client, causing long-lived sockets that don't close
+     * when the embedding pipeline times out. For Ollama we use native fetch instead.
+     */
+    isOllamaProvider() {
+        if (!this._baseURL)
+            return false;
+        return /localhost:11434|127\.0\.0\.1:11434|\/ollama\b/i.test(this._baseURL);
+    }
+    /**
+     * Voyage's embeddings endpoint rejects OpenAI SDK-injected request fields such
+     * as encoding_format. Use native fetch for Voyage so buildPayload() remains
+     * the exact serialized request body.
+     */
+    isVoyageProvider() {
+        return this._providerProfile === "voyage-compatible";
+    }
+    async fetchWithClientTimeout(input, init, options) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs);
+        let unsubscribe;
+        if (options.signal) {
+            if (options.signal.aborted) {
+                clearTimeout(timeoutId);
+                throw new DOMException("The operation was aborted.", "AbortError");
+            }
+            const handler = () => controller.abort();
+            options.signal.addEventListener("abort", handler, { once: true });
+            unsubscribe = () => options.signal?.removeEventListener("abort", handler);
+        }
+        try {
+            return await fetch(input, {
+                ...init,
+                signal: controller.signal,
+            });
+        }
+        finally {
+            clearTimeout(timeoutId);
+            unsubscribe?.();
+        }
+    }
+    /**
+     * Call embeddings.create using native fetch (bypasses OpenAI SDK).
+     * Used exclusively for Ollama endpoints where AbortController must work
+     * correctly to avoid long-lived stalled sockets.
+     *
+     * For Ollama 0.20.5+: /v1/embeddings may return empty arrays for some models,
+     * so we use /api/embeddings with "prompt" field for single requests (PR #621).
+     * For batch requests, we use /v1/embeddings with "input" array as it's more
+     * efficient and confirmed working in local testing.
+     *
+     * See: https://github.com/CortexReach/memory-lancedb-pro/issues/620
+     * Fix: https://github.com/CortexReach/memory-lancedb-pro/issues/629
+     */
+    async embedWithNativeFetch(payload, signal) {
+        if (!this._baseURL) {
+            throw new Error("embedWithNativeFetch requires a baseURL");
+        }
+        const base = this._baseURL.replace(/\/$/, "").replace(/\/v1$/, "");
+        const apiKey = this.clients[0]?.apiKey ?? "ollama";
+        // Handle batch requests with /v1/embeddings + input array
+        // NOTE: /v1/embeddings is used unconditionally for batch with no fallback.
+        // If a model doesn't support that endpoint, failure will be silent from the user's perspective.
+        // This is acceptable because most Ollama embedding models support /v1/embeddings.
+        if (Array.isArray(payload.input)) {
+            const response = await this.fetchWithClientTimeout(base + "/v1/embeddings", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: payload.model,
+                    input: payload.input,
+                    // NOTE: Other provider options (encoding_format, normalized, dimensions, etc.)
+                    // from buildPayload() are intentionally not included. Ollama embedding models
+                    // do not support these parameters, so omitting them is correct.
+                }),
+            }, {
+                signal,
+                timeoutMs: this._clientTimeoutMs,
+            });
+            if (!response.ok) {
+                const body = await response.text().catch(() => "");
+                throw new EmbeddingHttpError("Ollama batch", response.status, response.statusText, body);
+            }
+            const data = await response.json();
+            // Validate response count and non-empty embeddings
+            if (!Array.isArray(data?.data) ||
+                data.data.length !== payload.input.length ||
+                data.data.some((item) => {
+                    const embedding = item?.embedding;
+                    return !Array.isArray(embedding) || embedding.length === 0;
+                })) {
+                throw new Error(`Ollama batch embedding returned invalid response for ${payload.input.length} inputs`);
+            }
+            return data;
+        }
+        // Single request: use /api/embeddings + prompt (PR #621 fix)
+        const response = await this.fetchWithClientTimeout(base + "/api/embeddings", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: payload.model,
+                prompt: payload.input,
+            }),
+        }, {
+            signal,
+            timeoutMs: this._clientTimeoutMs,
+        });
+        if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            throw new EmbeddingHttpError("Ollama", response.status, response.statusText, body);
+        }
+        const data = await response.json();
+        // Ollama /api/embeddings returns { embedding: number[] },
+        // convert to OpenAI-compatible shape { data: [{ embedding: number[] }] }
+        return { data: [{ embedding: data.embedding }] };
+    }
+    async embedWithVoyageFetch(payload, apiKey, signal) {
+        if (!this._baseURL) {
+            throw new Error("Voyage embedding provider requires embedding.baseURL, e.g. https://api.voyageai.com/v1");
+        }
+        const base = this._baseURL.replace(/\/$/, "");
+        const endpoint = base.endsWith("/embeddings") ? base : `${base}/embeddings`;
+        const response = await this.fetchWithClientTimeout(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(payload),
+        }, {
+            signal,
+            timeoutMs: this._clientTimeoutMs,
+        });
+        if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            throw new EmbeddingHttpError("Voyage", response.status, response.statusText, body);
+        }
+        return response.json();
+    }
+    /**
+     * Call embeddings.create with automatic key rotation on rate-limit errors.
+     * Tries each key in the pool at most once before giving up.
+     * Accepts an optional AbortSignal to support true request cancellation.
+     *
+     * For Ollama endpoints, native fetch is used instead of the OpenAI SDK
+     * because AbortController does not reliably abort Ollama's HTTP connections
+     * through the SDK's HTTP client on Node.js.
+     */
+    async embedWithRetry(payload, signal) {
+        // Use native fetch for Ollama to ensure proper AbortController support
+        if (this.isOllamaProvider()) {
+            try {
+                return await this.embedWithNativeFetch(payload, signal);
+            }
+            catch (error) {
+                if (error instanceof Error && error.name === 'AbortError') {
+                    throw error;
+                }
+                // Ollama errors bubble up without retry (Ollama doesn't rate-limit locally)
+                throw error;
+            }
+        }
+        const maxAttempts = this.clients.length;
+        let lastError;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                if (this.isVoyageProvider()) {
+                    const key = this.nextApiKey();
+                    return await this.embedWithVoyageFetch(payload, key, signal);
+                }
+                const client = this.nextClient();
+                // Pass signal to OpenAI SDK if provided (SDK v6+ supports this)
+                return await client.embeddings.create(payload, signal ? { signal } : undefined);
+            }
+            catch (error) {
+                // If aborted, re-throw immediately
+                if (error instanceof Error && error.name === 'AbortError') {
+                    throw error;
+                }
+                lastError = error instanceof Error ? error : new Error(String(error));
+                if (this.isRateLimitError(error) && attempt < maxAttempts - 1) {
+                    console.log(`[memory-lancedb-pro] Attempt ${attempt + 1}/${maxAttempts} hit rate limit, rotating to next key...`);
+                    continue;
+                }
+                // Non-rate-limit error → don't retry, let caller handle (e.g. chunking)
+                if (!this.isRateLimitError(error)) {
+                    throw error;
+                }
+            }
+        }
+        // All keys exhausted with rate-limit errors
+        throw new Error(`All ${maxAttempts} API keys exhausted (rate limited). Last error: ${lastError?.message || "unknown"}`, { cause: lastError });
+    }
+    /** Number of API keys in the rotation pool. */
+    get keyCount() {
+        return this.clients.length;
+    }
+    /** Wrap a single embedding operation with a global timeout via AbortSignal. */
+    withTimeout(promiseFactory, _label, externalSignal) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), EMBED_TIMEOUT_MS);
+        // If caller passes an external signal, merge it with the internal timeout controller.
+        // Either signal aborting will cancel the promise.
+        let unsubscribe;
+        if (externalSignal) {
+            if (externalSignal.aborted) {
+                clearTimeout(timeoutId);
+                return Promise.reject(externalSignal.reason ?? new Error("aborted"));
+            }
+            const handler = () => {
+                controller.abort();
+                clearTimeout(timeoutId);
+            };
+            externalSignal.addEventListener("abort", handler, { once: true });
+            unsubscribe = () => externalSignal.removeEventListener("abort", handler);
+        }
+        return promiseFactory(controller.signal).finally(() => {
+            clearTimeout(timeoutId);
+            unsubscribe?.();
+        });
+    }
+    // --------------------------------------------------------------------------
+    // Backward-compatible API
+    // --------------------------------------------------------------------------
+    /**
+     * Backward-compatible embedding API.
+     *
+     * Historically the plugin used a single `embed()` method for both query and
+     * passage embeddings. With task-aware providers we treat this as passage.
+     */
+    async embed(text) {
+        return this.embedPassage(text);
+    }
+    /** Backward-compatible batch embedding API (treated as passage). */
+    async embedBatch(texts) {
+        return this.embedBatchPassage(texts);
+    }
+    // --------------------------------------------------------------------------
+    // Task-aware API
+    // --------------------------------------------------------------------------
+    async embedQuery(text, signal) {
+        return this.withTimeout((sig) => this.embedSingle(this.wrapQueryText(text), this._taskQuery, 0, sig), "embedQuery", signal);
+    }
+    async embedPassage(text, signal) {
+        return this.withTimeout((sig) => this.embedSingle(text, this._taskPassage, 0, sig), "embedPassage", signal);
+    }
+    // Note: embedBatchQuery/embedBatchPassage are NOT wrapped with withTimeout because
+    // they handle multiple texts in a single API call. The timeout would fire after
+    // EMBED_TIMEOUT_MS regardless of how many texts succeed. Individual text embedding
+    // within the batch is protected by the SDK's own timeout handling.
+    async embedBatchQuery(texts, signal) {
+        return this.embedMany(texts.map((text) => this.wrapQueryText(text)), this._taskQuery, signal);
+    }
+    async embedBatchPassage(texts, signal) {
+        return this.embedMany(texts, this._taskPassage, signal);
+    }
+    // --------------------------------------------------------------------------
+    // Internals
+    // --------------------------------------------------------------------------
+    isQwen3EmbeddingModel() {
+        return /qwen3[-_]embedding/i.test(this._model);
+    }
+    wrapQueryText(text) {
+        if (!this.isQwen3EmbeddingModel() || !text || text.trim().length === 0) {
+            return text;
+        }
+        const task = this._taskQuery && this._taskQuery.trim().length > 0
+            ? this._taskQuery
+            : DEFAULT_QWEN3_QUERY_TASK;
+        return `Instruct: ${task}\nQuery:${text}`;
+    }
+    validateEmbedding(embedding) {
+        if (!Array.isArray(embedding)) {
+            throw new Error(`Embedding is not an array (got ${typeof embedding})`);
+        }
+        if (embedding.length !== this.dimensions) {
+            throw new Error(`Embedding dimension mismatch: expected ${this.dimensions}, got ${embedding.length}`);
+        }
+    }
+    buildPayload(input, task) {
+        const safeInput = Array.isArray(input)
+            ? input.map((item) => this.prepareInput(item))
+            : this.prepareInput(input);
+        const payload = {
+            model: this.model,
+            input: safeInput,
+        };
+        if (this._capabilities.encoding_format) {
+            // Force float output where providers explicitly support OpenAI-style formatting.
+            payload.encoding_format = "float";
+        }
+        if (this._capabilities.normalized && this._normalized !== undefined) {
+            payload.normalized = this._normalized;
+        }
+        // Task hint: only injected when BOTH the provider profile defines a taskField
+        // AND the caller passes a task value (from user-configured taskQuery/taskPassage).
+        // This means broad provider detection (e.g. any .nvidia.com host) is safe —
+        // non-retriever models that don't expect input_type are unaffected unless the
+        // user explicitly configures task hints.
+        if (this._capabilities.taskField && task) {
+            const cap = this._capabilities;
+            const value = cap.taskValueMap?.[task] ?? task;
+            payload[cap.taskField] = value;
+        }
+        // Output dimension: field name is provider-defined.
+        // Only sent when explicitly configured, unless omitDimensions is enabled for
+        // local or provider-compatible models that reject the dimensions field.
+        if (!this._omitDimensions && this._capabilities.dimensionsField && this._requestDimensions && this._requestDimensions > 0) {
+            payload[this._capabilities.dimensionsField] = this._requestDimensions;
+        }
+        return payload;
+    }
+    async embedChunkedText(inputText, task, depth, signal, reason) {
+        try {
+            console.log(reason);
+            const chunkResult = smartChunk(inputText, this._model, this._astChunking);
+            const chunks = chunkResult.chunks.flatMap((chunk) => this.splitChunkByInputCap(chunk));
+            if (chunks.length === 0) {
+                throw new Error("Failed to chunk document: chunker produced no chunks");
+            }
+            // FR-03: Single chunk output detection — if smartChunk produced only
+            // one chunk that is nearly the same size as the original text, chunking
+            // did not actually reduce the problem. Force-truncate with STRICT
+            // reduction to guarantee progress.
+            if (chunks.length === 1 &&
+                chunks[0].length > inputText.length * 0.9) {
+                const safeLimit = Math.floor(inputText.length * STRICT_REDUCTION_FACTOR);
+                console.warn(`[memory-lancedb-pro] smartChunk produced 1 chunk (${chunks[0].length} chars) ~= original (${inputText.length} chars). ` +
+                    `Force-truncating to ${safeLimit} chars (strict ${STRICT_REDUCTION_FACTOR * 100}% reduction) to avoid infinite recursion.`);
+                if (safeLimit < 100) {
+                    throw new Error(`[memory-lancedb-pro] Failed to embed: chunking couldn't reduce input size enough for model context`);
+                }
+                return this.embedSingle(inputText.slice(0, safeLimit), task, depth + 1, signal);
+            }
+            console.log(`Split document into ${chunks.length} chunks for embedding`);
+            const chunkEmbeddings = await Promise.all(chunks.map(async (chunk, idx) => {
+                try {
+                    const embedding = await this.embedSingle(chunk, task, depth + 1, signal);
+                    return { embedding };
+                }
+                catch (chunkError) {
+                    console.warn(`Failed to embed chunk ${idx}:`, chunkError);
+                    throw chunkError;
+                }
+            }));
+            const avgEmbedding = chunkEmbeddings.reduce((sum, { embedding }) => {
+                for (let i = 0; i < embedding.length; i++) {
+                    sum[i] += embedding[i];
+                }
+                return sum;
+            }, new Array(this.dimensions).fill(0));
+            const finalEmbedding = avgEmbedding.map(v => v / chunkEmbeddings.length);
+            this._cache.set(inputText, task, finalEmbedding);
+            console.log(`Successfully embedded long document as ${chunkEmbeddings.length} averaged chunks`);
+            return finalEmbedding;
+        }
+        catch (chunkError) {
+            console.warn(`Chunking failed:`, chunkError);
+            throw chunkError;
+        }
+    }
+    async embedSingle(text, task, depth = 0, signal) {
+        if (!text || text.trim().length === 0) {
+            throw new Error("Cannot embed empty text");
+        }
+        let inputText = this.normalizeInput(text);
+        // FR-01: Recursion depth limit — force truncate when too deep
+        if (depth >= MAX_EMBED_DEPTH) {
+            const safeLimit = Math.floor(inputText.length * STRICT_REDUCTION_FACTOR);
+            console.warn(`[memory-lancedb-pro] Recursion depth ${depth} reached MAX_EMBED_DEPTH (${MAX_EMBED_DEPTH}), ` +
+                `force-truncating ${inputText.length} chars → ${safeLimit} chars (strict ${STRICT_REDUCTION_FACTOR * 100}% reduction)`);
+            if (safeLimit < 100) {
+                throw new Error(`[memory-lancedb-pro] Failed to embed: input too large for model context after ${MAX_EMBED_DEPTH} retries`);
+            }
+            inputText = inputText.slice(0, safeLimit);
+        }
+        const originalCached = this._cache.get(inputText, task);
+        if (originalCached)
+            return originalCached;
+        if (this.shouldChunkForInputCap(inputText)) {
+            return this.embedChunkedText(inputText, task, depth, signal, `Document exceeded embedding.maxInputChars (${this._maxInputChars}), chunking before provider request...`);
+        }
+        const requestText = this.prepareInput(inputText);
+        // Check cache first
+        const cached = this._cache.get(requestText, task);
+        if (cached)
+            return cached;
+        try {
+            const response = await this.embedWithRetry(this.buildPayload(requestText, task), signal);
+            const embedding = response.data[0]?.embedding;
+            if (!embedding) {
+                throw new Error("No embedding returned from provider");
+            }
+            this.validateEmbedding(embedding);
+            this._cache.set(requestText, task, embedding);
+            return embedding;
+        }
+        catch (error) {
+            // Check if this is a context length exceeded error and try chunking
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const isContextError = /context|too long|exceed|length/i.test(errorMsg);
+            if (isContextError && this._autoChunk) {
+                return this.embedChunkedText(inputText, task, depth, signal, `Document exceeded context limit (${errorMsg}), attempting chunking...`);
+            }
+            const friendly = formatEmbeddingProviderError(error, {
+                baseURL: this._baseURL,
+                model: this._model,
+                mode: "single",
+            });
+            throw new Error(friendly, { cause: error instanceof Error ? error : undefined });
+        }
+    }
+    async embedMany(texts, task, signal) {
+        if (!texts || texts.length === 0) {
+            return [];
+        }
+        // Filter out empty texts and track indices
+        const validTexts = [];
+        const validIndices = [];
+        texts.forEach((text, index) => {
+            const inputText = text ? this.normalizeInput(text) : "";
+            if (inputText.length > 0) {
+                validTexts.push(inputText);
+                validIndices.push(index);
+            }
+        });
+        if (validTexts.length === 0) {
+            return texts.map(() => []);
+        }
+        if (validTexts.some((text) => this.shouldChunkForInputCap(text))) {
+            const results = new Array(texts.length);
+            await Promise.all(validTexts.map(async (text, idx) => {
+                results[validIndices[idx]] = await this.embedSingle(text, task, 0, signal);
+            }));
+            for (let i = 0; i < texts.length; i++) {
+                if (!results[i]) {
+                    results[i] = [];
+                }
+            }
+            return results;
+        }
+        try {
+            const response = await this.embedWithRetry(this.buildPayload(validTexts, task), signal);
+            // Create result array with proper length
+            const results = new Array(texts.length);
+            // Fill in embeddings for valid texts
+            response.data.forEach((item, idx) => {
+                const originalIndex = validIndices[idx];
+                const embedding = item.embedding;
+                this.validateEmbedding(embedding);
+                results[originalIndex] = embedding;
+            });
+            // Fill empty arrays for invalid texts
+            for (let i = 0; i < texts.length; i++) {
+                if (!results[i]) {
+                    results[i] = [];
+                }
+            }
+            return results;
+        }
+        catch (error) {
+            // Check if this is a context length exceeded error and retry each text
+            // separately. Some providers reject only the aggregate batch size while
+            // accepting each item unchanged.
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const isContextError = /context|too long|exceed|length/i.test(errorMsg);
+            if (isContextError && this._autoChunk) {
+                try {
+                    console.log(`Batch embedding failed with context error, retrying items individually...`);
+                    const retryResults = await Promise.all(validTexts.map(async (text, idx) => {
+                        const finalEmbedding = await this.embedSingle(text, task, 0, signal);
+                        return { embedding: finalEmbedding, index: validIndices[idx] };
+                    }));
+                    console.log(`Successfully embedded ${retryResults.length} documents individually after batch context error`);
+                    // Build results array
+                    const results = new Array(texts.length);
+                    retryResults.forEach(({ embedding, index }) => {
+                        if (embedding.length > 0) {
+                            this.validateEmbedding(embedding);
+                            results[index] = embedding;
+                        }
+                        else {
+                            results[index] = [];
+                        }
+                    });
+                    // Fill empty arrays for invalid texts
+                    for (let i = 0; i < texts.length; i++) {
+                        if (!results[i]) {
+                            results[i] = [];
+                        }
+                    }
+                    return results;
+                }
+                catch (chunkError) {
+                    const friendly = formatEmbeddingProviderError(error, {
+                        baseURL: this._baseURL,
+                        model: this._model,
+                        mode: "batch",
+                    });
+                    throw new Error(`Failed to embed documents after chunking attempt: ${friendly}`, {
+                        cause: error instanceof Error ? error : undefined,
+                    });
+                }
+            }
+            const friendly = formatEmbeddingProviderError(error, {
+                baseURL: this._baseURL,
+                model: this._model,
+                mode: "batch",
+            });
+            throw new Error(friendly, {
+                cause: error instanceof Error ? error : undefined,
+            });
+        }
+    }
+    get model() {
+        return this._model;
+    }
+    // Test connection and validate configuration
+    async test(options = {}) {
+        const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+            ? Math.floor(options.timeoutMs)
+            : EMBED_HEALTH_CHECK_TIMEOUT_MS;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const testEmbedding = await this.embedPassage("test", controller.signal);
+            return {
+                success: true,
+                dimensions: testEmbedding.length,
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
+        finally {
+            clearTimeout(timeoutId);
+        }
+    }
+    get cacheStats() {
+        return {
+            ...this._cache.stats,
+            keyCount: this.clients.length,
+        };
+    }
+}
+// ============================================================================
+// Factory Function
+// ============================================================================
+export function createEmbedder(config) {
+    return new Embedder(config);
+}

@@ -1,0 +1,15 @@
+.DS_Store
+*.log
+maintain-memory-lancedb-pro/
+.memory-lancedb-pro/
+memory-plugin-feature-dev
+memory-plugin-host-validation
+memory-plugin-release-consistency
+node_modules/
+skills/handle-memory-lancedb-pro-issue/
+skills/maintain-memory-lancedb-pro/
+skills/validate-memory-lancedb-pro-pr/
+test/addressing-identity-regression.mjs
+tmp/
+validate-memory-lancedb-pro-pr/
+.venv-skill-tools
