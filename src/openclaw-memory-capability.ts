@@ -344,7 +344,7 @@ async function collectPublicArtifactsForWorkspace(params: {
   return artifacts;
 }
 
-const VIRTUAL_MEMORY_PATH_PREFIX = "memory-lancedb-pro/";
+const VIRTUAL_MEMORY_PATH_PREFIX = "memory-lancedb-cip/";
 
 function toVirtualMemoryPath(id: string): string {
   return `${VIRTUAL_MEMORY_PATH_PREFIX}${id}.md`;
@@ -486,7 +486,7 @@ async function createMemoryLanceSearchManager(params: MemoryCapabilityParams, ag
       const status = params.getRuntimeStatus();
       return {
         backend: "builtin",
-        provider: "memory-lancedb-pro",
+        provider: "memory-lancedb-cip",
         requestedProvider: params.embeddingProvider,
         model: params.embeddingModel,
         files: files ?? status.files,
@@ -516,7 +516,7 @@ async function createMemoryLanceSearchManager(params: MemoryCapabilityParams, ag
           ...(vectorError ?? status.retrievalError ? { loadError: vectorError ?? status.retrievalError } : {}),
         },
         custom: {
-          plugin: "memory-lancedb-pro",
+          plugin: "memory-lancedb-cip",
           embeddingError: status.embeddingError,
           retrievalError: status.retrievalError,
           startupHealth: {
@@ -587,7 +587,7 @@ export function buildMemoryLancePromptSection(params: {
   const lines = ["## Memory Recall"];
   if (hasRecall) {
     lines.push(
-      "Before answering questions about prior work, decisions, dates, people, preferences, or todos, query memory-lancedb-pro and ground the answer in retrieved memories when confidence is high.",
+      "Before answering questions about prior work, decisions, dates, people, preferences, or todos, query memory-lancedb-cip and ground the answer in retrieved memories when confidence is high.",
     );
   }
   if (hasStore) {

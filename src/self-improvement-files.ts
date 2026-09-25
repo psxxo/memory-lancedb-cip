@@ -112,7 +112,7 @@ export async function appendSelfImprovementEntry(params: AppendSelfImprovementEn
     area = "config",
     priority = "medium",
     status = "pending",
-    source = "memory-lancedb-pro/self_improvement_log",
+    source = "memory-lancedb-cip/self_improvement_log",
     maxEntries,
   } = params;
 

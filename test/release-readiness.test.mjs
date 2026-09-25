@@ -39,7 +39,7 @@ assert.ok(pkg.files?.includes("docs/**/*.md"), "release checklist should be incl
 assert.match(releaseChecklist, /npm run test:packaging-and-workflow/);
 assert.match(releaseChecklist, /npm pack --dry-run/);
 assert.match(releaseChecklist, /npm publish --tag beta --dry-run/);
-assert.match(releaseChecklist, /npm view memory-lancedb-pro@beta version main openclaw files --json/);
+assert.match(releaseChecklist, /npm view @psxxo/memory-lancedb-cip@beta version main openclaw files --json/);
 
 assert.ok(
   CI_TEST_MANIFEST.some((entry) => entry.file === "test/release-readiness.test.mjs"),

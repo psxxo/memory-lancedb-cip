@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧠 memory-lancedb-pro · 🦞OpenClaw Plugin
+# 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
+
+> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
 
 **Assistente de Memória IA para Agentes [OpenClaw](https://github.com/openclaw/openclaw)**
 
@@ -19,11 +21,11 @@ Um plugin de memória de longo prazo para OpenClaw baseado em LanceDB que armaze
 
 ---
 
-## Por que memory-lancedb-pro?
+## Por que memory-lancedb-cip?
 
 A maioria dos agentes de IA sofre de amnésia. Eles esquecem tudo no momento em que você inicia um novo chat.
 
-**memory-lancedb-pro** é um plugin de memória de longo prazo de nível de produção para OpenClaw que transforma seu agente em um verdadeiro **Assistente de Memória IA** — captura automaticamente o que importa, deixa o ruído desaparecer naturalmente e recupera a memória certa no momento certo. Sem tags manuais, sem dores de cabeça com configuração.
+**memory-lancedb-cip** é um plugin de memória de longo prazo de nível de produção para OpenClaw que transforma seu agente em um verdadeiro **Assistente de Memória IA** — captura automaticamente o que importa, deixa o ruído desaparecer naturalmente e recupera a memória certa no momento certo. Sem tags manuais, sem dores de cabeça com configuração.
 
 ### Seu Assistente de Memória IA em ação
 
@@ -35,7 +37,7 @@ A maioria dos agentes de IA sofre de amnésia. Eles esquecem tudo no momento em 
 > *(próxima sessão)*
 > **Você:** "…sério, tabs. E tratamento de erros. De novo."
 
-**Com memory-lancedb-pro — seu agente aprende e lembra:**
+**Com memory-lancedb-cip — seu agente aprende e lembra:**
 
 > **Você:** "Use tabs para indentação, sempre adicione tratamento de erros."
 > *(próxima sessão — agente recupera automaticamente suas preferências)*
@@ -66,10 +68,10 @@ Essa é a diferença que um **Assistente de Memória IA** faz — aprende seu es
 
 ### Opção A: Script de instalação com um clique (recomendado)
 
-O **[script de instalação](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)** mantido pela comunidade gerencia instalação, atualização e reparo em um único comando:
+O **[script de instalação](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)** mantido pela comunidade gerencia instalação, atualização e reparo em um único comando:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-pro-setup/setup-memory.sh -o setup-memory.sh
+curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
 bash setup-memory.sh
 ```
 
@@ -79,12 +81,12 @@ bash setup-memory.sh
 
 **Via OpenClaw CLI (recomendado):**
 ```bash
-openclaw plugins install memory-lancedb-pro@beta
+openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
 ```
 
 **Ou via npm:**
 ```bash
-npm i memory-lancedb-pro@beta
+npm i @psxxo/memory-lancedb-cip
 ```
 > Se usar npm, você também precisará adicionar o diretório de instalação do plugin como caminho **absoluto** em `plugins.load.paths` no seu `openclaw.json`. Este é o problema de configuração mais comum.
 
@@ -93,9 +95,9 @@ Adicione ao seu `openclaw.json`:
 ```json
 {
   "plugins": {
-    "slots": { "memory": "memory-lancedb-pro" },
+    "slots": { "memory": "memory-lancedb-cip" },
     "entries": {
-      "memory-lancedb-pro": {
+      "memory-lancedb-cip": {
         "enabled": true,
         "config": {
           "embedding": {
@@ -127,12 +129,12 @@ Valide e reinicie:
 ```bash
 openclaw config validate
 openclaw gateway restart
-openclaw logs --follow --plain | grep "memory-lancedb-pro"
+openclaw logs --follow --plain | grep "memory-lancedb-cip"
 ```
 
 Você deve ver:
-- `memory-lancedb-pro: smart extraction enabled`
-- `memory-lancedb-pro@...: plugin registered`
+- `memory-lancedb-cip: smart extraction enabled`
+- `memory-lancedb-cip@...: plugin registered`
 
 Pronto! Seu agente agora tem memória de longo prazo.
 
@@ -142,8 +144,8 @@ Pronto! Seu agente agora tem memória de longo prazo.
 **Já está usando OpenClaw?**
 
 1. Adicione o plugin com um caminho **absoluto** em `plugins.load.paths`
-2. Vincule o slot de memória: `plugins.slots.memory = "memory-lancedb-pro"`
-3. Verifique: `openclaw plugins info memory-lancedb-pro && openclaw memory-pro stats`
+2. Vincule o slot de memória: `plugins.slots.memory = "memory-lancedb-cip"`
+3. Verifique: `openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
 
 **Atualizando de versões anteriores ao v1.1.0?**
 
@@ -192,11 +194,11 @@ Requirements:
 
 ## Ecossistema
 
-memory-lancedb-pro é o plugin principal. A comunidade construiu ferramentas ao redor dele para tornar a configuração e o uso diário ainda mais suaves:
+memory-lancedb-cip é o plugin principal. A comunidade construiu ferramentas ao redor dele para tornar a configuração e o uso diário ainda mais suaves:
 
 ### Script de instalação — Instalação, atualização e reparo com um clique
 
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)**
+> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
 
 Não é apenas um instalador simples — o script lida inteligentemente com diversos cenários reais:
 
@@ -217,13 +219,13 @@ bash setup-memory.sh --beta             # Include pre-release versions
 bash setup-memory.sh --uninstall        # Revert config and remove plugin
 ```
 
-Presets de provedores integrados: **Jina / DashScope / SiliconFlow / OpenAI / Ollama**, ou traga sua própria API compatível com OpenAI. Para uso completo (incluindo `--ref`, `--selfcheck-only` e mais), veja o [README do script de instalação](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup).
+Presets de provedores integrados: **Jina / DashScope / SiliconFlow / OpenAI / Ollama**, ou traga sua própria API compatível com OpenAI. Para uso completo (incluindo `--ref`, `--selfcheck-only` e mais), veja o [README do script de instalação](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup).
 
 ### Claude Code / OpenClaw Skill — Configuração guiada por IA
 
 > **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
 
-Instale esta Skill e seu agente de IA (Claude Code ou OpenClaw) ganha conhecimento profundo de todas as funcionalidades do memory-lancedb-pro. Basta dizer **"me ajude a ativar a melhor configuração"** e obtenha:
+Instale esta Skill e seu agente de IA (Claude Code ou OpenClaw) ganha conhecimento profundo de todas as funcionalidades do memory-lancedb-cip. Basta dizer **"me ajude a ativar a melhor configuração"** e obtenha:
 
 - **Workflow de configuração guiado em 7 etapas** com 4 planos de implantação:
   - Full Power (Jina + OpenAI) / Budget (reranker SiliconFlow gratuito) / Simple (apenas OpenAI) / Totalmente local (Ollama, custo API zero)
@@ -374,7 +376,7 @@ Query → BM25 FTS ─────┘
 <details>
 <summary><strong>Comparação com o <code>memory-lancedb</code> integrado (clique para expandir)</strong></summary>
 
-| Funcionalidade | `memory-lancedb` integrado | **memory-lancedb-pro** |
+| Funcionalidade | `memory-lancedb` integrado | **memory-lancedb-cip** |
 | --- | :---: | :---: |
 | Busca vetorial | Sim | Sim |
 | Busca full-text BM25 | - | Sim |
@@ -413,7 +415,7 @@ Query → BM25 FTS ─────┘
     "taskPassage": "retrieval.passage",
     "normalized": true
   },
-  "dbPath": "~/.openclaw/memory/lancedb-pro",
+  "dbPath": "~/.openclaw/memory/lancedb-cip",
   "autoCapture": true,
   "autoRecall": true,
   "retrieval": {
@@ -508,7 +510,7 @@ Quando `smartExtraction` está habilitado (padrão: `true`), o plugin usa um LLM
 | `llm.model` | string | `openai/gpt-oss-120b` | Nome do modelo LLM |
 | `llm.baseURL` | string | *(fallback para `embedding.baseURL`)* | Endpoint da API LLM |
 | `llm.oauthProvider` | string | `openai-codex` | ID do provedor OAuth usado quando `llm.auth` é `oauth` |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-pro/oauth.json` | Arquivo de token OAuth usado quando `llm.auth` é `oauth` |
+| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | Arquivo de token OAuth usado quando `llm.auth` é `oauth` |
 | `llm.timeoutMs` | number | `30000` | Timeout da requisição LLM em milissegundos |
 | `extractMinMessages` | number | `2` | Mensagens mínimas antes da extração ser acionada |
 | `extractMaxChars` | number | `8000` | Máximo de caracteres enviados ao LLM |
@@ -521,7 +523,7 @@ Configuração `llm` com OAuth (usa cache de login existente do Codex / ChatGPT 
     "auth": "oauth",
     "oauthProvider": "openai-codex",
     "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-pro/oauth.json",
+    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
     "timeoutMs": 30000
   }
 }
@@ -530,7 +532,7 @@ Configuração `llm` com OAuth (usa cache de login existente do Codex / ChatGPT 
 Notas para `llm.auth: "oauth"`:
 
 - `llm.oauthProvider` é atualmente `openai-codex`.
-- Tokens OAuth têm como padrão `~/.openclaw/.memory-lancedb-pro/oauth.json`.
+- Tokens OAuth têm como padrão `~/.openclaw/.memory-lancedb-cip/oauth.json`.
 - Você pode definir `llm.oauthPath` se quiser armazenar esse arquivo em outro lugar.
 - `auth login` faz snapshot da configuração `llm` anterior (api-key) ao lado do arquivo OAuth, e `auth logout` restaura esse snapshot quando disponível.
 - Mudar de `api-key` para `oauth` não transfere automaticamente `llm.baseURL`. Defina-o manualmente no modo OAuth apenas quando você intencionalmente quiser um backend personalizado compatível com ChatGPT/Codex.
@@ -589,7 +591,7 @@ Fluxo de login OAuth:
 1. Execute `openclaw memory-pro auth login`
 2. Se `--provider` for omitido em um terminal interativo, a CLI mostra um seletor de provedor OAuth antes de abrir o navegador
 3. O comando imprime uma URL de autorização e abre seu navegador, a menos que `--no-browser` seja definido
-4. Após o callback ser bem-sucedido, o comando salva o arquivo OAuth do plugin (padrão: `~/.openclaw/.memory-lancedb-pro/oauth.json`), faz snapshot da configuração `llm` anterior (api-key) para logout, e substitui a configuração `llm` do plugin com as configurações OAuth (`auth`, `oauthProvider`, `model`, `oauthPath`)
+4. Após o callback ser bem-sucedido, o comando salva o arquivo OAuth do plugin (padrão: `~/.openclaw/.memory-lancedb-cip/oauth.json`), faz snapshot da configuração `llm` anterior (api-key) para logout, e substitui a configuração `llm` do plugin com as configurações OAuth (`auth`, `oauthProvider`, `model`, `oauthPath`)
 5. `openclaw memory-pro auth logout` deleta esse arquivo OAuth e restaura a configuração `llm` anterior (api-key) quando esse snapshot existe
 
 ---
@@ -603,7 +605,7 @@ Fluxo de login OAuth:
 
 **Opção A (menor risco):** desabilite temporariamente o auto-recall:
 ```json
-{ "plugins": { "entries": { "memory-lancedb-pro": { "config": { "autoRecall": false } } } } }
+{ "plugins": { "entries": { "memory-lancedb-cip": { "config": { "autoRecall": false } } } } }
 ```
 
 **Opção B (preferida):** mantenha o recall, adicione ao prompt do sistema do agente:
@@ -662,7 +664,7 @@ Entries must be short and atomic (< 500 chars). No raw conversation summaries or
 On ANY tool failure, ALWAYS memory_recall with relevant keywords BEFORE retrying.
 
 ## Rule 4 — Confirm target codebase
-Confirm you are editing memory-lancedb-pro vs built-in memory-lancedb before changes.
+Confirm you are editing memory-lancedb-cip vs built-in memory-lancedb before changes.
 
 ## Rule 5 — Clear jiti cache after plugin code changes
 After modifying .ts files under plugins/, MUST run rm -rf /tmp/jiti/ BEFORE openclaw gateway restart.
@@ -697,7 +699,7 @@ Chaves `metadata` comuns no v1.1.0: `l0_abstract`, `l1_overview`, `l2_content`, 
 
 ### "Cannot mix BigInt and other types" (LanceDB / Apache Arrow)
 
-No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`. Atualize para **memory-lancedb-pro >= 1.0.14** — este plugin agora converte valores usando `Number(...)` antes de operações aritméticas.
+No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`. Atualize para **memory-lancedb-cip >= 1.0.14** — este plugin agora converte valores usando `Number(...)` antes de operações aritméticas.
 
 </details>
 
@@ -716,7 +718,7 @@ No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`.
 
 ## Beta: Smart Memory v1.1.0
 
-> Status: Beta — disponível via `npm i memory-lancedb-pro@beta`. Usuários estáveis no `latest` não são afetados.
+> Status: Beta — disponível via `npm i @psxxo/memory-lancedb-cip`. Usuários estáveis no `latest` não são afetados.
 
 | Funcionalidade | Descrição |
 |---------|-------------|
@@ -724,7 +726,7 @@ No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`.
 | **Pontuação do ciclo de vida** | Decaimento Weibull integrado à busca — memórias frequentes e importantes ficam mais bem ranqueadas. |
 | **Gerenciamento de níveis** | Sistema de três níveis (Core → Working → Peripheral) com promoção/rebaixamento automático. |
 
-Feedback: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · Reverter: `npm i memory-lancedb-pro@latest`
+Feedback: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · Reverter: `npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 

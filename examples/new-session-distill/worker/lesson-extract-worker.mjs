@@ -7,7 +7,7 @@
  * - reads session JSONL transcript (streaming)
  * - Map: per-chunk extraction via Gemini (native API)
  * - Reduce: merge/dedupe/score -> 0..20 lessons
- * - writes to LanceDB Pro via `openclaw memory-pro import`
+ * - writes to LanceDB CIP via `openclaw memory-pro import`
  * - sends Telegram notification via `openclaw message send` (optional)
  */
 

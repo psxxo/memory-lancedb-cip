@@ -49,7 +49,7 @@ async function testLegacyUpgradeFallbackDiagnostic() {
       return null;
     },
     getLastError() {
-      return "memory-lancedb-pro: llm-client [generic] request failed for model mock: timeout";
+      return "memory-lancedb-cip: llm-client [generic] request failed for model mock: timeout";
     },
   };
 

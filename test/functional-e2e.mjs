@@ -71,7 +71,7 @@ async function captureStdout(run) {
 }
 
 async function runFunctionalE2E() {
-  const workDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-pro-e2e-"));
+  const workDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-cip-e2e-"));
 
   try {
     const pkg = JSON.parse(

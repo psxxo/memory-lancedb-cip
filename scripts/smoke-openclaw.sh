@@ -22,10 +22,10 @@ openclaw memory-pro delete-bulk --scope global --before 1900-01-01 --dry-run
 openclaw memory-pro migrate check
 
 # reembed (dry-run). Adjust source-db path if needed.
-if [[ -d "$HOME/.openclaw/memory/lancedb-pro" ]]; then
-  openclaw memory-pro reembed --source-db "$HOME/.openclaw/memory/lancedb-pro" --limit 1 --dry-run
+if [[ -d "$HOME/.openclaw/memory/lancedb-cip" ]]; then
+  openclaw memory-pro reembed --source-db "$HOME/.openclaw/memory/lancedb-cip" --limit 1 --dry-run
 else
-  echo "NOTE: $HOME/.openclaw/memory/lancedb-pro not found; skipping reembed smoke."
+  echo "NOTE: $HOME/.openclaw/memory/lancedb-cip not found; skipping reembed smoke."
 fi
 
 echo "OK: openclaw smoke suite passed"

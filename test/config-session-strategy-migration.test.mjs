@@ -33,7 +33,7 @@ describe("plugin config error hints", () => {
   it("explains non-object config shape clearly", () => {
     assert.throws(
       () => parsePluginConfig("not-json"),
-      /plugin config must be an object.*plugins\.entries\.memory-lancedb-pro\.config\.embedding/i,
+      /plugin config must be an object.*plugins\.entries\.memory-lancedb-cip\.config\.embedding/i,
     );
   });
 

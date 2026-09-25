@@ -18,7 +18,7 @@ describe("importance normalization", () => {
   let workDir;
 
   beforeEach(() => {
-    workDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-pro-importance-"));
+    workDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-cip-importance-"));
   });
 
   afterEach(() => {

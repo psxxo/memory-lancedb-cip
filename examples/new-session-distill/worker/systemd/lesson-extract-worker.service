@@ -1,5 +1,5 @@
 [Unit]
-Description=OpenClaw Lesson Extract Worker (Gemini Map-Reduce -> LanceDB Pro)
+Description=OpenClaw Lesson Extract Worker (Gemini Map-Reduce -> LanceDB CIP)
 After=network-online.target
 Wants=network-online.target
 

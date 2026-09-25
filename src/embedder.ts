@@ -582,12 +582,12 @@ export class Embedder {
     // Warn if configured fields will be silently ignored by this provider profile
     if (config.normalized !== undefined && !this._capabilities.normalized) {
       console.debug(
-        `[memory-lancedb-pro] embedding.normalized is set but provider profile "${profile}" does not support it — value will be ignored`
+        `[memory-lancedb-cip] embedding.normalized is set but provider profile "${profile}" does not support it — value will be ignored`
       );
     }
     if ((config.taskPassage || (config.taskQuery && !this.isQwen3EmbeddingModel())) && !this._capabilities.taskField) {
       console.debug(
-        `[memory-lancedb-pro] embedding.taskQuery/taskPassage is set but provider profile "${profile}" does not support task hints — values will be ignored`
+        `[memory-lancedb-cip] embedding.taskQuery/taskPassage is set but provider profile "${profile}" does not support task hints — values will be ignored`
       );
     }
 
@@ -615,7 +615,7 @@ export class Embedder {
     });
 
     if (this.clients.length > 1) {
-      console.log(`[memory-lancedb-pro] Initialized ${this.clients.length} API keys for round-robin rotation`);
+      console.log(`[memory-lancedb-cip] Initialized ${this.clients.length} API keys for round-robin rotation`);
     }
 
     this.dimensions = getEffectiveVectorDimensions(
@@ -919,7 +919,7 @@ export class Embedder {
 
         if (this.isRateLimitError(error) && attempt < maxAttempts - 1) {
           console.log(
-            `[memory-lancedb-pro] Attempt ${attempt + 1}/${maxAttempts} hit rate limit, rotating to next key...`
+            `[memory-lancedb-cip] Attempt ${attempt + 1}/${maxAttempts} hit rate limit, rotating to next key...`
           );
           continue;
         }
@@ -1109,12 +1109,12 @@ export class Embedder {
       ) {
         const safeLimit = Math.floor(inputText.length * STRICT_REDUCTION_FACTOR);
         console.warn(
-          `[memory-lancedb-pro] smartChunk produced 1 chunk (${chunks[0].length} chars) ~= original (${inputText.length} chars). ` +
+          `[memory-lancedb-cip] smartChunk produced 1 chunk (${chunks[0].length} chars) ~= original (${inputText.length} chars). ` +
           `Force-truncating to ${safeLimit} chars (strict ${STRICT_REDUCTION_FACTOR * 100}% reduction) to avoid infinite recursion.`
         );
         if (safeLimit < 100) {
           throw new Error(
-            `[memory-lancedb-pro] Failed to embed: chunking couldn't reduce input size enough for model context`
+            `[memory-lancedb-cip] Failed to embed: chunking couldn't reduce input size enough for model context`
           );
         }
         return this.embedSingle(inputText.slice(0, safeLimit), task, depth + 1, signal);
@@ -1165,12 +1165,12 @@ export class Embedder {
     if (depth >= MAX_EMBED_DEPTH) {
       const safeLimit = Math.floor(inputText.length * STRICT_REDUCTION_FACTOR);
       console.warn(
-        `[memory-lancedb-pro] Recursion depth ${depth} reached MAX_EMBED_DEPTH (${MAX_EMBED_DEPTH}), ` +
+        `[memory-lancedb-cip] Recursion depth ${depth} reached MAX_EMBED_DEPTH (${MAX_EMBED_DEPTH}), ` +
         `force-truncating ${inputText.length} chars → ${safeLimit} chars (strict ${STRICT_REDUCTION_FACTOR * 100}% reduction)`
       );
       if (safeLimit < 100) {
         throw new Error(
-          `[memory-lancedb-pro] Failed to embed: input too large for model context after ${MAX_EMBED_DEPTH} retries`
+          `[memory-lancedb-cip] Failed to embed: input too large for model context after ${MAX_EMBED_DEPTH} retries`
         );
       }
       inputText = inputText.slice(0, safeLimit);

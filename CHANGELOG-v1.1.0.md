@@ -5,7 +5,7 @@
 - Avoid double-resolving already-absolute backup/admission audit paths.
 - Load LanceDB via ESM dynamic `import()` instead of `require()`.
 
-# memory-lancedb-pro v1.1.0 — 智能记忆增强
+# memory-lancedb-cip v1.1.0 — 智能记忆增强
 
 > **日期**: 2026-03-03  
 > **作者**: CJY  

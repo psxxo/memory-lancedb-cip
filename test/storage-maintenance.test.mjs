@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 function makeStoreWithMockTable(table) {
-  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-maintenance-"));
+  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-maintenance-"));
   tempDirs.push(dir);
   const store = new MemoryStore({ dbPath: dir, vectorDim: 3 });
   store.table = table;

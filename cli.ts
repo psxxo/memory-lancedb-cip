@@ -109,7 +109,7 @@ function resolveOpenClawHome(): string {
 }
 
 function resolveDefaultOauthPath(): string {
-  return path.join(resolveOpenClawHome(), ".memory-lancedb-pro", "oauth.json");
+  return path.join(resolveOpenClawHome(), ".memory-lancedb-cip", "oauth.json");
 }
 
 function resolveLoginOauthPath(rawPath: unknown): string {
@@ -489,7 +489,7 @@ function formatObsidianMemory(memory: MemoryEntry): string {
     `scope: ${yamlScalar(memory.scope || "global")}`,
     `importance: ${Number.isFinite(Number(memory.importance)) ? Number(memory.importance) : 0}`,
     `created: ${yamlScalar(created)}`,
-    `source: ${yamlScalar("memory-lancedb-pro")}`,
+    `source: ${yamlScalar("memory-lancedb-cip")}`,
     `tags: [${tags.map(yamlScalar).join(", ")}]`,
     "---",
     "",
@@ -1107,7 +1107,7 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
 
   const memory = program
     .command("memory-pro")
-    .description("Enhanced memory management commands (LanceDB Pro)");
+    .description("Enhanced memory management commands (LanceDB CIP)");
 
   // Version
   memory
@@ -1127,12 +1127,12 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
     .option("--config <path>", "OpenClaw config file to update")
     .option("--provider <provider>", `OAuth provider to use (${OAUTH_PROVIDER_CHOICES})`)
     .option("--model <model>", "Override the model saved into llm.model")
-    .option("--oauth-path <path>", "OAuth file path (default: ~/.openclaw/.memory-lancedb-pro/oauth.json)")
+    .option("--oauth-path <path>", "OAuth file path (default: ~/.openclaw/.memory-lancedb-cip/oauth.json)")
     .option("--timeout <seconds>", "OAuth callback timeout in seconds", "120")
     .option("--no-browser", "Do not auto-open the browser; print the authorization URL only")
     .action(async (options) => {
       try {
-        const pluginId = context.pluginId || "memory-lancedb-pro";
+        const pluginId = context.pluginId || "memory-lancedb-cip";
         const currentLlm = context.pluginConfig?.llm;
         const currentProvider = currentLlm && typeof currentLlm === "object" && typeof (currentLlm as any).oauthProvider === "string"
           ? String((currentLlm as any).oauthProvider)
@@ -1215,7 +1215,7 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
     .option("--config <path>", "OpenClaw config file to inspect")
     .action(async (options) => {
       try {
-        const pluginId = context.pluginId || "memory-lancedb-pro";
+        const pluginId = context.pluginId || "memory-lancedb-cip";
         const configPath = resolveOpenClawConfigPath(options.config);
         const openclawConfig = await loadOpenClawConfig(configPath);
         const pluginConfig = ensurePluginConfigRoot(openclawConfig, pluginId);
@@ -1259,7 +1259,7 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
     .option("--oauth-path <path>", "OAuth file path to remove")
     .action(async (options) => {
       try {
-        const pluginId = context.pluginId || "memory-lancedb-pro";
+        const pluginId = context.pluginId || "memory-lancedb-cip";
         const configPath = resolveOpenClawConfigPath(options.config);
         const openclawConfig = await loadOpenClawConfig(configPath);
         const pluginConfig = ensurePluginConfigRoot(openclawConfig, pluginId);

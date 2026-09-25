@@ -330,7 +330,7 @@ describeIntegration("persistence paths heal one transient embed abort through th
     ].join("\n"), "utf-8");
 
     const commandHooks = eventHandlers.get("command:new") || [];
-    const hook = commandHooks.find((h) => h.meta?.name === "memory-lancedb-pro.memory-reflection.command-new");
+    const hook = commandHooks.find((h) => h.meta?.name === "memory-lancedb-cip.memory-reflection.command-new");
     assert.ok(hook, "expected the command:new reflection hook");
     await hook.handler({
       sessionKey: "agent:agent-one:retry-integration",

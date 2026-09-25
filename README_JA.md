@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧠 memory-lancedb-pro · 🦞OpenClaw Plugin
+# 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
+
+> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
 
 **[OpenClaw](https://github.com/openclaw/openclaw) エージェント向け AI メモリアシスタント**
 
@@ -19,11 +21,11 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 
 ---
 
-## なぜ memory-lancedb-pro なのか？
+## なぜ memory-lancedb-cip なのか？
 
 ほとんどの AI エージェントは「記憶喪失」です——新しいチャットを始めるたびに、以前の会話内容はすべてリセットされます。
 
-**memory-lancedb-pro** は OpenClaw 向けのプロダクショングレードの長期メモリプラグインです。エージェントを真の **AI メモリアシスタント** に変えます——重要な情報を自動的にキャプチャし、ノイズを自然に減衰させ、適切なタイミングで適切な記憶を呼び出します。手動タグ付けも複雑な設定も不要です。
+**memory-lancedb-cip** は OpenClaw 向けのプロダクショングレードの長期メモリプラグインです。エージェントを真の **AI メモリアシスタント** に変えます——重要な情報を自動的にキャプチャし、ノイズを自然に減衰させ、適切なタイミングで適切な記憶を呼び出します。手動タグ付けも複雑な設定も不要です。
 
 ### AI メモリアシスタントの実際の動作
 
@@ -35,7 +37,7 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 > *（さらに次のセッション）*
 > **あなた：** 「……本当にもう3回目だよ、タブ。あとエラーハンドリングも。」
 
-**memory-lancedb-pro あり——エージェントが学習し記憶する：**
+**memory-lancedb-cip あり——エージェントが学習し記憶する：**
 
 > **あなた：** 「インデントはタブで、常にエラーハンドリングを追加して。」
 > *（次のセッション——エージェントが自動的にあなたの好みを想起）*
@@ -66,10 +68,10 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 
 ### 方法 A：ワンクリックインストールスクリプト（推奨）
 
-コミュニティが管理する **[セットアップスクリプト](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)** で、インストール・アップグレード・修復を1コマンドで実行：
+コミュニティが管理する **[セットアップスクリプト](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)** で、インストール・アップグレード・修復を1コマンドで実行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-pro-setup/setup-memory.sh -o setup-memory.sh
+curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
 bash setup-memory.sh
 ```
 
@@ -79,12 +81,12 @@ bash setup-memory.sh
 
 **OpenClaw CLI 経由（推奨）：**
 ```bash
-openclaw plugins install memory-lancedb-pro@beta
+openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
 ```
 
 **または npm 経由：**
 ```bash
-npm i memory-lancedb-pro@beta
+npm i @psxxo/memory-lancedb-cip
 ```
 > npm を使用する場合、`openclaw.json` の `plugins.load.paths` にプラグインのインストールディレクトリの **絶対パス** を追加する必要があります。これが最も一般的なセットアップの問題です。
 
@@ -93,9 +95,9 @@ npm i memory-lancedb-pro@beta
 ```json
 {
   "plugins": {
-    "slots": { "memory": "memory-lancedb-pro" },
+    "slots": { "memory": "memory-lancedb-cip" },
     "entries": {
-      "memory-lancedb-pro": {
+      "memory-lancedb-cip": {
         "enabled": true,
         "config": {
           "embedding": {
@@ -127,12 +129,12 @@ npm i memory-lancedb-pro@beta
 ```bash
 openclaw config validate
 openclaw gateway restart
-openclaw logs --follow --plain | grep "memory-lancedb-pro"
+openclaw logs --follow --plain | grep "memory-lancedb-cip"
 ```
 
 以下が表示されるはずです：
-- `memory-lancedb-pro: smart extraction enabled`
-- `memory-lancedb-pro@...: plugin registered`
+- `memory-lancedb-cip: smart extraction enabled`
+- `memory-lancedb-cip@...: plugin registered`
 
 完了！あなたのエージェントは長期メモリを持つようになりました。
 
@@ -142,8 +144,8 @@ openclaw logs --follow --plain | grep "memory-lancedb-pro"
 **既に OpenClaw を使用中？**
 
 1. `plugins.load.paths` にプラグインの **絶対パス** を追加
-2. メモリスロットをバインド：`plugins.slots.memory = "memory-lancedb-pro"`
-3. 検証：`openclaw plugins info memory-lancedb-pro && openclaw memory-pro stats`
+2. メモリスロットをバインド：`plugins.slots.memory = "memory-lancedb-cip"`
+3. 検証：`openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
 
 **v1.1.0 以前からのアップグレード？**
 
@@ -192,11 +194,11 @@ Requirements:
 
 ## エコシステム
 
-memory-lancedb-pro はコアプラグインです。コミュニティがセットアップと日常利用をさらにスムーズにするツールを構築しています：
+memory-lancedb-cip はコアプラグインです。コミュニティがセットアップと日常利用をさらにスムーズにするツールを構築しています：
 
 ### セットアップスクリプト——ワンクリックでインストール・アップグレード・修復
 
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)**
+> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
 
 単なるインストーラーではありません——さまざまな実際のシナリオをインテリジェントに処理します：
 
@@ -217,13 +219,13 @@ bash setup-memory.sh --beta             # プレリリース版を含む
 bash setup-memory.sh --uninstall        # 設定を元に戻しプラグインを削除
 ```
 
-内蔵プロバイダープリセット：**Jina / DashScope / SiliconFlow / OpenAI / Ollama**、または任意の OpenAI 互換 API を利用可能。完全な使用方法（`--ref`、`--selfcheck-only` など）は [セットアップスクリプト README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup) を参照してください。
+内蔵プロバイダープリセット：**Jina / DashScope / SiliconFlow / OpenAI / Ollama**、または任意の OpenAI 互換 API を利用可能。完全な使用方法（`--ref`、`--selfcheck-only` など）は [セットアップスクリプト README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup) を参照してください。
 
 ### Claude Code / OpenClaw Skill——AI ガイド付き設定
 
 > **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
 
-この Skill をインストールすると、AI エージェント（Claude Code または OpenClaw）が memory-lancedb-pro のすべての機能を深く理解できるようになります。**「最適な設定を有効にして」** と言うだけで：
+この Skill をインストールすると、AI エージェント（Claude Code または OpenClaw）が memory-lancedb-cip のすべての機能を深く理解できるようになります。**「最適な設定を有効にして」** と言うだけで：
 
 - **7ステップのガイド付き設定ワークフロー**、4つのデプロイプランを提供：
   - フルパワー版（Jina + OpenAI）/ コスト削減版（無料の SiliconFlow リランカー）/ シンプル版（OpenAI のみ）/ 完全ローカル版（Ollama、API コストゼロ）
@@ -374,7 +376,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 <details>
 <summary><strong>内蔵 <code>memory-lancedb</code> との比較（クリックで展開）</strong></summary>
 
-| 機能 | 内蔵 `memory-lancedb` | **memory-lancedb-pro** |
+| 機能 | 内蔵 `memory-lancedb` | **memory-lancedb-cip** |
 | --- | :---: | :---: |
 | ベクトル検索 | あり | あり |
 | BM25 全文検索 | - | あり |
@@ -413,7 +415,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
     "taskPassage": "retrieval.passage",
     "normalized": true
   },
-  "dbPath": "~/.openclaw/memory/lancedb-pro",
+  "dbPath": "~/.openclaw/memory/lancedb-cip",
   "autoCapture": true,
   "autoRecall": true,
   "retrieval": {
@@ -508,7 +510,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM モデル名 |
 | `llm.baseURL` | string | *（`embedding.baseURL` にフォールバック）* | LLM API エンドポイント |
 | `llm.oauthProvider` | string | `openai-codex` | `llm.auth` が `oauth` の場合に使用する OAuth プロバイダー ID |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-pro/oauth.json` | `llm.auth` が `oauth` の場合に使用する OAuth トークンファイル |
+| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth` が `oauth` の場合に使用する OAuth トークンファイル |
 | `llm.timeoutMs` | number | `30000` | LLM リクエストタイムアウト（ミリ秒） |
 | `extractMinMessages` | number | `2` | 抽出がトリガーされる最小メッセージ数 |
 | `extractMaxChars` | number | `8000` | LLM に送信される最大文字数 |
@@ -521,7 +523,7 @@ OAuth `llm` 設定（既存の Codex / ChatGPT ログインキャッシュを使
     "auth": "oauth",
     "oauthProvider": "openai-codex",
     "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-pro/oauth.json",
+    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
     "timeoutMs": 30000
   }
 }
@@ -530,7 +532,7 @@ OAuth `llm` 設定（既存の Codex / ChatGPT ログインキャッシュを使
 `llm.auth: "oauth"` に関する注意点：
 
 - `llm.oauthProvider` は現在 `openai-codex` です。
-- OAuth トークンのデフォルト保存先は `~/.openclaw/.memory-lancedb-pro/oauth.json` です。
+- OAuth トークンのデフォルト保存先は `~/.openclaw/.memory-lancedb-cip/oauth.json` です。
 - 別の場所に保存したい場合は `llm.oauthPath` を設定してください。
 - `auth login` は OAuth ファイルの隣に以前の api-key モードの `llm` 設定のスナップショットを保存し、`auth logout` は利用可能な場合にそのスナップショットを復元します。
 - `api-key` から `oauth` への切り替え時、`llm.baseURL` は自動的に引き継がれません。意図的にカスタム ChatGPT/Codex 互換バックエンドを使用する場合のみ、OAuth モードで手動設定してください。
@@ -589,7 +591,7 @@ OAuth ログインフロー：
 1. `openclaw memory-pro auth login` を実行
 2. `--provider` が省略され、対話型ターミナルの場合、CLI はブラウザを開く前に OAuth プロバイダーピッカーを表示
 3. コマンドは認証 URL を表示し、`--no-browser` が設定されていない限りブラウザを自動的に開く
-4. コールバック成功後、コマンドはプラグイン OAuth ファイル（デフォルト：`~/.openclaw/.memory-lancedb-pro/oauth.json`）を保存し、ログアウト用に以前の api-key モードの `llm` 設定のスナップショットを作成し、プラグインの `llm` 設定を OAuth 設定（`auth`、`oauthProvider`、`model`、`oauthPath`）に置き換え
+4. コールバック成功後、コマンドはプラグイン OAuth ファイル（デフォルト：`~/.openclaw/.memory-lancedb-cip/oauth.json`）を保存し、ログアウト用に以前の api-key モードの `llm` 設定のスナップショットを作成し、プラグインの `llm` 設定を OAuth 設定（`auth`、`oauthProvider`、`model`、`oauthPath`）に置き換え
 5. `openclaw memory-pro auth logout` はその OAuth ファイルを削除し、スナップショットが存在する場合は以前の api-key モードの `llm` 設定を復元
 
 ---
@@ -603,7 +605,7 @@ OAuth ログインフロー：
 
 **方法 A（最も安全）：** 自動想起を一時的に無効化：
 ```json
-{ "plugins": { "entries": { "memory-lancedb-pro": { "config": { "autoRecall": false } } } } }
+{ "plugins": { "entries": { "memory-lancedb-cip": { "config": { "autoRecall": false } } } } }
 ```
 
 **方法 B（推奨）：** 想起は有効のまま、エージェントのシステムプロンプトに追加：
@@ -662,7 +664,7 @@ OAuth ログインフロー：
 いかなるツール失敗時も、リトライする前に必ず関連キーワードで memory_recall を実行。
 
 ## ルール 4 — 対象コードベースの確認
-変更前に、操作対象が memory-lancedb-pro なのか内蔵 memory-lancedb なのかを確認。
+変更前に、操作対象が memory-lancedb-cip なのか内蔵 memory-lancedb なのかを確認。
 
 ## ルール 5 — プラグインコード変更後に jiti キャッシュをクリア
 plugins/ 配下の .ts ファイルを変更した後、openclaw gateway restart の前に必ず rm -rf /tmp/jiti/ を実行。
@@ -697,7 +699,7 @@ v1.1.0 の一般的な `metadata` キー：`l0_abstract`、`l1_overview`、`l2_c
 
 ### "Cannot mix BigInt and other types"（LanceDB / Apache Arrow）
 
-LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返されることがあります。**memory-lancedb-pro >= 1.0.14** にアップグレードしてください——プラグインは算術演算の前に `Number(...)` で値を変換するようになっています。
+LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返されることがあります。**memory-lancedb-cip >= 1.0.14** にアップグレードしてください——プラグインは算術演算の前に `Number(...)` で値を変換するようになっています。
 
 </details>
 
@@ -716,7 +718,7 @@ LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返され�
 
 ## Beta：スマートメモリ v1.1.0
 
-> ステータス：Beta——`npm i memory-lancedb-pro@beta` でインストール可能。`latest` を使用している安定版ユーザーには影響しません。
+> ステータス：Beta——`npm i @psxxo/memory-lancedb-cip` でインストール可能。`latest` を使用している安定版ユーザーには影響しません。
 
 | 機能 | 説明 |
 |---------|-------------|
@@ -724,7 +726,7 @@ LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返され�
 | **ライフサイクルスコアリング** | Weibull 減衰を検索に統合——高頻度・高重要度のメモリが上位にランク。 |
 | **階層管理** | 3段階システム（コア → ワーキング → 周辺）、自動昇格/降格。 |
 
-フィードバック：[GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 元に戻す：`npm i memory-lancedb-pro@latest`
+フィードバック：[GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 元に戻す：`npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 

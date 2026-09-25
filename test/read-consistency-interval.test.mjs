@@ -9,7 +9,7 @@ const jiti = jitiFactory(import.meta.url, { interopDefault: true });
 const { MemoryStore, loadLanceDB } = jiti("../src/store.ts");
 
 function makeDir() {
-  return mkdtempSync(join(tmpdir(), "memory-lancedb-pro-rci-"));
+  return mkdtempSync(join(tmpdir(), "memory-lancedb-cip-rci-"));
 }
 
 function makeEntry(i) {

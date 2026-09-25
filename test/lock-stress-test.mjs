@@ -26,7 +26,7 @@ function makeStore(name) {
 }
 
 before(() => {
-  workDir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-stress-v2-"));
+  workDir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-stress-v2-"));
 });
 
 after(async () => {

@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧠 memory-lancedb-pro · 🦞OpenClaw Plugin
+# 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
+
+> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
 
 **[OpenClaw](https://github.com/openclaw/openclaw) 智能体的 AI 记忆助理**
 
@@ -19,11 +21,11 @@
 
 ---
 
-## 为什么选 memory-lancedb-pro？
+## 为什么选 memory-lancedb-cip？
 
 大多数 AI 智能体都有"失忆症"——每次新对话，之前聊过的全部清零。
 
-**memory-lancedb-pro** 是 OpenClaw 的生产级长期记忆插件，把你的智能体变成一个真正的 **AI 记忆助理**——自动捕捉重要信息，让噪音自然衰减，在恰当的时候回忆起恰当的内容。无需手动标记，无需复杂配置。
+**memory-lancedb-cip** 是 OpenClaw 的生产级长期记忆插件，把你的智能体变成一个真正的 **AI 记忆助理**——自动捕捉重要信息，让噪音自然衰减，在恰当的时候回忆起恰当的内容。无需手动标记，无需复杂配置。
 
 ### AI 记忆助理实际效果
 
@@ -35,7 +37,7 @@
 > *（再下一次会话）*
 > **你：** "……我真的说了第三遍了，tab，还有错误处理。"
 
-**有了 memory-lancedb-pro——你的智能体学会了、记住了：**
+**有了 memory-lancedb-cip——你的智能体学会了、记住了：**
 
 > **你：** "缩进用 tab，所有函数都要加错误处理。"
 > *（下一次会话——智能体自动回忆你的偏好）*
@@ -66,10 +68,10 @@
 
 ### 方式 A：一键安装脚本（推荐）
 
-社区维护的 **[安装脚本](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)** 一条命令搞定安装、升级和修复：
+社区维护的 **[安装脚本](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)** 一条命令搞定安装、升级和修复：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-pro-setup/setup-memory.sh -o setup-memory.sh
+curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
 bash setup-memory.sh
 ```
 
@@ -79,12 +81,12 @@ bash setup-memory.sh
 
 **通过 OpenClaw CLI（推荐）：**
 ```bash
-openclaw plugins install memory-lancedb-pro@beta
+openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
 ```
 
 **或通过 npm：**
 ```bash
-npm i memory-lancedb-pro@beta
+npm i @psxxo/memory-lancedb-cip
 ```
 > 如果用 npm 安装，你还需要在 `openclaw.json` 的 `plugins.load.paths` 中添加插件安装目录的 **绝对路径**。这是最常见的安装问题。
 
@@ -93,9 +95,9 @@ npm i memory-lancedb-pro@beta
 ```json
 {
   "plugins": {
-    "slots": { "memory": "memory-lancedb-pro" },
+    "slots": { "memory": "memory-lancedb-cip" },
     "entries": {
-      "memory-lancedb-pro": {
+      "memory-lancedb-cip": {
         "enabled": true,
         "config": {
           "embedding": {
@@ -127,12 +129,12 @@ npm i memory-lancedb-pro@beta
 ```bash
 openclaw config validate
 openclaw gateway restart
-openclaw logs --follow --plain | grep "memory-lancedb-pro"
+openclaw logs --follow --plain | grep "memory-lancedb-cip"
 ```
 
 你应该能看到：
-- `memory-lancedb-pro: smart extraction enabled`
-- `memory-lancedb-pro@...: plugin registered`
+- `memory-lancedb-cip: smart extraction enabled`
+- `memory-lancedb-cip@...: plugin registered`
 
 完成！你的智能体现在拥有长期记忆了。
 
@@ -142,8 +144,8 @@ openclaw logs --follow --plain | grep "memory-lancedb-pro"
 **已在使用 OpenClaw？**
 
 1. 在 `plugins.load.paths` 中添加插件的 **绝对路径**
-2. 绑定记忆插槽：`plugins.slots.memory = "memory-lancedb-pro"`
-3. 验证：`openclaw plugins info memory-lancedb-pro && openclaw memory-pro stats`
+2. 绑定记忆插槽：`plugins.slots.memory = "memory-lancedb-cip"`
+3. 验证：`openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
 
 **从 v1.1.0 之前的版本升级？**
 
@@ -165,7 +167,7 @@ openclaw memory-pro stats
 Task hints 是插件 `embedding` 配置块下的两个键：
 
 ```jsonc
-"memory-lancedb-pro": {
+"memory-lancedb-cip": {
   "config": {
     "embedding": {
       "model": "jina-embeddings-v5-text-small",
@@ -246,11 +248,11 @@ Requirements:
 
 ## 生态工具
 
-memory-lancedb-pro 是核心插件。社区围绕它构建了配套工具，让安装和日常使用更加顺畅：
+memory-lancedb-cip 是核心插件。社区围绕它构建了配套工具，让安装和日常使用更加顺畅：
 
 ### 安装脚本——一键安装、升级和修复
 
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)**
+> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
 
 不只是简单的安装器——脚本能智能处理各种常见场景：
 
@@ -271,13 +273,13 @@ bash setup-memory.sh --beta             # 包含预发布版本
 bash setup-memory.sh --uninstall        # 还原配置并移除插件
 ```
 
-内置 Provider 预设：**Jina / DashScope / SiliconFlow / OpenAI / Ollama**，或自带任意 OpenAI 兼容 API。完整用法（含 `--ref`、`--selfcheck-only` 等）详见 [安装脚本 README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)。
+内置 Provider 预设：**Jina / DashScope / SiliconFlow / OpenAI / Ollama**，或自带任意 OpenAI 兼容 API。完整用法（含 `--ref`、`--selfcheck-only` 等）详见 [安装脚本 README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)。
 
 ### Claude Code / OpenClaw Skill——AI 引导式配置
 
 > **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
 
-安装这个 Skill，你的 AI 智能体（Claude Code 或 OpenClaw）就能深度掌握 memory-lancedb-pro 的所有功能。只需说 **"help me enable the best config"** 即可获得：
+安装这个 Skill，你的 AI 智能体（Claude Code 或 OpenClaw）就能深度掌握 memory-lancedb-cip 的所有功能。只需说 **"help me enable the best config"** 即可获得：
 
 - **7 步引导式配置流程**，提供 4 套部署方案：
   - 满血版（Jina + OpenAI）/ 省钱版（免费 SiliconFlow 重排序）/ 简约版（仅 OpenAI）/ 全本地版（Ollama，零 API 成本）
@@ -428,7 +430,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 <details>
 <summary><strong>与内置 <code>memory-lancedb</code> 的对比（点击展开）</strong></summary>
 
-| 功能 | 内置 `memory-lancedb` | **memory-lancedb-pro** |
+| 功能 | 内置 `memory-lancedb` | **memory-lancedb-cip** |
 | --- | :---: | :---: |
 | 向量搜索 | 有 | 有 |
 | BM25 全文搜索 | - | 有 |
@@ -467,7 +469,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
     "taskPassage": "retrieval.passage",
     "normalized": true
   },
-  "dbPath": "~/.openclaw/memory/lancedb-pro",
+  "dbPath": "~/.openclaw/memory/lancedb-cip",
   "autoCapture": true,
   "autoRecall": true,
   "retrieval": {
@@ -563,7 +565,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM 模型名称 |
 | `llm.baseURL` | string | *（复用 `embedding.baseURL`）* | LLM API 端点 |
 | `llm.oauthProvider` | string | `openai-codex` | `llm.auth` 为 `oauth` 时使用的 OAuth provider id |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-pro/oauth.json` | `llm.auth` 为 `oauth` 时使用的 OAuth token 文件 |
+| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth` 为 `oauth` 时使用的 OAuth token 文件 |
 | `llm.timeoutMs` | number | `30000` | LLM 请求超时（毫秒） |
 | `extractMinMessages` | number | `2` | 触发提取的最小消息数 |
 | `extractMaxChars` | number | `8000` | 发送给 LLM 的最大字符数 |
@@ -576,7 +578,7 @@ OAuth `llm` 配置（使用现有 Codex / ChatGPT 登录缓存来发送 LLM 请�
     "auth": "oauth",
     "oauthProvider": "openai-codex",
     "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-pro/oauth.json",
+    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
     "timeoutMs": 30000
   }
 }
@@ -585,7 +587,7 @@ OAuth `llm` 配置（使用现有 Codex / ChatGPT 登录缓存来发送 LLM 请�
 `llm.auth: "oauth"` 说明：
 
 - `llm.oauthProvider` 当前仅支持 `openai-codex`。
-- OAuth token 默认存放在 `~/.openclaw/.memory-lancedb-pro/oauth.json`。
+- OAuth token 默认存放在 `~/.openclaw/.memory-lancedb-cip/oauth.json`。
 - 如需自定义路径，可设置 `llm.oauthPath`。
 - `auth login` 会在 OAuth 文件旁边快照原来的 `api-key` 模式 `llm` 配置；`auth logout` 在可用时会恢复这份快照。
 - 从 `api-key` 切到 `oauth` 时不会自动沿用 `llm.baseURL`；只有在你明确需要自定义 ChatGPT/Codex 兼容后端时，才应在 `oauth` 模式下手动设置。
@@ -644,7 +646,7 @@ OAuth 登录流程：
 1. 运行 `openclaw memory-pro auth login`
 2. 如果省略 `--provider` 且当前终端可交互，CLI 会先显示 OAuth provider 选择器
 3. 命令会打印授权 URL，并在未指定 `--no-browser` 时自动打开浏览器
-4. 回调成功后，命令会保存 plugin OAuth 文件（默认：`~/.openclaw/.memory-lancedb-pro/oauth.json`）、为 logout 快照原来的 `api-key` 模式 `llm` 配置，并把插件 `llm` 配置切换为 OAuth 字段（`auth`、`oauthProvider`、`model`、`oauthPath`）
+4. 回调成功后，命令会保存 plugin OAuth 文件（默认：`~/.openclaw/.memory-lancedb-cip/oauth.json`）、为 logout 快照原来的 `api-key` 模式 `llm` 配置，并把插件 `llm` 配置切换为 OAuth 字段（`auth`、`oauthProvider`、`model`、`oauthPath`）
 5. `openclaw memory-pro auth logout` 会删除这份 OAuth 文件，并在存在快照时恢复之前的 `api-key` 模式 `llm` 配置
 
 ---
@@ -658,7 +660,7 @@ OAuth 登录流程：
 
 **方案 A（最安全）：** 暂时关闭自动回忆：
 ```json
-{ "plugins": { "entries": { "memory-lancedb-pro": { "config": { "autoRecall": false } } } } }
+{ "plugins": { "entries": { "memory-lancedb-cip": { "config": { "autoRecall": false } } } } }
 ```
 
 **方案 B（推荐）：** 保留回忆，在智能体系统提示词中添加：
@@ -717,7 +719,7 @@ OAuth 登录流程：
 任何工具调用失败时，必须先用 memory_recall 搜索相关关键词，再重试。
 
 ## 规则 4 — 确认目标代码库
-修改前确认你操作的是 memory-lancedb-pro 还是内置 memory-lancedb。
+修改前确认你操作的是 memory-lancedb-cip 还是内置 memory-lancedb。
 
 ## 规则 5 — 修改插件代码后清除 jiti 缓存
 修改 plugins/ 下的 .ts 文件后，必须先执行 rm -rf /tmp/jiti/ 再重启 openclaw gateway。
@@ -752,7 +754,7 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 
 ### "Cannot mix BigInt and other types"（LanceDB / Apache Arrow）
 
-在 LanceDB 0.26+ 上，某些数值列可能以 `BigInt` 形式返回。升级到 **memory-lancedb-pro >= 1.0.14**——插件现在会在运算前使用 `Number(...)` 进行类型转换。
+在 LanceDB 0.26+ 上，某些数值列可能以 `BigInt` 形式返回。升级到 **memory-lancedb-cip >= 1.0.14**——插件现在会在运算前使用 `Number(...)` 进行类型转换。
 
 </details>
 
@@ -771,7 +773,7 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 
 ## Beta：智能记忆 v1.1.0
 
-> 状态：Beta——通过 `npm i memory-lancedb-pro@beta` 安装。使用 `latest` 的稳定版用户不受影响。
+> 状态：Beta——通过 `npm i @psxxo/memory-lancedb-cip` 安装。使用 `latest` 的稳定版用户不受影响。
 
 | 功能 | 说明 |
 |------|------|
@@ -779,7 +781,7 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 | **生命周期评分** | Weibull 衰减集成到检索中——高频和高重要性记忆排名更高。 |
 | **层级管理** | 三级系统（核心 → 工作 → 外围），自动晋升/降级。 |
 
-反馈：[GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 回退：`npm i memory-lancedb-pro@latest`
+反馈：[GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 回退：`npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 

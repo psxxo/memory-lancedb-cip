@@ -895,7 +895,7 @@ export function createDreamingEngine(deps: DreamingEngineDependencies): Dreaming
 
       const scopes = await resolveScopes(explicitScopes);
       result.scopes = scopes;
-      debug(`memory-lancedb-pro: dreaming sweep started for scopes: ${scopes.join(", ")}`);
+      debug(`memory-lancedb-cip: dreaming sweep started for scopes: ${scopes.join(", ")}`);
 
       for (const scope of scopes) {
         if (stopped) break;
@@ -919,14 +919,14 @@ export function createDreamingEngine(deps: DreamingEngineDependencies): Dreaming
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             result.errors.push({ scope, phase, message });
-            deps.logger?.warn?.(`memory-lancedb-pro: dreaming ${phase} phase failed for scope ${scope}: ${message}`);
+            deps.logger?.warn?.(`memory-lancedb-cip: dreaming ${phase} phase failed for scope ${scope}: ${message}`);
           }
         }
       }
 
       result.finishedAt = now();
       debug(
-        `memory-lancedb-pro: dreaming sweep finished ` +
+        `memory-lancedb-cip: dreaming sweep finished ` +
         `(changed=${Object.values(result.phases).reduce((sum, phase) => sum + phase.changed, 0)}, errors=${result.errors.length})`,
       );
       return result;

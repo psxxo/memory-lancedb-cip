@@ -47,7 +47,7 @@ describe("storage path normalization", () => {
   });
 
   it("validates local file URLs using native filesystem paths", () => {
-    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-file-url-"));
+    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-file-url-"));
     try {
       assert.equal(validateStoragePath(pathToFileURL(dir).href), dir);
     } finally {
@@ -56,7 +56,7 @@ describe("storage path normalization", () => {
   });
 
   it("validates local file URLs asynchronously using native filesystem paths", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-file-url-async-"));
+    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-file-url-async-"));
     try {
       assert.equal(await validateStoragePathAsync(pathToFileURL(dir).href), dir);
     } finally {

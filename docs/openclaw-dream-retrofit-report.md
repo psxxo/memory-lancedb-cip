@@ -1,7 +1,7 @@
 # OpenClaw Dream Retrofit Final Report
 
 Date: 2026-05-23
-Repository: `memory-lancedb-pro`
+Repository: `memory-lancedb-cip`
 Artifact path: `docs/openclaw-dream-retrofit-report.md`
 
 No explicit output artifact path was present in the environment or repository metadata, so this report is written as a versioned repo artifact under `docs/`.
@@ -18,7 +18,7 @@ No explicit output artifact path was present in the environment or repository me
 
 ## Implemented Outcomes
 
-1. `memory-lancedb-pro` now registers `api.registerMemoryCapability` with:
+1. `memory-lancedb-cip` now registers `api.registerMemoryCapability` with:
    - `runtime`
    - `promptBuilder`
    - `flushPlanResolver`

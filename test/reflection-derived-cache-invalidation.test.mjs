@@ -144,7 +144,7 @@ async function runReflectionGeneration(harness, pluginConfig, workDir, sessionKe
     JSON.stringify({ type: "message", message: { role: "assistant", content: "I will reflect on it." } }),
   ].join("\n"), "utf-8");
   const commandHooks = harness.eventHandlers.get("command:new") || [];
-  const reflectionCommandHook = commandHooks.find((h) => h.meta?.name === "memory-lancedb-pro.memory-reflection.command-new");
+  const reflectionCommandHook = commandHooks.find((h) => h.meta?.name === "memory-lancedb-cip.memory-reflection.command-new");
   assert.ok(reflectionCommandHook, "expected the command:new reflection hook");
   return reflectionCommandHook.handler({
     sessionKey, timestamp: 1_800_000_000_000, action: "tick",

@@ -1,6 +1,6 @@
 /**
  * Migration Utilities
- * Migrates data from old memory-lancedb plugin to memory-lancedb-pro
+ * Migrates data from old memory-lancedb plugin to memory-lancedb-cip
  */
 import { homedir } from "node:os";
 import { join } from "node:path";

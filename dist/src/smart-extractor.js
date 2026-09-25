@@ -1176,7 +1176,7 @@ export class SmartExtractor {
         for (let inputIndex = 0; inputIndex < texts.length; inputIndex++) {
             const text = texts[inputIndex];
             if (isMetaFrustrationNoise(text)) {
-                this.debugLog(`memory-lancedb-pro: smart-extractor: static noise filtered: ${text.slice(0, 80)}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: static noise filtered: ${text.slice(0, 80)}`);
                 continue;
             }
             staticFiltered.push(text);
@@ -1225,7 +1225,7 @@ export class SmartExtractor {
                 continue;
             }
             if (noiseBank.isNoise(vec)) {
-                this.debugLog(`memory-lancedb-pro: smart-extractor: embedding noise filtered: ${staticFiltered[idx].slice(0, 80)}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: embedding noise filtered: ${staticFiltered[idx].slice(0, 80)}`);
                 // Leave result[idx] as undefined — will be compacted below
             }
             else {
@@ -1259,7 +1259,7 @@ export class SmartExtractor {
             const vec = await this.embedder.embed(tail);
             if (vec && vec.length > 0) {
                 noiseBank.learn(vec);
-                this.debugLog("memory-lancedb-pro: smart-extractor: learned noise from zero-extraction");
+                this.debugLog("memory-lancedb-cip: smart-extractor: learned noise from zero-extraction");
             }
         }
         catch {
@@ -1298,7 +1298,7 @@ export class SmartExtractor {
                 protectedKeptTurns++;
         }
         if (turns.length === 0) {
-            this.debugLog("memory-lancedb-pro: smart-extractor: every turn stripped to envelope metadata; skipping extraction");
+            this.debugLog("memory-lancedb-cip: smart-extractor: every turn stripped to envelope metadata; skipping extraction");
             return { status: "empty_input", candidates: [] };
         }
         // extractMaxChars is an absolute ceiling on the transcript, exactly as it
@@ -1309,16 +1309,16 @@ export class SmartExtractor {
         // over-budget case does not render the whole delta a second time.
         const { transcript, fullLength, protectedPrefixKept } = buildBoundedTranscriptWithStats(turns, maxChars, { protectedPrefixTurns: protectedKeptTurns });
         if (transcript.length < fullLength) {
-            this.debugLog(`memory-lancedb-pro: smart-extractor: transcript bounded to extractMaxChars=${maxChars} (${fullLength - transcript.length} of ${fullLength} rendered chars dropped)`);
+            this.debugLog(`memory-lancedb-cip: smart-extractor: transcript bounded to extractMaxChars=${maxChars} (${fullLength - transcript.length} of ${fullLength} rendered chars dropped)`);
         }
         if (protectedKeptTurns > 0 && !protectedPrefixKept) {
-            this.log(`memory-lancedb-pro: smart-extractor: extractMaxChars=${maxChars} is too small to carry the prepended referent; extracting without it`);
+            this.log(`memory-lancedb-cip: smart-extractor: extractMaxChars=${maxChars} is too small to carry the prepended referent; extracting without it`);
         }
         // Bounding can drop every turn when the budget sits below one turn's tag
         // envelope; prompting on an empty transcript wastes the call and its
         // zero-candidate reply would mistrain the noise bank.
         if (transcript.trim().length === 0) {
-            this.debugLog("memory-lancedb-pro: smart-extractor: transcript empty after bounding; skipping extraction");
+            this.debugLog("memory-lancedb-cip: smart-extractor: transcript empty after bounding; skipping extraction");
             return { status: "empty_input", candidates: [] };
         }
         const { system, user: userPrompt } = buildExtractionPrompt(transcript, user, {
@@ -1326,14 +1326,14 @@ export class SmartExtractor {
         });
         const result = await this.llm.completeJson(userPrompt, "extract-candidates", system);
         if (!result) {
-            this.debugLog("memory-lancedb-pro: smart-extractor: extract-candidates returned null");
+            this.debugLog("memory-lancedb-cip: smart-extractor: extract-candidates returned null");
             return { status: "llm_failure", candidates: [] };
         }
         if (!result.memories || !Array.isArray(result.memories)) {
-            this.debugLog(`memory-lancedb-pro: smart-extractor: extract-candidates returned unexpected shape keys=${Object.keys(result).join(",") || "(none)"}`);
+            this.debugLog(`memory-lancedb-cip: smart-extractor: extract-candidates returned unexpected shape keys=${Object.keys(result).join(",") || "(none)"}`);
             return { status: "malformed", candidates: [] };
         }
-        this.debugLog(`memory-lancedb-pro: smart-extractor: extract-candidates raw memories=${result.memories.length}`);
+        this.debugLog(`memory-lancedb-cip: smart-extractor: extract-candidates raw memories=${result.memories.length}`);
         // Batch-level register signal, judged once per extraction. The model
         // classifies whole sessions far more reliably than it self-tags single
         // items, so the register deterministically overrides per-item grounding
@@ -1438,7 +1438,7 @@ export class SmartExtractor {
         const judgeConfirmedReal = new Set();
         let rejudgeFailedClosed = false;
         if (rejudgeCell) {
-            this.debugLog(`memory-lancedb-pro: smart-extractor: grounding-rejudge fired cell=${rejudgeCell} register=${conversationRegister} candidates=${rawItems.length}`);
+            this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge fired cell=${rejudgeCell} register=${conversationRegister} candidates=${rawItems.length}`);
             const rejudgePrompt = buildGroundingRejudgePrompt(transcript, conversationRegister, rawItems.map((m, i) => ({
                 index: i + 1,
                 category: String(m.category ?? ""),
@@ -1453,7 +1453,7 @@ export class SmartExtractor {
                 // Logged at info: this path discards every durable in the batch, and a
                 // silent judge (a transient gateway failure looks identical to an
                 // unusable answer here) should be visible when it does that.
-                this.log(`memory-lancedb-pro: smart-extractor: grounding-rejudge returned no usable verdict — failing closed, real-tagged durables will be demoted`);
+                this.log(`memory-lancedb-cip: smart-extractor: grounding-rejudge returned no usable verdict — failing closed, real-tagged durables will be demoted`);
             }
             else {
                 // The ENTIRE response is validated before any of it is applied:
@@ -1501,7 +1501,7 @@ export class SmartExtractor {
                     }
                 }
                 else {
-                    this.debugLog(`memory-lancedb-pro: smart-extractor: grounding-rejudge verdict malformed (${verdictResults.length} row(s) for ${rawItems.length} candidate(s), or a duplicate/out-of-range index or invalid grounding) — applying none and failing closed on the asserted register`);
+                    this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge verdict malformed (${verdictResults.length} row(s) for ${rawItems.length} candidate(s), or a duplicate/out-of-range index or invalid grounding) — applying none and failing closed on the asserted register`);
                 }
                 const coverageComplete = verdictWellFormed && adjudicated.size === rawItems.length;
                 const verdictRegister = typeof verdict.conversation_register === "string"
@@ -1518,7 +1518,7 @@ export class SmartExtractor {
                         conversationRegister = verdictRegister;
                     }
                     else {
-                        this.debugLog(`memory-lancedb-pro: smart-extractor: grounding-rejudge verdict coverage incomplete (${adjudicated.size}/${rawItems.length}) — refusing register relax ${conversationRegister}->${verdictRegister}`);
+                        this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge verdict coverage incomplete (${adjudicated.size}/${rawItems.length}) — refusing register relax ${conversationRegister}->${verdictRegister}`);
                     }
                 }
                 // Coverage check: the judge is instructed to adjudicate every index.
@@ -1547,9 +1547,9 @@ export class SmartExtractor {
                     }
                 }
                 if (uncoveredDemoted > 0) {
-                    this.debugLog(`memory-lancedb-pro: smart-extractor: grounding-rejudge verdict incomplete (${adjudicated.size}/${rawItems.length} adjudicated) — quarantining ${uncoveredDemoted} unadjudicated real-tagged durable(s)`);
+                    this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge verdict incomplete (${adjudicated.size}/${rawItems.length} adjudicated) — quarantining ${uncoveredDemoted} unadjudicated real-tagged durable(s)`);
                 }
-                this.debugLog(`memory-lancedb-pro: smart-extractor: grounding-rejudge verdict register=${registerBefore}->${conversationRegister} retagged=${retagged}/${rawItems.length}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge verdict register=${registerBefore}->${conversationRegister} retagged=${retagged}/${rawItems.length}`);
             }
         }
         // A constructed sibling makes the batch's own self-tagging untrustworthy,
@@ -1569,13 +1569,13 @@ export class SmartExtractor {
         for (const raw of result.memories) {
             if (!raw || typeof raw !== "object") {
                 invalidCategoryCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping null/invalid candidate entry`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping null/invalid candidate entry`);
                 continue;
             }
             const category = normalizeCategory(raw.category ?? "");
             if (!category) {
                 invalidCategoryCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping candidate due to invalid category rawCategory=${JSON.stringify(raw.category ?? "")} abstract=${JSON.stringify((raw.abstract ?? "").trim().slice(0, 120))}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping candidate due to invalid category rawCategory=${JSON.stringify(raw.category ?? "")} abstract=${JSON.stringify((raw.abstract ?? "").trim().slice(0, 120))}`);
                 continue;
             }
             const abstract = (raw.abstract ?? "").trim();
@@ -1584,19 +1584,19 @@ export class SmartExtractor {
             // Skip empty or noise
             if (!abstract || abstract.length < 5) {
                 shortAbstractCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping candidate due to short abstract category=${category} abstract=${JSON.stringify(abstract)}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping candidate due to short abstract category=${category} abstract=${JSON.stringify(abstract)}`);
                 continue;
             }
             if (isNoise(abstract)) {
                 noiseAbstractCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping candidate due to noise abstract category=${category} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping candidate due to noise abstract category=${category} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
                 continue;
             }
             // Option C: scope policy restricts extraction to episodic-only,
             // independent of grounding — checked before the grounding filter below.
             if (policyMode === "episodic-only" && category !== "events") {
                 policyDroppedCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping candidate due to episodic-only extraction policy category=${category} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping candidate due to episodic-only extraction policy category=${category} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
                 continue;
             }
             // Option A / v3: grounding-aware filter. Missing/non-string/unrecognized
@@ -1620,7 +1620,7 @@ export class SmartExtractor {
             // are exactly the wobble the batch register exists to override).
             if (conversationRegister === "fiction" && DURABLE_CATEGORIES.has(category)) {
                 fictionRegisterDroppedCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping durable candidate from fiction-register batch category=${category} grounding=${grounding} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping durable candidate from fiction-register batch category=${category} grounding=${grounding} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
                 continue;
             }
             // Judge-gated categories: an event may be an assertion ABOUT a fiction
@@ -1637,7 +1637,7 @@ export class SmartExtractor {
                 FICTION_JUDGED_CATEGORIES.has(category) &&
                 !(rawItemPosition !== undefined && judgeConfirmedReal.has(rawItemPosition))) {
                 fictionRegisterDroppedCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping unconfirmed judge-gated candidate (register=${conversationRegister}, cell=${rejudgeCell ?? "none"}) category=${category} grounding=${grounding} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping unconfirmed judge-gated candidate (register=${conversationRegister}, cell=${rejudgeCell ?? "none"}) category=${category} grounding=${grounding} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
                 continue;
             }
             // Grounding enforcement: a constructed assertion is true only within
@@ -1645,7 +1645,7 @@ export class SmartExtractor {
             // of category or register.
             if (grounding === "constructed") {
                 constructedDroppedCount++;
-                this.debugLog(`memory-lancedb-pro: smart-extractor: dropping constructed-grounding candidate category=${category} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
+                this.debugLog(`memory-lancedb-cip: smart-extractor: dropping constructed-grounding candidate category=${category} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
                 continue;
             }
             candidates.push({ category, abstract, overview, content, grounding, conversationRegister });
@@ -1669,7 +1669,7 @@ export class SmartExtractor {
                 const candidate = candidates[i];
                 if (DURABLE_CATEGORIES.has(candidate.category)) {
                     contradictionDemotedCount++;
-                    this.debugLog(`memory-lancedb-pro: smart-extractor: grounding-rejudge failure fallback — demoting real-tagged durable from ${conversationRegister}-register batch category=${candidate.category} abstract=${JSON.stringify(candidate.abstract.slice(0, 120))}`);
+                    this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge failure fallback — demoting real-tagged durable from ${conversationRegister}-register batch category=${candidate.category} abstract=${JSON.stringify(candidate.abstract.slice(0, 120))}`);
                     candidates.splice(i, 1);
                 }
             }
@@ -1678,9 +1678,9 @@ export class SmartExtractor {
             // At the standard log level so a fully-demoted batch is distinguishable
             // from "model found nothing" without debug logging (mirrors the
             // admission-rejection lines).
-            this.log(`memory-lancedb-pro: smart-extractor: batch contradiction demoted ${contradictionDemotedCount} real-tagged durable candidate(s) (register=${conversationRegister}, constructed siblings present)`);
+            this.log(`memory-lancedb-cip: smart-extractor: batch contradiction demoted ${contradictionDemotedCount} real-tagged durable candidate(s) (register=${conversationRegister}, constructed siblings present)`);
         }
-        this.debugLog(`memory-lancedb-pro: smart-extractor: validation summary register=${conversationRegister}, accepted=${candidates.length}, invalidCategory=${invalidCategoryCount}, shortAbstract=${shortAbstractCount}, noiseAbstract=${noiseAbstractCount}, policyDropped=${policyDroppedCount}, constructedDropped=${constructedDroppedCount}, fictionRegisterDropped=${fictionRegisterDroppedCount}, contradictionDemoted=${contradictionDemotedCount}`);
+        this.debugLog(`memory-lancedb-cip: smart-extractor: validation summary register=${conversationRegister}, accepted=${candidates.length}, invalidCategory=${invalidCategoryCount}, shortAbstract=${shortAbstractCount}, noiseAbstract=${noiseAbstractCount}, policyDropped=${policyDroppedCount}, constructedDropped=${constructedDroppedCount}, fictionRegisterDropped=${fictionRegisterDroppedCount}, contradictionDemoted=${contradictionDemotedCount}`);
         return {
             status: "ok",
             candidates,
@@ -2946,7 +2946,7 @@ export class SmartExtractor {
             });
         }
         catch (err) {
-            this.log(`memory-lancedb-pro: smart-extractor: rejected admission audit write failed: ${String(err)}`);
+            this.log(`memory-lancedb-cip: smart-extractor: rejected admission audit write failed: ${String(err)}`);
         }
     }
 }

@@ -22,7 +22,7 @@ const jiti = jitiFactory(import.meta.url, { interopDefault: true });
 const { MemoryStore } = jiti("../src/store.ts");
 
 function makeStore() {
-  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-serial-"));
+  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-serial-"));
   const store = new MemoryStore({ dbPath: dir, vectorDim: 3 });
   return { store, dir };
 }

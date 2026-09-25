@@ -1,6 +1,6 @@
 ---
 name: enqueue-lesson-extract
-description: "Enqueue a lesson-extraction task on /new (async Map-Reduce → LanceDB Pro)"
+description: "Enqueue a lesson-extraction task on /new (async Map-Reduce → LanceDB CIP)"
 metadata:
   {
     "openclaw": {
@@ -17,5 +17,5 @@ Writes a small JSON task file to a queue directory when `/new` is issued.
 This is intentionally fast and non-blocking. A separate systemd worker consumes tasks and:
 - reads the session JSONL transcript
 - runs Map-Reduce extraction with Gemini Flash
-- writes high-signal, deduped lessons into LanceDB Pro
+- writes high-signal, deduped lessons into LanceDB CIP
 - sends a notification (optional)

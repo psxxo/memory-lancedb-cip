@@ -19,7 +19,7 @@ const EMPTY_GOVERNANCE_SNAPSHOT = {
 };
 
 function makeStore() {
-  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-write-queue-"));
+  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-write-queue-"));
   const store = new MemoryStore({ dbPath: dir, vectorDim: 3 });
   return { store, dir };
 }

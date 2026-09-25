@@ -106,12 +106,12 @@ describe("self-improvement reset reminder", () => {
 
     const commandHook = harness.eventHandlers
       .get("command:new")
-      ?.find((hook) => hook.meta?.name === "memory-lancedb-pro.self-improvement.command-new");
+      ?.find((hook) => hook.meta?.name === "memory-lancedb-cip.self-improvement.command-new");
     assert.ok(commandHook, "expected self-improvement command:new hook");
 
     const promptHook = harness.eventHandlers
       .get("before_prompt_build")
-      ?.find((hook) => hook.meta?.registrationId === "memory-lancedb-pro.self-improvement.before-prompt-build");
+      ?.find((hook) => hook.meta?.registrationId === "memory-lancedb-cip.self-improvement.before-prompt-build");
     assert.ok(promptHook, "expected self-improvement before_prompt_build hook");
 
     const messages = ["user content remains user-visible content only"];

@@ -233,7 +233,7 @@ describe("runMemoryReflection — invalid agentId guard", () => {
 
       const hooks = harness.eventHandlers.get("command:new") || [];
       const reflectionHook = hooks.find((hook) =>
-        hook.meta?.name === "memory-lancedb-pro.memory-reflection.command-new"
+        hook.meta?.name === "memory-lancedb-cip.memory-reflection.command-new"
       );
       assert.ok(reflectionHook, "expected memory reflection command:new hook");
       // An empty transcript file parks the boundary for the typed before_reset

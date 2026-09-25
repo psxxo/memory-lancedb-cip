@@ -23,7 +23,7 @@ export class RedisLockLeaseIntegrityError extends Error {
         this.name = "RedisLockLeaseIntegrityError";
     }
 }
-const DEFAULT_KEY_PREFIX = "memory-lancedb-pro:write-lock";
+const DEFAULT_KEY_PREFIX = "memory-lancedb-cip:write-lock";
 const DEFAULT_TTL_MS = 60_000;
 const DEFAULT_ACQUIRE_TIMEOUT_MS = 5_000;
 const DEFAULT_RETRY_DELAY_MS = 50;
@@ -115,7 +115,7 @@ export class RedisLockManager {
                     markLeaseLost(new RedisLockLeaseLostError(`Redis lock renewal failed for ${key} before the lease could be extended: ${err instanceof Error ? err.message : String(err)}`, { cause: err }));
                     return;
                 }
-                this.config.onWarning?.(`memory-lancedb-pro: transient Redis lock renewal failure for ${key}; retrying before TTL expiry: ${String(err)}`);
+                this.config.onWarning?.(`memory-lancedb-cip: transient Redis lock renewal failure for ${key}; retrying before TTL expiry: ${String(err)}`);
             });
         }, renewIntervalMs);
         if (typeof renewTimer.unref === "function")
@@ -152,7 +152,7 @@ export class RedisLockManager {
                 if (err instanceof RedisLockLeaseIntegrityError) {
                     throw err;
                 }
-                this.config.onWarning?.(`memory-lancedb-pro: Redis lock release failed for ${key}; lock will expire by TTL: ${String(err)}`);
+                this.config.onWarning?.(`memory-lancedb-cip: Redis lock release failed for ${key}; lock will expire by TTL: ${String(err)}`);
             }
         }
     }
@@ -212,7 +212,7 @@ export class RedisLockManager {
         }
         catch (err) {
             this.clientPromise = null;
-            this.config.onWarning?.(`memory-lancedb-pro: Redis lock connection failed; writes will fail closed until Redis locking is available: ${String(err)}`);
+            this.config.onWarning?.(`memory-lancedb-cip: Redis lock connection failed; writes will fail closed until Redis locking is available: ${String(err)}`);
             throw new RedisLockUnavailableError(`Redis lock connection failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
         }
     }

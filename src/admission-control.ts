@@ -940,7 +940,7 @@ export class AdmissionController {
       conversation_register: candidate.conversationRegister,
     };
     this.debugLog(
-      `memory-lancedb-pro: admission-control: decision=reject (constructed short-circuit) candidate=${JSON.stringify(candidate.abstract.slice(0, 80))}`,
+      `memory-lancedb-cip: admission-control: decision=reject (constructed short-circuit) candidate=${JSON.stringify(candidate.abstract.slice(0, 80))}`,
     );
     return { decision: "reject", audit };
   }
@@ -1094,7 +1094,7 @@ export class AdmissionController {
     };
 
     this.debugLog(
-      `memory-lancedb-pro: admission-control: decision=${audit.decision} hint=${audit.hint ?? "n/a"} score=${audit.score.toFixed(3)} candidate=${JSON.stringify(params.candidate.abstract.slice(0, 80))}`,
+      `memory-lancedb-cip: admission-control: decision=${audit.decision} hint=${audit.hint ?? "n/a"} score=${audit.score.toFixed(3)} candidate=${JSON.stringify(params.candidate.abstract.slice(0, 80))}`,
     );
 
     return { decision, hint, audit };
@@ -1234,7 +1234,7 @@ export class AdmissionController {
       // composed at assembly per item 3) attributes cleanly through
       // whatever debugLog prefix that lane's own construction site injects.
       this.debugLog(
-        `memory-lancedb-pro: admission-control: batch utility call failed for ${candidates.length} candidates, falling back to standalone`,
+        `memory-lancedb-cip: admission-control: batch utility call failed for ${candidates.length} candidates, falling back to standalone`,
       );
       const out: Array<{ score: number; reason?: string }> = [];
       for (const candidate of candidates) {
@@ -1244,7 +1244,7 @@ export class AdmissionController {
     }
 
     this.debugLog(
-      `memory-lancedb-pro: admission-control: batch utility call scored ${candidates.length} candidates in one call`,
+      `memory-lancedb-cip: admission-control: batch utility call scored ${candidates.length} candidates in one call`,
     );
     return parseBatchUtilityResponse(response, candidates.length);
   }

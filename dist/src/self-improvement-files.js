@@ -72,7 +72,7 @@ export async function ensureSelfImprovementLearningFiles(baseDir) {
     ]);
 }
 export async function appendSelfImprovementEntry(params) {
-    const { baseDir, type, summary, details = "", suggestedAction = "", category = "best_practice", area = "config", priority = "medium", status = "pending", source = "memory-lancedb-pro/self_improvement_log", maxEntries, } = params;
+    const { baseDir, type, summary, details = "", suggestedAction = "", category = "best_practice", area = "config", priority = "medium", status = "pending", source = "memory-lancedb-cip/self_improvement_log", maxEntries, } = params;
     await ensureSelfImprovementLearningFiles(baseDir);
     const learningsDir = join(baseDir, ".learnings");
     const fileName = type === "learning" ? "LEARNINGS.md" : "ERRORS.md";

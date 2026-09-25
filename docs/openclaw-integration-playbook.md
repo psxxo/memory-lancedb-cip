@@ -1,6 +1,6 @@
 # OpenClaw Integration Playbook
 
-This guide turns the integration and test findings for `memory-lancedb-pro` into a reusable checklist for two audiences:
+This guide turns the integration and test findings for `memory-lancedb-cip` into a reusable checklist for two audiences:
 
 - OpenClaw users who want a stable first deployment
 - Maintainers who need a practical regression guide for future iterations
@@ -13,11 +13,11 @@ Before following the rest of this guide, classify your current state:
 
 - new OpenClaw user or first-time memory setup
 - existing OpenClaw user adding this plugin later
-- existing `memory-lancedb-pro` user upgrading from a pre-v1.1.0 release
+- existing `memory-lancedb-cip` user upgrading from a pre-v1.1.0 release
 
 The operating rule is:
 
-- `upgrade` is for older `memory-lancedb-pro` data
+- `upgrade` is for older `memory-lancedb-cip` data
 - `migrate` is for built-in `memory-lancedb` data
 - `reembed` is for embedding rebuilds, not routine upgrades
 
@@ -52,13 +52,13 @@ In this mode:
 If both are enabled, `/new` can produce two outputs:
 
 - built-in workspace/session summary files
-- LanceDB session-summary memories written by `memory-lancedb-pro`
+- LanceDB session-summary memories written by `memory-lancedb-cip`
 
 That is valid, but it is a double-write design. If you do not want duplicated session summarization paths, keep only one.
 
 ### Mode C: Retrieval + OpenClaw memory runtime and dreaming
 
-Use this when `memory-lancedb-pro` owns `plugins.slots.memory` and OpenClaw should treat the plugin as the active memory capability.
+Use this when `memory-lancedb-cip` owns `plugins.slots.memory` and OpenClaw should treat the plugin as the active memory capability.
 
 In this mode:
 
@@ -68,7 +68,7 @@ In this mode:
 - runtime search results must include `path`, `startLine`, `endLine`, `snippet`, `source`, and `citation`
 - dream reports are exposed as `dream-report` public artifacts, and `memory/.dreams/events.jsonl` is exposed as the dreaming event log
 
-If `dreaming.enabled` is true, OpenClaw may load the built-in memory-core dreaming sidecar while keeping `memory-lancedb-pro` as the selected memory slot owner. Keep the dreaming config under the `memory-lancedb-pro` plugin entry so OpenClaw resolves the sidecar against the active memory plugin.
+If `dreaming.enabled` is true, OpenClaw may load the built-in memory-core dreaming sidecar while keeping `memory-lancedb-cip` as the selected memory slot owner. Keep the dreaming config under the `memory-lancedb-cip` plugin entry so OpenClaw resolves the sidecar against the active memory plugin.
 
 ## 2. Recommended Session Memory Strategy
 
@@ -123,14 +123,14 @@ Run this before debugging retrieval quality.
 openclaw config validate
 openclaw status
 openclaw gateway status
-openclaw plugins info memory-lancedb-pro
+openclaw plugins info memory-lancedb-cip
 openclaw hooks list --json
 ```
 
 Confirm:
 
 - plugin is loaded from the expected path
-- `plugins.slots.memory` points to `memory-lancedb-pro`
+- `plugins.slots.memory` points to `memory-lancedb-cip`
 - the plugin registers a memory capability, not only legacy hooks/tools
 - the expected hooks are enabled
 - the gateway has been restarted after config changes
@@ -139,7 +139,7 @@ Confirm:
 
 If you use plugin session memory, `openclaw hooks list --json` should show the plugin hook:
 
-- `memory-lancedb-pro-session-memory`
+- `memory-lancedb-cip-session-memory`
 
 If you want plugin-only session summaries, also confirm:
 
@@ -233,7 +233,7 @@ Validate at least once:
 When `canonicalCorpus.enabled` is true, create a temporary markdown note under `memory/YYYY-MM-DD.md` and verify runtime memory search can return it with:
 
 - `source: "memory"`
-- a real workspace-relative path, not only a `memory-lancedb-pro/<id>.md` virtual path
+- a real workspace-relative path, not only a `memory-lancedb-cip/<id>.md` virtual path
 - line numbers and a snippet that match the file
 
 For session transcript coverage, verify a recent `~/.openclaw/agents/<agentId>/sessions/*.jsonl` entry can be returned with `source: "sessions"` when session transcript indexing is enabled.
@@ -270,7 +270,7 @@ Never store secrets or private account material from this flow:
 - draft post or reply text
 - non-public profile, follower, or media data
 
-Keep visible X/Twitter actions outside the memory plugin. Posting tweets, posting replies, sending direct messages, uploading media, and downloading media require explicit user approval in the tool workflow that performs the action. `memory-lancedb-pro` should only persist the reviewed summary after that workflow has produced safe public source context.
+Keep visible X/Twitter actions outside the memory plugin. Posting tweets, posting replies, sending direct messages, uploading media, and downloading media require explicit user approval in the tool workflow that performs the action. `memory-lancedb-cip` should only persist the reviewed summary after that workflow has produced safe public source context.
 
 Verification checklist:
 
@@ -364,7 +364,7 @@ Run this matrix before release candidates or after major retrieval changes.
 - `MEMORY.md` and `memory/**/*.md` stay readable as files
 - LanceDB contains indexed corpus entries with `openclaw_corpus` metadata
 - session transcript indexing can be disabled independently with `canonicalCorpus.includeSessionTranscripts`
-- dreaming config validates under the `memory-lancedb-pro` plugin entry
+- dreaming config validates under the `memory-lancedb-cip` plugin entry
 - public artifacts include dream reports and the dreaming event log when files exist
 
 ### Agent bootstrap

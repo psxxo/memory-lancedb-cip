@@ -16,6 +16,16 @@ to OpenClaw **2026.9.5** and replaces the previous compatibility shims with the 
 - ClawHub Plugin Inspector (runtime capture): PASS, 0 breakages, 0 warnings.
 - Full suite: 187 files, failures identical to the pre-port baseline (environment-only), 0 new failures.
 
+## 1.2.0
+
+Rename release: this distribution is now `memory-lancedb-cip` / **Memory LanceDB CIP**.
+
+- Plugin identity renamed end to end: manifest `id`/`name` (`memory-lancedb-cip` / `Memory (LanceDB CIP)`), the plugin `id` registered with the host, memory-capability `provider`/`custom.plugin` ids, hook `registrationId`s (`memory-lancedb-cip.*`), Redis/file lock key prefixes, the diagnostic build tag, and every log/error prefix.
+- **Default data path changed** to `~/.openclaw/memory/lancedb-cip` (was `~/.openclaw/memory/lancedb-pro`). The default OAuth token file moved to `~/.openclaw/.memory-lancedb-cip/oauth.json`.
+- Install/publish examples now name this fork's distribution package (`clawhub:@psxxo/memory-lancedb-cip`), not the upstream npm package.
+- Upstream attribution is preserved: `CortexReach/memory-lancedb-pro` (MIT, author win4r). Upstream URLs, issue/PR links, the community setup script, and the upstream skill repositories keep their original names.
+- **No migration is required**: this build has no historical installs, so no data-dir or config-key migration path is shipped. A fresh data directory is created on first start.
+
 ## 1.1.2
 - Removed the unsupported top-level `hooks` field from `openclaw.plugin.json` (ClawHub `manifest-unknown-fields`). Conversation hook access is granted where the host reads it: `plugins.entries.<id>.hooks.allowConversationAccess` in `openclaw.json`.
 - Added `assets/icon.png` (256x256 PNG) for ClawHub catalog artwork and included `assets/**` in the published files.

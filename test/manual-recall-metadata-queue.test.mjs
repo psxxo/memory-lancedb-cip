@@ -193,7 +193,7 @@ test("fresh enqueue traffic keeps an independent retry budget", async () => {
 });
 
 test("process beforeExit catches same-store work across repeated later-listener microtasks", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-exit-drain-"));
+  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-exit-drain-"));
   const childScript = `
     import jitiFactory from "jiti";
     const jiti = jitiFactory(import.meta.url, { interopDefault: true });

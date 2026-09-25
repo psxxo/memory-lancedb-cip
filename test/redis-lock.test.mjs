@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 function tempDbPath() {
-  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-redis-lock-"));
+  const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-redis-lock-"));
   tempDirs.push(dir);
   return dir;
 }

@@ -467,7 +467,7 @@ try {
   });
   assert.equal(
     manager.status().provider,
-    "memory-lancedb-pro",
+    "memory-lancedb-cip",
     "memory capability runtime status should identify this provider",
   );
   assert.equal(services.length, 1, "plugin should register its background service");
@@ -599,7 +599,7 @@ try {
       await firstSharedServices[0].start();
       await secondSharedServices[0].start();
       assert.equal(
-        sharedLogs.filter((message) => message.includes("memory-lancedb-pro: dreaming scheduled")).length,
+        sharedLogs.filter((message) => message.includes("memory-lancedb-cip: dreaming scheduled")).length,
         1,
         "multiple registrations should share one dreaming scheduler",
       );
@@ -621,7 +621,7 @@ try {
       assert.deepEqual(destroyedDbPaths, [sharedDbPath]);
       await secondSharedServices[0].start();
       assert.equal(
-        sharedLogs.filter((message) => message.includes("memory-lancedb-pro: dreaming scheduled")).length,
+        sharedLogs.filter((message) => message.includes("memory-lancedb-cip: dreaming scheduled")).length,
         1,
         "stopped service objects should not restart background dreaming work",
       );

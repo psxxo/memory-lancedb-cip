@@ -43,7 +43,7 @@ const calls = [];
 const corpusSyncCalls = [];
 const corpusReadCalls = [];
 const capability = createOpenClawMemoryCapability({
-  dbPath: "/tmp/memory-lancedb-pro-test",
+  dbPath: "/tmp/memory-lancedb-cip-test",
   vectorDim: 4,
   embeddingProvider: "openai-compatible",
   embeddingModel: "test-embedding-model",
@@ -131,7 +131,7 @@ const { manager } = await capability.runtime.getMemorySearchManager({
 const results = await manager.search("oolong", { maxResults: 3, minScore: 0.5 });
 assert.equal(results.length, 2);
 assert.deepEqual(results[0], {
-  path: "memory-lancedb-pro/mem-runtime-1.md",
+  path: "memory-lancedb-cip/mem-runtime-1.md",
   startLine: 1,
   endLine: 2,
   score: 0.91,
@@ -139,7 +139,7 @@ assert.deepEqual(results[0], {
   textScore: 0.64,
   snippet: entry.text,
   source: "memory",
-  citation: "memory-lancedb-pro/mem-runtime-1.md#L1-L2",
+  citation: "memory-lancedb-cip/mem-runtime-1.md#L1-L2",
 });
 assert.deepEqual(results[1], {
   path: "sessions/test/session-runtime-1.jsonl",
@@ -190,13 +190,13 @@ assert.deepEqual(
 );
 
 const read = await manager.readFile({
-  relPath: "memory-lancedb-pro/mem-runtime-1.md",
+  relPath: "memory-lancedb-cip/mem-runtime-1.md",
   from: 2,
   lines: 1,
 });
 assert.deepEqual(read, {
   text: "Use TypeScript for plugin runtime code.",
-  path: "memory-lancedb-pro/mem-runtime-1.md",
+  path: "memory-lancedb-cip/mem-runtime-1.md",
   from: 2,
   lines: 1,
 });
@@ -210,7 +210,7 @@ assert.equal(vectorOk, true);
 
 const status = manager.status();
 assert.equal(status.backend, "builtin");
-assert.equal(status.provider, "memory-lancedb-pro");
+assert.equal(status.provider, "memory-lancedb-cip");
 assert.equal(status.model, "test-embedding-model");
 assert.equal(status.files, 1);
 assert.deepEqual(status.sources, ["memory", "sessions"]);

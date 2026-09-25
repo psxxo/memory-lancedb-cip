@@ -63,7 +63,7 @@ describe("Issue #680 - Bug #1: serial guard on early throw", () => {
     //
     // We verify this by simulating the buggy finally block behavior vs the correct behavior.
 
-    const REFLECTION_SERIAL_GUARD = Symbol.for("openclaw.memory-lancedb-pro.reflection-serial-guard");
+    const REFLECTION_SERIAL_GUARD = Symbol.for("openclaw.memory-lancedb-cip.reflection-serial-guard");
     const globalMap = globalThis[REFLECTION_SERIAL_GUARD] || (() => {
       globalThis[REFLECTION_SERIAL_GUARD] = new Map();
       return globalThis[REFLECTION_SERIAL_GUARD];

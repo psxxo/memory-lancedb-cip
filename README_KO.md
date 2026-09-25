@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧠 memory-lancedb-pro · 🦞OpenClaw Plugin
+# 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
+
+> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
 
 **[OpenClaw](https://github.com/openclaw/openclaw) 에이전트를 위한 AI 메모리 어시스턴트**
 
@@ -19,11 +21,11 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 ---
 
-## 왜 memory-lancedb-pro인가?
+## 왜 memory-lancedb-cip인가?
 
 대부분의 AI 에이전트는 건망증이 있습니다. 새 채팅을 시작하는 순간 모든 것을 잊어버립니다.
 
-**memory-lancedb-pro**는 OpenClaw를 위한 프로덕션 수준의 장기 기억 플러그인으로, 에이전트를 **AI 메모리 어시스턴트**로 바꿔줍니다 — 중요한 내용을 자동으로 캡처하고, 노이즈는 자연스럽게 희미해지게 하며, 적시에 적절한 기억을 검색합니다. 수동 태그 지정도, 복잡한 설정도 필요 없습니다.
+**memory-lancedb-cip**는 OpenClaw를 위한 프로덕션 수준의 장기 기억 플러그인으로, 에이전트를 **AI 메모리 어시스턴트**로 바꿔줍니다 — 중요한 내용을 자동으로 캡처하고, 노이즈는 자연스럽게 희미해지게 하며, 적시에 적절한 기억을 검색합니다. 수동 태그 지정도, 복잡한 설정도 필요 없습니다.
 
 ### AI 메모리 어시스턴트 실제 사용 모습
 
@@ -35,7 +37,7 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 > *(다음 세션)*
 > **사용자:** "...진짜로, 탭이라고. 에러 처리도. 또."
 
-**memory-lancedb-pro와 함께 — 에이전트가 학습하고 기억합니다:**
+**memory-lancedb-cip와 함께 — 에이전트가 학습하고 기억합니다:**
 
 > **사용자:** "들여쓰기에 탭을 사용하고, 항상 에러 처리를 추가해."
 > *(다음 세션 — 에이전트가 사용자 선호도를 자동으로 불러옴)*
@@ -66,10 +68,10 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 ### 옵션 A: 원클릭 설치 스크립트 (권장)
 
-커뮤니티에서 관리하는 **[설치 스크립트](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)**가 설치, 업그레이드, 복구를 하나의 명령어로 처리합니다:
+커뮤니티에서 관리하는 **[설치 스크립트](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**가 설치, 업그레이드, 복구를 하나의 명령어로 처리합니다:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-pro-setup/setup-memory.sh -o setup-memory.sh
+curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
 bash setup-memory.sh
 ```
 
@@ -79,12 +81,12 @@ bash setup-memory.sh
 
 **OpenClaw CLI를 통한 설치 (권장):**
 ```bash
-openclaw plugins install memory-lancedb-pro@beta
+openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
 ```
 
 **또는 npm을 통한 설치:**
 ```bash
-npm i memory-lancedb-pro@beta
+npm i @psxxo/memory-lancedb-cip
 ```
 > npm을 사용하는 경우, `openclaw.json`의 `plugins.load.paths`에 플러그인 설치 디렉터리의 **절대** 경로를 추가해야 합니다. 이것이 가장 흔한 설정 문제입니다.
 
@@ -93,9 +95,9 @@ npm i memory-lancedb-pro@beta
 ```json
 {
   "plugins": {
-    "slots": { "memory": "memory-lancedb-pro" },
+    "slots": { "memory": "memory-lancedb-cip" },
     "entries": {
-      "memory-lancedb-pro": {
+      "memory-lancedb-cip": {
         "enabled": true,
         "config": {
           "embedding": {
@@ -127,12 +129,12 @@ npm i memory-lancedb-pro@beta
 ```bash
 openclaw config validate
 openclaw gateway restart
-openclaw logs --follow --plain | grep "memory-lancedb-pro"
+openclaw logs --follow --plain | grep "memory-lancedb-cip"
 ```
 
 다음이 표시되어야 합니다:
-- `memory-lancedb-pro: smart extraction enabled`
-- `memory-lancedb-pro@...: plugin registered`
+- `memory-lancedb-cip: smart extraction enabled`
+- `memory-lancedb-cip@...: plugin registered`
 
 완료! 이제 에이전트가 장기 기억을 갖게 됩니다.
 
@@ -142,8 +144,8 @@ openclaw logs --follow --plain | grep "memory-lancedb-pro"
 **이미 OpenClaw를 사용 중인 경우:**
 
 1. **절대** 경로의 `plugins.load.paths` 항목으로 플러그인 추가
-2. 메모리 슬롯 바인딩: `plugins.slots.memory = "memory-lancedb-pro"`
-3. 확인: `openclaw plugins info memory-lancedb-pro && openclaw memory-pro stats`
+2. 메모리 슬롯 바인딩: `plugins.slots.memory = "memory-lancedb-cip"`
+3. 확인: `openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
 
 **v1.1.0 이전 버전에서 업그레이드하는 경우:**
 
@@ -192,11 +194,11 @@ Requirements:
 
 ## 에코시스템
 
-memory-lancedb-pro는 핵심 플러그인입니다. 커뮤니티에서 설정과 일상적인 사용을 더욱 원활하게 만드는 도구들을 구축했습니다:
+memory-lancedb-cip는 핵심 플러그인입니다. 커뮤니티에서 설정과 일상적인 사용을 더욱 원활하게 만드는 도구들을 구축했습니다:
 
 ### 설치 스크립트 — 원클릭 설치, 업그레이드 및 복구
 
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)**
+> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
 
 단순한 인스톨러가 아닙니다 — 스크립트가 다양한 실제 시나리오를 지능적으로 처리합니다:
 
@@ -217,13 +219,13 @@ bash setup-memory.sh --beta             # 사전 릴리스 버전 포함
 bash setup-memory.sh --uninstall        # 설정 복원 및 플러그인 제거
 ```
 
-내장 프로바이더 프리셋: **Jina / DashScope / SiliconFlow / OpenAI / Ollama**, 또는 자체 OpenAI 호환 API를 사용할 수 있습니다. `--ref`, `--selfcheck-only` 등 전체 사용법은 [설치 스크립트 README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-pro-setup)를 참조하세요.
+내장 프로바이더 프리셋: **Jina / DashScope / SiliconFlow / OpenAI / Ollama**, 또는 자체 OpenAI 호환 API를 사용할 수 있습니다. `--ref`, `--selfcheck-only` 등 전체 사용법은 [설치 스크립트 README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)를 참조하세요.
 
 ### Claude Code / OpenClaw Skill — AI 가이드 설정
 
 > **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
 
-이 Skill을 설치하면 AI 에이전트(Claude Code 또는 OpenClaw)가 memory-lancedb-pro의 모든 기능에 대한 깊은 지식을 갖게 됩니다. **"최적의 설정을 도와줘"**라고 말하면 다음을 제공합니다:
+이 Skill을 설치하면 AI 에이전트(Claude Code 또는 OpenClaw)가 memory-lancedb-cip의 모든 기능에 대한 깊은 지식을 갖게 됩니다. **"최적의 설정을 도와줘"**라고 말하면 다음을 제공합니다:
 
 - **가이드 7단계 설정 워크플로우**와 4가지 배포 계획:
   - Full Power (Jina + OpenAI) / Budget (무료 SiliconFlow 리랭커) / Simple (OpenAI만) / Fully Local (Ollama, API 비용 제로)
@@ -374,7 +376,7 @@ Query → BM25 FTS ─────┘
 <details>
 <summary><strong>내장 <code>memory-lancedb</code>와의 비교 (클릭하여 펼치기)</strong></summary>
 
-| 기능 | 내장 `memory-lancedb` | **memory-lancedb-pro** |
+| 기능 | 내장 `memory-lancedb` | **memory-lancedb-cip** |
 | --- | :---: | :---: |
 | 벡터 검색 | 예 | 예 |
 | BM25 전문 검색 | - | 예 |
@@ -413,7 +415,7 @@ Query → BM25 FTS ─────┘
     "taskPassage": "retrieval.passage",
     "normalized": true
   },
-  "dbPath": "~/.openclaw/memory/lancedb-pro",
+  "dbPath": "~/.openclaw/memory/lancedb-cip",
   "autoCapture": true,
   "autoRecall": true,
   "retrieval": {
@@ -508,7 +510,7 @@ Jina 호환 리랭크 엔드포인트도 사용 가능합니다 — `rerankProvi
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM 모델명 |
 | `llm.baseURL` | string | *(`embedding.baseURL`로 폴백)* | LLM API 엔드포인트 |
 | `llm.oauthProvider` | string | `openai-codex` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 프로바이더 ID |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-pro/oauth.json` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 토큰 파일 |
+| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 토큰 파일 |
 | `llm.timeoutMs` | number | `30000` | LLM 요청 타임아웃 (밀리초) |
 | `extractMinMessages` | number | `2` | 추출이 시작되는 최소 메시지 수 |
 | `extractMaxChars` | number | `8000` | LLM에 전송되는 최대 문자 수 |
@@ -521,7 +523,7 @@ OAuth `llm` 설정 (기존 Codex / ChatGPT 로그인 캐시를 LLM 호출에 사
     "auth": "oauth",
     "oauthProvider": "openai-codex",
     "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-pro/oauth.json",
+    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
     "timeoutMs": 30000
   }
 }
@@ -530,7 +532,7 @@ OAuth `llm` 설정 (기존 Codex / ChatGPT 로그인 캐시를 LLM 호출에 사
 `llm.auth: "oauth"` 참고사항:
 
 - `llm.oauthProvider`는 현재 `openai-codex`입니다.
-- OAuth 토큰은 기본적으로 `~/.openclaw/.memory-lancedb-pro/oauth.json`에 저장됩니다.
+- OAuth 토큰은 기본적으로 `~/.openclaw/.memory-lancedb-cip/oauth.json`에 저장됩니다.
 - 파일을 다른 곳에 저장하려면 `llm.oauthPath`를 설정하세요.
 - `auth login`은 OAuth 파일 옆에 이전 api-key `llm` 설정의 스냅샷을 저장하며, `auth logout`은 해당 스냅샷이 있을 때 복원합니다.
 - `api-key`에서 `oauth`로 전환할 때 `llm.baseURL`이 자동으로 이전되지 않습니다. OAuth 모드에서 의도적으로 사용자 정의 ChatGPT/Codex 호환 백엔드를 원하는 경우에만 수동으로 설정하세요.
@@ -589,7 +591,7 @@ OAuth 로그인 흐름:
 1. `openclaw memory-pro auth login` 실행
 2. `--provider`를 생략하고 대화형 터미널에서 실행하면, 브라우저를 열기 전에 CLI가 OAuth 프로바이더 선택기를 표시합니다
 3. 명령어가 인증 URL을 출력하고 `--no-browser`가 설정되지 않은 한 브라우저를 엽니다
-4. 콜백이 성공하면, 명령어가 플러그인 OAuth 파일 (기본값: `~/.openclaw/.memory-lancedb-pro/oauth.json`)을 저장하고, 이전 api-key `llm` 설정의 스냅샷을 로그아웃용으로 저장하며, 플러그인 `llm` 설정을 OAuth 설정 (`auth`, `oauthProvider`, `model`, `oauthPath`)으로 교체합니다
+4. 콜백이 성공하면, 명령어가 플러그인 OAuth 파일 (기본값: `~/.openclaw/.memory-lancedb-cip/oauth.json`)을 저장하고, 이전 api-key `llm` 설정의 스냅샷을 로그아웃용으로 저장하며, 플러그인 `llm` 설정을 OAuth 설정 (`auth`, `oauthProvider`, `model`, `oauthPath`)으로 교체합니다
 5. `openclaw memory-pro auth logout`은 해당 OAuth 파일을 삭제하고 스냅샷이 존재하면 이전 api-key `llm` 설정을 복원합니다
 
 ---
@@ -603,7 +605,7 @@ OAuth 로그인 흐름:
 
 **옵션 A (가장 안전):** 일시적으로 Auto-Recall 비활성화:
 ```json
-{ "plugins": { "entries": { "memory-lancedb-pro": { "config": { "autoRecall": false } } } } }
+{ "plugins": { "entries": { "memory-lancedb-cip": { "config": { "autoRecall": false } } } } }
 ```
 
 **옵션 B (권장):** Auto-Recall은 유지하고 에이전트 시스템 프롬프트에 추가:
@@ -662,7 +664,7 @@ Entries must be short and atomic (< 500 chars). No raw conversation summaries or
 On ANY tool failure, ALWAYS memory_recall with relevant keywords BEFORE retrying.
 
 ## Rule 4 — Confirm target codebase
-Confirm you are editing memory-lancedb-pro vs built-in memory-lancedb before changes.
+Confirm you are editing memory-lancedb-cip vs built-in memory-lancedb before changes.
 
 ## Rule 5 — Clear jiti cache after plugin code changes
 After modifying .ts files under plugins/, MUST run rm -rf /tmp/jiti/ BEFORE openclaw gateway restart.
@@ -697,7 +699,7 @@ v1.1.0의 주요 `metadata` 키: `l0_abstract`, `l1_overview`, `l2_content`, `me
 
 ### "Cannot mix BigInt and other types" (LanceDB / Apache Arrow)
 
-LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습니다. **memory-lancedb-pro >= 1.0.14**로 업그레이드하세요 — 이 플러그인은 이제 산술 연산 전에 `Number(...)`를 사용하여 값을 변환합니다.
+LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습니다. **memory-lancedb-cip >= 1.0.14**로 업그레이드하세요 — 이 플러그인은 이제 산술 연산 전에 `Number(...)`를 사용하여 값을 변환합니다.
 
 </details>
 
@@ -716,7 +718,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 
 ## 베타: Smart Memory v1.1.0
 
-> 상태: 베타 — `npm i memory-lancedb-pro@beta`로 사용 가능. `latest`를 사용하는 안정 버전 사용자는 영향 없음.
+> 상태: 베타 — `npm i @psxxo/memory-lancedb-cip`로 사용 가능. `latest`를 사용하는 안정 버전 사용자는 영향 없음.
 
 | 기능 | 설명 |
 |---------|-------------|
@@ -724,7 +726,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 | **라이프사이클 스코어링** | 검색에 Weibull 감쇠 통합 — 높은 빈도와 높은 중요도의 기억이 상위에 랭크. |
 | **단계 관리** | 3단계 시스템 (Core → Working → Peripheral), 자동 승격/강등. |
 
-피드백: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 되돌리기: `npm i memory-lancedb-pro@latest`
+피드백: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 되돌리기: `npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 

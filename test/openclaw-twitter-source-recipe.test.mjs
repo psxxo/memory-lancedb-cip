@@ -25,6 +25,6 @@ describe("OpenClaw X/Twitter source recipe", () => {
     assert.match(playbook, /draft post or reply text/);
     assert.match(playbook, /non-public profile, follower, or media data/);
     assert.match(playbook, /explicit user approval/);
-    assert.match(playbook, /memory-lancedb-pro` should only persist the reviewed summary/);
+    assert.match(playbook, /memory-lancedb-cip` should only persist the reviewed summary/);
   });
 });

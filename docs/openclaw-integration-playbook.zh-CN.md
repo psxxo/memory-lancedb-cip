@@ -1,6 +1,6 @@
 # OpenClaw 集成与迭代手册
 
-这份文档把 `memory-lancedb-pro` 在真实 OpenClaw 环境中的集成、联调和回归测试经验整理成一套可复用说明，面向两类读者：
+这份文档把 `memory-lancedb-cip` 在真实 OpenClaw 环境中的集成、联调和回归测试经验整理成一套可复用说明，面向两类读者：
 
 - 初次接入 OpenClaw 的新用户
 - 后续继续迭代检索、Hook、生命周期逻辑的维护者
@@ -13,11 +13,11 @@
 
 - 新 OpenClaw 用户，或第一次接入记忆能力
 - 已经用了 OpenClaw 一段时间，现在再接入本插件
-- 已经在用旧版 `memory-lancedb-pro`，准备从 v1.1.0 之前升级
+- 已经在用旧版 `memory-lancedb-cip`，准备从 v1.1.0 之前升级
 
 必须先分清三条命令的用途：
 
-- `upgrade`：针对旧版 `memory-lancedb-pro` 数据
+- `upgrade`：针对旧版 `memory-lancedb-cip` 数据
 - `migrate`：针对内置 `memory-lancedb` 数据
 - `reembed`：针对向量重建，不是常规升级步骤
 
@@ -54,7 +54,7 @@
 如果两者同时开启，`/new` 可能产生两类结果：
 
 - OpenClaw 内置的 workspace/session 摘要文件
-- `memory-lancedb-pro` 写入 LanceDB 的 session-summary 记忆
+- `memory-lancedb-cip` 写入 LanceDB 的 session-summary 记忆
 
 这不是错误，但属于双写设计。若不希望排障时出现“看起来重复”的现象，应只保留一种路径。
 
@@ -126,20 +126,20 @@
 openclaw config validate
 openclaw status
 openclaw gateway status
-openclaw plugins info memory-lancedb-pro
+openclaw plugins info memory-lancedb-cip
 openclaw hooks list --json
 ```
 
 至少确认：
 
 - 插件从预期路径加载
-- `plugins.slots.memory` 指向 `memory-lancedb-pro`
+- `plugins.slots.memory` 指向 `memory-lancedb-cip`
 - 预期 Hook 处于启用状态
 - 改完配置后 Gateway 已重启
 
 如果启用了插件侧 session memory，`openclaw hooks list --json` 里应能看到：
 
-- `memory-lancedb-pro-session-memory`
+- `memory-lancedb-cip-session-memory`
 
 如果目标是插件单写模式，还应同时确认：
 

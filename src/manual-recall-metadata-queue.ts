@@ -98,7 +98,7 @@ export class ManualRecallMetadataQueue {
       const dropped = updates.filter((update) => update.accessCountDelta > 0).length;
       if (dropped > 0) {
         this.warn(
-          `[memory-lancedb-pro] manual recall metadata queue is closed; dropped ${dropped} update(s)`,
+          `[memory-lancedb-cip] manual recall metadata queue is closed; dropped ${dropped} update(s)`,
         );
       }
       return;
@@ -206,7 +206,7 @@ export class ManualRecallMetadataQueue {
       }
       results = error.results;
       this.warn(
-        `[memory-lancedb-pro] manual recall metadata lock failed after the batch settled; ` +
+        `[memory-lancedb-cip] manual recall metadata lock failed after the batch settled; ` +
         `using per-row outcomes without retrying committed rows: ${error.message}`,
       );
     }
@@ -221,7 +221,7 @@ export class ManualRecallMetadataQueue {
       if (result.error) {
         if (result.retryable === false) {
           this.warn(
-            `[memory-lancedb-pro] manual recall metadata dropped id=${update.id.slice(0, 8)} ` +
+            `[memory-lancedb-cip] manual recall metadata dropped id=${update.id.slice(0, 8)} ` +
             `without retry: ${result.error}`,
           );
           return false;
@@ -249,7 +249,7 @@ export class ManualRecallMetadataQueue {
       const reason = resultError ?? (thrownError instanceof Error ? thrownError.message : String(thrownError));
       if (attempt > this.maxRetries) {
         this.warn(
-          `[memory-lancedb-pro] manual recall metadata dropped id=${update.id.slice(0, 8)} ` +
+          `[memory-lancedb-cip] manual recall metadata dropped id=${update.id.slice(0, 8)} ` +
           `after ${this.maxRetries} retries: ${reason}`,
         );
         continue;
@@ -263,7 +263,7 @@ export class ManualRecallMetadataQueue {
       );
       nextDelay = Math.max(nextDelay, this.retryDelayMs(attempt));
       this.warn(
-        `[memory-lancedb-pro] manual recall metadata retry id=${update.id.slice(0, 8)} ` +
+        `[memory-lancedb-cip] manual recall metadata retry id=${update.id.slice(0, 8)} ` +
         `attempt=${attempt}/${this.maxRetries}: ${reason}`,
       );
     }
@@ -293,7 +293,7 @@ export class ManualRecallMetadataQueue {
       this.timerDueAt = null;
       void this.flushPending(false).catch((error) => {
         this.warn(
-          `[memory-lancedb-pro] manual recall metadata flush crashed: ${String(error)}`,
+          `[memory-lancedb-cip] manual recall metadata flush crashed: ${String(error)}`,
         );
       });
     }, Math.max(0, dueAt - Date.now()));
@@ -335,7 +335,7 @@ function scheduleExitProbe(): void {
       const rejected = results.filter((result) => result.status === "rejected");
       if (rejected.length > 0) {
         console.warn(
-          `[memory-lancedb-pro] failed to drain ${rejected.length} manual recall metadata queue(s) before exit`,
+          `[memory-lancedb-cip] failed to drain ${rejected.length} manual recall metadata queue(s) before exit`,
         );
       }
     }).finally(() => {

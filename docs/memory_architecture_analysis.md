@@ -1,4 +1,4 @@
-# `memory-lancedb-pro` 记忆架构分析
+# `memory-lancedb-cip` 记忆架构分析
 
 > 更新时间：2026-03-09  
 > 基准：当前仓库中的 `README.md`、`openclaw.plugin.json`、`index.ts`、`src/*`、`cli.ts`  
@@ -827,6 +827,6 @@ README 新增的批处理方案是另一条非常值得记录的架构支线：
 
 ## 十七、一句话总结
 
-`memory-lancedb-pro` 当前的真实架构可以概括为：
+`memory-lancedb-cip` 当前的真实架构可以概括为：
 
 **用 `smart-metadata` 把新旧 memory 统一到一套数据平面，用 `SmartExtractor` 提升写入质量，用 `Retriever + Decay + Tier` 提升召回质量，再用 Tools / CLI / Migration / Backup 把它补成一个可运营的长期记忆子系统。**

@@ -47,7 +47,7 @@ async function waitFor(probe, timeoutMs = 30_000, stepMs = 250) {
 
 describe("FTS index fold maintenance", () => {
   it("folds the unindexed tail after the data-modification threshold", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-fold-"));
+    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-fold-"));
     const store = new MemoryStore({ dbPath: dir, vectorDim: 3 });
     try {
       for (let i = 0; i < FOLD_THRESHOLD; i++) {
@@ -74,7 +74,7 @@ describe("FTS index fold maintenance", () => {
   });
 
   it("schedules a catch-up fold at init when a backlog already exists", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-pro-catchup-"));
+    const dir = mkdtempSync(join(tmpdir(), "memory-lancedb-cip-catchup-"));
     // Seed one row through the store so the table and FTS index exist.
     const seed = new MemoryStore({ dbPath: dir, vectorDim: 3 });
     await seed.store(makeEntry(0));

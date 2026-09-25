@@ -94,7 +94,7 @@ describe("startup health diagnostics", () => {
 
   it("surfaces startup health errors in runtime status metadata", async () => {
     const capability = createOpenClawMemoryCapability({
-      dbPath: "/tmp/memory-lancedb-pro-health-test",
+      dbPath: "/tmp/memory-lancedb-cip-health-test",
       vectorDim: 4,
       embeddingProvider: "openai-compatible",
       embeddingModel: "test-model",

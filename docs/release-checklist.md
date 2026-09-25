@@ -1,6 +1,6 @@
 # Release Checklist
 
-Use this checklist before publishing a new `memory-lancedb-pro` package. It is
+Use this checklist before publishing a new `memory-lancedb-cip` package. It is
 intended for the release tracked in #812 and future beta/stable cuts.
 
 ## Release Target
@@ -50,8 +50,8 @@ npm publish --tag beta
 After publish, verify the public registry state:
 
 ```bash
-npm view memory-lancedb-pro dist-tags version versions --json
-npm view memory-lancedb-pro@beta version main openclaw files --json
+npm view @psxxo/memory-lancedb-cip dist-tags version versions --json
+npm view @psxxo/memory-lancedb-cip@beta version main openclaw files --json
 ```
 
 The `beta` dist-tag should point at the newly published version, and the package
@@ -63,7 +63,7 @@ On a machine with a current OpenClaw install:
 
 ```bash
 openclaw plugins registry --refresh
-openclaw plugins install memory-lancedb-pro@beta
+openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
 openclaw plugins doctor
 ```
 

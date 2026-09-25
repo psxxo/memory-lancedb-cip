@@ -122,10 +122,10 @@ function getSelfImprovementHooks(eventHandlers) {
   const promptHooks = eventHandlers.get("before_prompt_build") || [];
   const commandNewHooks = eventHandlers.get("command:new") || [];
   const resetReminder = promptHooks.find(
-    ({ meta }) => meta?.registrationId === "memory-lancedb-pro.self-improvement.before-prompt-build",
+    ({ meta }) => meta?.registrationId === "memory-lancedb-cip.self-improvement.before-prompt-build",
   )?.handler;
   const commandNew = commandNewHooks.find(
-    ({ meta }) => meta?.name === "memory-lancedb-pro.self-improvement.command-new",
+    ({ meta }) => meta?.name === "memory-lancedb-cip.self-improvement.command-new",
   )?.handler;
   assert.equal(typeof resetReminder, "function", "expected self-improvement reset-reminder hook");
   assert.equal(typeof commandNew, "function", "expected self-improvement command:new hook");

@@ -1,6 +1,6 @@
 # Lock Management
 
-`memory-lancedb-pro` protects LanceDB writes with a cross-process file lock based on
+`memory-lancedb-cip` protects LanceDB writes with a cross-process file lock based on
 `proper-lockfile`. The lock target is `.memory-write.lock` inside the configured
 database directory, and the transient lock artifact is `.memory-write.lock.lock`.
 

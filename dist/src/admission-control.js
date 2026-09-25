@@ -668,7 +668,7 @@ export class AdmissionController {
             grounding: candidate.grounding,
             conversation_register: candidate.conversationRegister,
         };
-        this.debugLog(`memory-lancedb-pro: admission-control: decision=reject (constructed short-circuit) candidate=${JSON.stringify(candidate.abstract.slice(0, 80))}`);
+        this.debugLog(`memory-lancedb-cip: admission-control: decision=reject (constructed short-circuit) candidate=${JSON.stringify(candidate.abstract.slice(0, 80))}`);
         return { decision: "reject", audit };
     }
     async loadRelevantMatches(candidate, candidateVector, scopeFilter) {
@@ -770,7 +770,7 @@ export class AdmissionController {
             grounding: params.candidate.grounding,
             conversation_register: params.candidate.conversationRegister,
         };
-        this.debugLog(`memory-lancedb-pro: admission-control: decision=${audit.decision} hint=${audit.hint ?? "n/a"} score=${audit.score.toFixed(3)} candidate=${JSON.stringify(params.candidate.abstract.slice(0, 80))}`);
+        this.debugLog(`memory-lancedb-cip: admission-control: decision=${audit.decision} hint=${audit.hint ?? "n/a"} score=${audit.score.toFixed(3)} candidate=${JSON.stringify(params.candidate.abstract.slice(0, 80))}`);
         return { decision, hint, audit };
     }
     /** Chunk bound for evaluateBatch: the injected batchChunkSize when valid, else BATCH_UTILITY_MAX_SIZE. */
@@ -878,14 +878,14 @@ export class AdmissionController {
             // evaluateBatch call-site (e.g. a future reflection-lane controller,
             // composed at assembly per item 3) attributes cleanly through
             // whatever debugLog prefix that lane's own construction site injects.
-            this.debugLog(`memory-lancedb-pro: admission-control: batch utility call failed for ${candidates.length} candidates, falling back to standalone`);
+            this.debugLog(`memory-lancedb-cip: admission-control: batch utility call failed for ${candidates.length} candidates, falling back to standalone`);
             const out = [];
             for (const candidate of candidates) {
                 out.push(await scoreUtility(this.llm, "standalone", candidate));
             }
             return out;
         }
-        this.debugLog(`memory-lancedb-pro: admission-control: batch utility call scored ${candidates.length} candidates in one call`);
+        this.debugLog(`memory-lancedb-cip: admission-control: batch utility call scored ${candidates.length} candidates in one call`);
         return parseBatchUtilityResponse(response, candidates.length);
     }
 }

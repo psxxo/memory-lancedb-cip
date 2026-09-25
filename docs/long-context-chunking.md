@@ -88,7 +88,7 @@ If you prefer to handle chunking manually or want the model to fail on long docu
 {
   "plugins": {
     "entries": {
-      "memory-lancedb-pro": {
+      "memory-lancedb-cip": {
         "enabled": true,
         "config": {
           "embedding": {
@@ -111,7 +111,7 @@ For advanced users who want to tune chunking behavior:
 {
   "plugins": {
     "entries": {
-      "memory-lancedb-pro": {
+      "memory-lancedb-cip": {
         "enabled": true,
         "config": {
           "embedding": {

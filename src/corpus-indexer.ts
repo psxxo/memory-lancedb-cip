@@ -674,11 +674,11 @@ export class CanonicalCorpusIndexer {
     this.lastSyncAt = Date.now();
     if (stats.indexed > 0 || stats.staleDeleted > 0) {
       this.params.log?.(
-        `memory-lancedb-pro: indexed ${stats.indexed}/${stats.chunks} canonical corpus chunk(s) (${stats.unchanged} unchanged), deleted ${stats.staleDeleted} stale chunk(s) (${reason})`,
+        `memory-lancedb-cip: indexed ${stats.indexed}/${stats.chunks} canonical corpus chunk(s) (${stats.unchanged} unchanged), deleted ${stats.staleDeleted} stale chunk(s) (${reason})`,
       );
     }
     if (stats.errors.length > 0) {
-      this.params.warn?.(`memory-lancedb-pro: canonical corpus indexing skipped ${stats.skipped} chunk(s): ${stats.errors.slice(0, 3).join(" | ")}`);
+      this.params.warn?.(`memory-lancedb-cip: canonical corpus indexing skipped ${stats.skipped} chunk(s): ${stats.errors.slice(0, 3).join(" | ")}`);
     }
     return stats;
   }

@@ -164,7 +164,7 @@ async function createLegacyDb(baseDir) {
 }
 
 async function main() {
-  const runDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-pro-openclaw-host-"));
+  const runDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-cip-openclaw-host-"));
   const profile = `mempro-host-${Date.now()}`;
   const profileDir = path.join(os.homedir(), `.openclaw-${profile}`);
   const configFile = path.join(profileDir, "openclaw.json");
@@ -177,15 +177,15 @@ async function main() {
 
     const config = {
       plugins: {
-        allow: ["memory-lancedb-pro"],
+        allow: ["memory-lancedb-cip"],
         load: {
           paths: [repoRoot],
         },
         slots: {
-          memory: "memory-lancedb-pro",
+          memory: "memory-lancedb-cip",
         },
         entries: {
-          "memory-lancedb-pro": {
+          "memory-lancedb-cip": {
             enabled: true,
             config: {
               embedding: {
@@ -251,7 +251,7 @@ async function main() {
     const validateOutput = await runOpenClaw(profile, ["config", "validate"]);
     assert.match(validateOutput, /Config valid/);
 
-    const infoOutput = await runOpenClaw(profile, ["plugins", "info", "memory-lancedb-pro"]);
+    const infoOutput = await runOpenClaw(profile, ["plugins", "info", "memory-lancedb-cip"]);
     assert.match(infoOutput, /Status:\s+loaded/);
     assert.match(infoOutput, /CLI commands:\s+memory-pro/);
 

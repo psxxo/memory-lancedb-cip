@@ -380,7 +380,7 @@ function createHostClient(
             // host's own lane default apply.
             ...(config.modelExplicit ? { model: config.model } : {}),
             temperature: temperature ?? 0.1,
-            purpose: `memory-lancedb-pro:${label}`,
+            purpose: `memory-lancedb-cip:${label}`,
             reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
           }),
           config.timeoutMs,
@@ -389,7 +389,7 @@ function createHostClient(
         const raw = result?.text;
         if (!raw || typeof raw !== "string") {
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] empty host-transport response content from model ${config.model}`;
+            `memory-lancedb-cip: llm-client [${label}] empty host-transport response content from model ${config.model}`;
           log(lastError);
           return null;
         }
@@ -397,7 +397,7 @@ function createHostClient(
         const jsonStr = extractJsonFromResponse(raw);
         if (!jsonStr) {
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] no JSON object found in host-transport response (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
+            `memory-lancedb-cip: llm-client [${label}] no JSON object found in host-transport response (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
           log(lastError);
           return null;
         }
@@ -410,24 +410,24 @@ function createHostClient(
             try {
               const repaired = JSON.parse(repairedJsonStr) as T;
               log(
-                `memory-lancedb-pro: llm-client [${label}] recovered malformed host-transport JSON via heuristic repair (jsonChars=${jsonStr.length})`,
+                `memory-lancedb-cip: llm-client [${label}] recovered malformed host-transport JSON via heuristic repair (jsonChars=${jsonStr.length})`,
               );
               return repaired;
             } catch (repairErr) {
               lastError =
-                `memory-lancedb-pro: llm-client [${label}] host-transport JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
+                `memory-lancedb-cip: llm-client [${label}] host-transport JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
               log(lastError);
               return null;
             }
           }
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] host-transport JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
+            `memory-lancedb-cip: llm-client [${label}] host-transport JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
           log(lastError);
           return null;
         }
       } catch (err) {
         lastError =
-          `memory-lancedb-pro: llm-client [${label}] host-transport request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
+          `memory-lancedb-cip: llm-client [${label}] host-transport request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
         (warnLog ?? log)(lastError);
         return null;
       }
@@ -443,7 +443,7 @@ function createHostClient(
             messages,
             ...(config.modelExplicit ? { model: config.model } : {}),
             temperature: temperature ?? 0.1,
-            purpose: `memory-lancedb-pro:${label}`,
+            purpose: `memory-lancedb-cip:${label}`,
             reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
           }),
           config.timeoutMs,
@@ -451,14 +451,14 @@ function createHostClient(
         const text = typeof result?.text === "string" ? result.text.trim() : "";
         if (!text) {
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] empty host-transport response content from model ${config.model}`;
+            `memory-lancedb-cip: llm-client [${label}] empty host-transport response content from model ${config.model}`;
           log(lastError);
           return null;
         }
         return text;
       } catch (err) {
         lastError =
-          `memory-lancedb-pro: llm-client [${label}] host-transport request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
+          `memory-lancedb-cip: llm-client [${label}] host-transport request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
         (warnLog ?? log)(lastError);
         return null;
       }
@@ -518,18 +518,18 @@ function createApiKeyClient(config: LlmClientConfig, log: (msg: string) => void,
           const recovered = recoverJsonFromReasoning<T>(pickReasoningText(message));
           if (recovered !== null) {
             log(
-              `memory-lancedb-pro: llm-client [${label}] recovered JSON from reasoning field (model ${config.model})`,
+              `memory-lancedb-cip: llm-client [${label}] recovered JSON from reasoning field (model ${config.model})`,
             );
             return recovered;
           }
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] empty response content from model ${config.model}`;
+            `memory-lancedb-cip: llm-client [${label}] empty response content from model ${config.model}`;
           log(lastError);
           return null;
         }
         if (typeof raw !== "string") {
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] non-string response content type=${Array.isArray(raw) ? "array" : typeof raw} from model ${config.model}`;
+            `memory-lancedb-cip: llm-client [${label}] non-string response content type=${Array.isArray(raw) ? "array" : typeof raw} from model ${config.model}`;
           log(lastError);
           return null;
         }
@@ -537,7 +537,7 @@ function createApiKeyClient(config: LlmClientConfig, log: (msg: string) => void,
         const jsonStr = extractJsonFromResponse(raw);
         if (!jsonStr) {
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] no JSON object found (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
+            `memory-lancedb-cip: llm-client [${label}] no JSON object found (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
           log(lastError);
           return null;
         }
@@ -550,24 +550,24 @@ function createApiKeyClient(config: LlmClientConfig, log: (msg: string) => void,
             try {
               const repaired = JSON.parse(repairedJsonStr) as T;
               log(
-                `memory-lancedb-pro: llm-client [${label}] recovered malformed JSON via heuristic repair (jsonChars=${jsonStr.length})`,
+                `memory-lancedb-cip: llm-client [${label}] recovered malformed JSON via heuristic repair (jsonChars=${jsonStr.length})`,
               );
               return repaired;
             } catch (repairErr) {
               lastError =
-                `memory-lancedb-pro: llm-client [${label}] JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
+                `memory-lancedb-cip: llm-client [${label}] JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
               log(lastError);
               return null;
             }
           }
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
+            `memory-lancedb-cip: llm-client [${label}] JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
           log(lastError);
           return null;
         }
       } catch (err) {
         lastError =
-          `memory-lancedb-pro: llm-client [${label}] request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
+          `memory-lancedb-cip: llm-client [${label}] request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
         (warnLog ?? log)(lastError);
         return null;
       }
@@ -593,14 +593,14 @@ function createApiKeyClient(config: LlmClientConfig, log: (msg: string) => void,
         const text = typeof raw === "string" ? raw.trim() : "";
         if (!text) {
           lastError =
-            `memory-lancedb-pro: llm-client [${label}] empty response content from model ${config.model}`;
+            `memory-lancedb-cip: llm-client [${label}] empty response content from model ${config.model}`;
           log(lastError);
           return null;
         }
         return text;
       } catch (err) {
         lastError =
-          `memory-lancedb-pro: llm-client [${label}] request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
+          `memory-lancedb-cip: llm-client [${label}] request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
         (warnLog ?? log)(lastError);
         return null;
       }
@@ -685,7 +685,7 @@ function createOauthClient(config: LlmClientConfig, log: (msg: string) => void, 
 
           if (!raw) {
             lastError =
-              `memory-lancedb-pro: llm-client [${label}] empty OAuth response content from model ${config.model}`;
+              `memory-lancedb-cip: llm-client [${label}] empty OAuth response content from model ${config.model}`;
             log(lastError);
             return null;
           }
@@ -693,7 +693,7 @@ function createOauthClient(config: LlmClientConfig, log: (msg: string) => void, 
           const jsonStr = extractJsonFromResponse(raw);
           if (!jsonStr) {
             lastError =
-              `memory-lancedb-pro: llm-client [${label}] no JSON object found in OAuth response (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
+              `memory-lancedb-cip: llm-client [${label}] no JSON object found in OAuth response (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
             log(lastError);
             return null;
           }
@@ -706,18 +706,18 @@ function createOauthClient(config: LlmClientConfig, log: (msg: string) => void, 
               try {
                 const repaired = JSON.parse(repairedJsonStr) as T;
                 log(
-                  `memory-lancedb-pro: llm-client [${label}] recovered malformed OAuth JSON via heuristic repair (jsonChars=${jsonStr.length})`,
+                  `memory-lancedb-cip: llm-client [${label}] recovered malformed OAuth JSON via heuristic repair (jsonChars=${jsonStr.length})`,
                 );
                 return repaired;
               } catch (repairErr) {
                 lastError =
-                  `memory-lancedb-pro: llm-client [${label}] OAuth JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
+                  `memory-lancedb-cip: llm-client [${label}] OAuth JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
                 log(lastError);
                 return null;
               }
             }
             lastError =
-              `memory-lancedb-pro: llm-client [${label}] OAuth JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
+              `memory-lancedb-cip: llm-client [${label}] OAuth JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
             log(lastError);
             return null;
           }
@@ -726,7 +726,7 @@ function createOauthClient(config: LlmClientConfig, log: (msg: string) => void, 
         }
       } catch (err) {
         lastError =
-          `memory-lancedb-pro: llm-client [${label}] OAuth request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
+          `memory-lancedb-cip: llm-client [${label}] OAuth request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
         (warnLog ?? log)(lastError);
         return null;
       }
@@ -765,7 +765,7 @@ function createOauthClient(config: LlmClientConfig, log: (msg: string) => void, 
           const text = (extractOauthOutputText(response, await response.text()) ?? "").trim();
           if (!text) {
             lastError =
-              `memory-lancedb-pro: llm-client [${label}] empty OAuth response content from model ${config.model}`;
+              `memory-lancedb-cip: llm-client [${label}] empty OAuth response content from model ${config.model}`;
             log(lastError);
             return null;
           }
@@ -775,7 +775,7 @@ function createOauthClient(config: LlmClientConfig, log: (msg: string) => void, 
         }
       } catch (err) {
         lastError =
-          `memory-lancedb-pro: llm-client [${label}] OAuth request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
+          `memory-lancedb-cip: llm-client [${label}] OAuth request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
         (warnLog ?? log)(lastError);
         return null;
       }
@@ -848,7 +848,7 @@ export function createLlmClient(config: LlmClientConfig): LlmClient {
     if (!hostTransportFallbackWarned) {
       hostTransportFallbackWarned = true;
       (warnLog ?? log)(
-        "memory-lancedb-pro: llm-client transport \"host\" is configured but the OpenClaw runtime.llm.complete surface is unavailable on this host; falling back to the direct transport",
+        "memory-lancedb-cip: llm-client transport \"host\" is configured but the OpenClaw runtime.llm.complete surface is unavailable on this host; falling back to the direct transport",
       );
     }
     // The configured model may be a core-style catalog reference (e.g.
@@ -865,14 +865,14 @@ export function createLlmClient(config: LlmClientConfig): LlmClient {
     }
     if (!config.apiKey) {
       throw new Error(
-        "memory-lancedb-pro: llm-client transport \"host\" fell back to the direct transport, but no llm.apiKey is configured. " +
+        "memory-lancedb-cip: llm-client transport \"host\" fell back to the direct transport, but no llm.apiKey is configured. " +
           "The direct fallback does not inherit embedding.apiKey when transport is \"host\" -- set llm.apiKey explicitly.",
       );
     }
     const explicitFallbackBaseURL = config.baseURL?.trim();
     if (!explicitFallbackBaseURL) {
       throw new Error(
-        "memory-lancedb-pro: llm-client transport \"host\" fell back to the direct transport, but no llm.baseURL is configured. " +
+        "memory-lancedb-cip: llm-client transport \"host\" fell back to the direct transport, but no llm.baseURL is configured. " +
           "Refusing to send llm.apiKey to an inferred third-party endpoint -- set llm.baseURL explicitly for the fallback.",
       );
     }

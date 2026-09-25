@@ -230,7 +230,7 @@ describe("self-improvement", () => {
         area: governanceCandidates[0].area,
         priority: governanceCandidates[0].priority,
         status: governanceCandidates[0].status,
-        source: "memory-lancedb-pro/reflection:test",
+        source: "memory-lancedb-cip/reflection:test",
       });
       const appendedTwo = await appendSelfImprovementEntry({
         baseDir: workspaceDir,
@@ -241,7 +241,7 @@ describe("self-improvement", () => {
         area: governanceCandidates[1].area,
         priority: governanceCandidates[1].priority,
         status: governanceCandidates[1].status,
-        source: "memory-lancedb-pro/reflection:test",
+        source: "memory-lancedb-cip/reflection:test",
       });
 
       assert.match(appendedOne.id, /^LRN-\d{8}-001$/);
@@ -253,7 +253,7 @@ describe("self-improvement", () => {
       assert.match(learningsBody, /\*\*Status\*\*: triage/);
       assert.match(learningsBody, /Document the triage-first rule after it repeats/);
       assert.match(learningsBody, /\*\*Status\*\*: pending/);
-      assert.match(learningsBody, /Source: memory-lancedb-pro\/reflection:test/);
+      assert.match(learningsBody, /Source: memory-lancedb-cip\/reflection:test/);
     });
 
     it("skips new entries when the configured per-file limit is reached", async () => {

@@ -13,7 +13,7 @@ describe("memory timestamp normalization", () => {
   let workDir;
 
   beforeEach(() => {
-    workDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-pro-timestamp-"));
+    workDir = mkdtempSync(path.join(tmpdir(), "memory-lancedb-cip-timestamp-"));
   });
 
   afterEach(() => {

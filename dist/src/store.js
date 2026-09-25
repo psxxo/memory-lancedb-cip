@@ -57,7 +57,7 @@ export const loadLanceDB = async () => {
         return await lancedbImportPromise;
     }
     catch (err) {
-        throw new Error(`memory-lancedb-pro: failed to load LanceDB. ${String(err)}`, { cause: err });
+        throw new Error(`memory-lancedb-cip: failed to load LanceDB. ${String(err)}`, { cause: err });
     }
 };
 // ============================================================================
@@ -537,7 +537,7 @@ export class MemoryStore {
                     else {
                         await unlinkAsync(lockArtifactPath);
                     }
-                    console.warn(`[memory-lancedb-pro] cleared stale lock artifact: ${lockArtifactPath} ageMs=${ageMs}`);
+                    console.warn(`[memory-lancedb-cip] cleared stale lock artifact: ${lockArtifactPath} ageMs=${ageMs}`);
                 }
                 catch { }
             }
@@ -615,7 +615,7 @@ export class MemoryStore {
                 }
                 // fn() 成功執行，但 lock 在執行期間被標記 compromised
                 // 正確行為：回傳成功結果（資料已寫入），明確告知 caller 不要重試
-                console.warn(`[memory-lancedb-pro] Returning successful result despite compromised lock at "${lockPath}". ` +
+                console.warn(`[memory-lancedb-cip] Returning successful result despite compromised lock at "${lockPath}". ` +
                     `Callers must not retry this operation automatically.`);
             }
         }
@@ -633,7 +633,7 @@ export class MemoryStore {
             await this.redisLock.close();
         }
         catch (err) {
-            this.config.onLockWarning?.(`memory-lancedb-pro: failed to close Redis lock client: ${String(err)}`);
+            this.config.onLockWarning?.(`memory-lancedb-cip: failed to close Redis lock client: ${String(err)}`);
         }
     }
     get dbPath() {
@@ -681,12 +681,12 @@ export class MemoryStore {
             await this.runWithWriteLock(async () => {
                 await this.table.optimize({ cleanupOlderThan: new Date(0) });
             });
-            console.log(`[memory-lancedb-pro] index fold completed (reason=${reason}, modsSinceLast=${mods})`);
+            console.log(`[memory-lancedb-cip] index fold completed (reason=${reason}, modsSinceLast=${mods})`);
         }
         catch (err) {
             // Re-arm the counter so a transient failure retries on later writes.
             this.dataModsSinceIndexFold += mods;
-            console.warn(`[memory-lancedb-pro] index fold failed (reason=${reason}): ${err instanceof Error ? err.message : String(err)}`);
+            console.warn(`[memory-lancedb-cip] index fold failed (reason=${reason}): ${err instanceof Error ? err.message : String(err)}`);
         }
         finally {
             this.indexFoldInFlight = false;
@@ -716,7 +716,7 @@ export class MemoryStore {
             const stats = await table.indexStats(fts.name ?? "text_idx");
             const backlog = stats?.numUnindexedRows ?? 0;
             if (backlog >= MemoryStore.INDEX_FOLD_OP_THRESHOLD) {
-                console.log(`[memory-lancedb-pro] FTS index has ${backlog} unindexed rows; scheduling catch-up fold`);
+                console.log(`[memory-lancedb-cip] FTS index has ${backlog} unindexed rows; scheduling catch-up fold`);
                 void this.foldIndices("startup-backlog");
             }
         }
@@ -744,7 +744,7 @@ export class MemoryStore {
             this.config.dbPath = await validateStoragePathAsync(this.config.dbPath);
         }
         catch (err) {
-            this.config.onStoragePathWarning?.(`memory-lancedb-pro: storage path issue — ${String(err)}\n` +
+            this.config.onStoragePathWarning?.(`memory-lancedb-cip: storage path issue — ${String(err)}\n` +
                 `  The plugin will still attempt to start, but writes may fail.`);
         }
         const lancedb = await loadLanceDB();
@@ -821,9 +821,9 @@ export class MemoryStore {
                 const currentMissingColumns = await this.readMissingLegacyColumns(table);
                 if (currentMissingColumns.length === 0)
                     return;
-                console.warn(`memory-lancedb-pro: migrating legacy table — adding columns: ${currentMissingColumns.map((c) => c.name).join(", ")}`);
+                console.warn(`memory-lancedb-cip: migrating legacy table — adding columns: ${currentMissingColumns.map((c) => c.name).join(", ")}`);
                 await table.addColumns(currentMissingColumns);
-                console.log(`memory-lancedb-pro: migration complete — ${currentMissingColumns.length} column(s) added`);
+                console.log(`memory-lancedb-cip: migration complete — ${currentMissingColumns.length} column(s) added`);
             };
             if (alreadyLocked) {
                 await applyMigration();
@@ -836,13 +836,13 @@ export class MemoryStore {
             const msg = String(err);
             if (msg.includes("already exists")) {
                 // Concurrent initialization race — another process already added the columns
-                console.log("memory-lancedb-pro: migration columns already exist (concurrent init)");
+                console.log("memory-lancedb-cip: migration columns already exist (concurrent init)");
             }
             else if (this.isRedisLockCoordinationError(err)) {
                 throw err;
             }
             else {
-                console.warn("memory-lancedb-pro: could not check/migrate table schema:", err);
+                console.warn("memory-lancedb-cip: could not check/migrate table schema:", err);
             }
         }
     }
@@ -961,11 +961,11 @@ export class MemoryStore {
                 }
             });
             if (normalizedCount > 0) {
-                console.log(`memory-lancedb-pro: normalized ${normalizedCount} legacy second timestamp row(s)`);
+                console.log(`memory-lancedb-cip: normalized ${normalizedCount} legacy second timestamp row(s)`);
             }
         }
         catch (err) {
-            console.warn("memory-lancedb-pro: could not normalize legacy second timestamps:", err);
+            console.warn("memory-lancedb-cip: could not normalize legacy second timestamps:", err);
             if (String(err).includes("Durable backup saved at")) {
                 throw err;
             }
@@ -984,7 +984,7 @@ export class MemoryStore {
         }
         catch (err) {
             if (err?.code !== "ENOENT") {
-                console.warn(`memory-lancedb-pro: could not remove legacy timestamp backup ${backupPath}:`, err);
+                console.warn(`memory-lancedb-cip: could not remove legacy timestamp backup ${backupPath}:`, err);
             }
         }
     }
@@ -1151,12 +1151,12 @@ export class MemoryStore {
                     this.doFlush().then((result) => {
                         if (result.hasError && result.lastError) {
                             this.lastBackgroundError = { hasError: true, lastError: result.lastError };
-                            console.error(`[memory-lancedb-pro] immediate doFlush() error: ${result.lastError instanceof Error ? result.lastError.message : String(result.lastError)}`);
+                            console.error(`[memory-lancedb-cip] immediate doFlush() error: ${result.lastError instanceof Error ? result.lastError.message : String(result.lastError)}`);
                         }
                     }).catch((err) => {
                         // 【F2 fix】同步 throw 的情況（很少見）
                         this.lastBackgroundError = { hasError: true, lastError: err };
-                        console.error(`[memory-lancedb-pro] immediate doFlush() error: ${err instanceof Error ? err.message : String(err)}`);
+                        console.error(`[memory-lancedb-cip] immediate doFlush() error: ${err instanceof Error ? err.message : String(err)}`);
                     });
                 });
             }
@@ -1180,12 +1180,12 @@ export class MemoryStore {
                     this.doFlush().then((result) => {
                         if (result.hasError && result.lastError) {
                             this.lastBackgroundError = { hasError: true, lastError: result.lastError };
-                            console.error(`[memory-lancedb-pro] doFlush() timer callback error: ${result.lastError instanceof Error ? result.lastError.message : String(result.lastError)}`);
+                            console.error(`[memory-lancedb-cip] doFlush() timer callback error: ${result.lastError instanceof Error ? result.lastError.message : String(result.lastError)}`);
                         }
                     }).catch((err) => {
                         // 同步 throw 的情況
                         this.lastBackgroundError = { hasError: true, lastError: err };
-                        console.error(`[memory-lancedb-pro] doFlush() timer callback error: ${err instanceof Error ? err.message : String(err)}`);
+                        console.error(`[memory-lancedb-cip] doFlush() timer callback error: ${err instanceof Error ? err.message : String(err)}`);
                     });
                 }, MemoryStore.FLUSH_INTERVAL_MS);
             }
@@ -1244,7 +1244,7 @@ export class MemoryStore {
                         callerIdx++;
                     }
                     const errorMsg = err instanceof Error ? err.message : String(err);
-                    console.error(`[memory-lancedb-pro] doFlush chunk [${chunkIdx}] failed: ${errorMsg}`);
+                    console.error(`[memory-lancedb-cip] doFlush chunk [${chunkIdx}] failed: ${errorMsg}`);
                     // 【F5/MR1 fix + Issue #5 fix】每個 chunk 錯誤儲存到 Map，讓 caller settlement
                     // 時能查到自己的 chunk 錯誤，而非都用 lastError（一律都是最後一個 chunk 的錯誤）
                     const chunkStart = i;
@@ -1270,7 +1270,7 @@ export class MemoryStore {
                         caller.reject(new Error(`batch flush failed${chunkInfo}`, { cause: callerError }));
                     }
                     catch (rejectErr) {
-                        console.error(`[memory-lancedb-pro] caller.reject() 拋出（可能被重複結算忽略）: ${rejectErr instanceof Error ? rejectErr.message : String(rejectErr)}`);
+                        console.error(`[memory-lancedb-cip] caller.reject() 拋出（可能被重複結算忽略）: ${rejectErr instanceof Error ? rejectErr.message : String(rejectErr)}`);
                     }
                 }
                 else {
@@ -1571,7 +1571,7 @@ export class MemoryStore {
         const overFetchMultiplier = inactiveFilter ? 20 : 10;
         const fetchLimit = Math.min(safeLimit * overFetchMultiplier, 200);
         if (this.disableNativeCosine && !this.nativeCosineFallbackLogged) {
-            console.warn("memory-lancedb-pro: LanceDB native vector cosine disabled; scanning candidates and using JS cosine rerank fallback");
+            console.warn("memory-lancedb-cip: LanceDB native vector cosine disabled; scanning candidates and using JS cosine rerank fallback");
             this.nativeCosineFallbackLogged = true;
         }
         let query = this.disableNativeCosine
@@ -1770,7 +1770,7 @@ export class MemoryStore {
             throw new Error(`Memory ${id} is outside accessible scopes`);
         }
         // Support both full UUID and short prefix (8+ hex chars)
-        // Also support legacy mem-md-N format from older memory-lancedb-pro versions
+        // Also support legacy mem-md-N format from older memory-lancedb-cip versions
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const prefixRegex = /^[0-9a-f]{8,}$/i;
         const legacyRegex = /^mem-md-\d+$/i;

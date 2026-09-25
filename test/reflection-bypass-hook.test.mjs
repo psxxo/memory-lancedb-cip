@@ -222,7 +222,7 @@ describe("reflection hooks tolerate bypass scope filters", () => {
 
     const commandHooks = harness.eventHandlers.get("command:new") || [];
     const reflectionCommandHook = commandHooks.find((hook) =>
-      hook.meta?.name === "memory-lancedb-pro.memory-reflection.command-new"
+      hook.meta?.name === "memory-lancedb-cip.memory-reflection.command-new"
     );
     assert.ok(reflectionCommandHook, "expected memory reflection command:new hook");
 
@@ -294,7 +294,7 @@ describe("reflection hooks tolerate bypass scope filters", () => {
     try {
       const commandHooks = harness.eventHandlers.get("command:new") || [];
       const reflectionCommandHook = commandHooks.find((hook) =>
-        hook.meta?.name === "memory-lancedb-pro.memory-reflection.command-new"
+        hook.meta?.name === "memory-lancedb-cip.memory-reflection.command-new"
       );
       assert.ok(reflectionCommandHook, "expected memory reflection command:new hook");
 

@@ -608,7 +608,7 @@ export async function resolveMemoryId(
     };
   }
 
-  // Supported legacy ids (older memory-lancedb-pro versions) pass through
+  // Supported legacy ids (older memory-lancedb-cip versions) pass through
   // untouched: MemoryStore.delete/getById carry exact handling for this shape,
   // and routing them into semantic retrieval let a sole low-score result
   // resolve to an unrelated row.
@@ -716,7 +716,7 @@ export function registerSelfImprovementLogTool(api: OpenClawPluginApi, context: 
             category,
             area,
             priority,
-            source: "memory-lancedb-pro/self_improvement_log",
+            source: "memory-lancedb-cip/self_improvement_log",
             maxEntries: context.selfImprovementMaxEntries,
           });
           const fileName = type === "learning" ? "LEARNINGS.md" : "ERRORS.md";
@@ -1351,7 +1351,7 @@ export function registerMemoryStoreTool(
               ], { excludeInactive: true });
             } catch (err) {
               console.warn(
-                `memory-lancedb-pro: duplicate pre-check failed, continue store: ${String(err)}`,
+                `memory-lancedb-cip: duplicate pre-check failed, continue store: ${String(err)}`,
               );
             }
             const duplicateCandidate = neighbors[0]?.score > 0.98 ? neighbors[0] : undefined;
@@ -1376,7 +1376,7 @@ export function registerMemoryStoreTool(
                   throw err;
                 }
                 console.warn(
-                  `memory-lancedb-pro: fact-key lookup failed, continue store: ${String(err)}`,
+                  `memory-lancedb-cip: fact-key lookup failed, continue store: ${String(err)}`,
                 );
               }
             }

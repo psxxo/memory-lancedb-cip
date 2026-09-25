@@ -1,4 +1,4 @@
-# memory-lancedb-pro v1.1.0 — 智能记忆增强
+# memory-lancedb-cip v1.1.0 — 智能记忆增强
 
 > **日期**: 2026-03-06  
 > **作者**: CJY  

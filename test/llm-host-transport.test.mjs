@@ -66,7 +66,7 @@ describe("LLM host transport", () => {
       { role: "system", content: DEFAULT_SYSTEM_PROMPT },
       { role: "user", content: "conversation text to extract from" },
     ]);
-    assert.equal(calls[0].purpose, "memory-lancedb-pro:extract-candidates");
+    assert.equal(calls[0].purpose, "memory-lancedb-cip:extract-candidates");
   });
 
   it("routes admission-utility through the host runtime transport, capturing model and messages", async () => {
@@ -88,7 +88,7 @@ describe("LLM host transport", () => {
     assert.deepEqual(result, { utility: 0.7, reason: "relevant" });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].model, "openrouter/anthropic/claude-opus-4-8");
-    assert.equal(calls[0].purpose, "memory-lancedb-pro:admission-utility");
+    assert.equal(calls[0].purpose, "memory-lancedb-cip:admission-utility");
   });
 
   it("forwards a default reasoning effort to the host runtime call when llm.thinkLevel is not configured", async () => {

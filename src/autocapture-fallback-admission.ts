@@ -86,7 +86,7 @@ export async function gateRegexFallbackCapture(params: {
   if (!params.admissionController) {
     if (params.admissionRequired) {
       const reason = "admission control is enabled but no controller is available (initialization failed); failing closed";
-      params.warnLog?.(`memory-lancedb-pro: regex-fallback capture rejected: ${reason}`);
+      params.warnLog?.(`memory-lancedb-cip: regex-fallback capture rejected: ${reason}`);
       return { admit: false, reason };
     }
     return { admit: true };
@@ -103,7 +103,7 @@ export async function gateRegexFallbackCapture(params: {
   } catch (err) {
     const reason = "admission evaluation failed open";
     params.warnLog?.(
-      `memory-lancedb-pro: regex-fallback admission evaluation failed, admitting without audit: ${String(err)}`,
+      `memory-lancedb-cip: regex-fallback admission evaluation failed, admitting without audit: ${String(err)}`,
     );
     return {
       admit: true,

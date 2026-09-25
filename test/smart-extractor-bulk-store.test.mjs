@@ -291,7 +291,7 @@ describe('Integration: SmartExtractor Scenario', () => {
       { category: 'profile', abstract: 'User likes coffee', content: '' },
       { category: 'preference', abstract: 'Prefers dark theme', content: '' },
       { category: 'case', abstract: 'Working on issue #666', content: '' },
-      { category: 'entity', abstract: 'Project is memory-lancedb-pro', content: '' },
+      { category: 'entity', abstract: 'Project is memory-lancedb-cip', content: '' },
     ];
     
     // CURRENT BEHAVIOR: 4 individual store() calls = 4 locks
