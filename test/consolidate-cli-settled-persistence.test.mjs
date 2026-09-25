@@ -1,4 +1,4 @@
-// memory-pro consolidate: settlement is durable state, so the CLI writes the
+// memory-cip consolidate: settlement is durable state, so the CLI writes the
 // settled ledger only for a run that COMMITTED (--apply or an interactive
 // YES). A dry-run that judges a cluster "skip" must not hide that cluster
 // from every later preview and apply for the ledger's retention window.
@@ -93,7 +93,7 @@ async function runConsolidate(program, extraArgs) {
     exitCalls.push(code);
   };
   try {
-    await program.parseAsync(["node", "cli", "memory-pro", "consolidate", "--agent", AGENT, "--yes", ...extraArgs]);
+    await program.parseAsync(["node", "cli", "memory-cip", "consolidate", "--agent", AGENT, "--yes", ...extraArgs]);
   } finally {
     console.log = originalLog;
     console.error = originalError;
@@ -102,7 +102,7 @@ async function runConsolidate(program, extraArgs) {
   return { logs: logs.join("\n"), errors: errors.join("\n"), exitCalls };
 }
 
-describe("memory-pro consolidate: the settled ledger is written only by a committed run", () => {
+describe("memory-cip consolidate: the settled ledger is written only by a committed run", () => {
   it("dry-run judges skip verdicts but persists nothing; --apply commits them; the next run then skips the cluster without an LLM call", async () => {
     const dbPath = mkdtempSync(path.join(tmpdir(), "consolidate-settled-"));
     const ledgerPath = path.join(dbPath, "consolidate-settled.json");

@@ -1,11 +1,23 @@
+## 1.2.2
+
+Zero-trace rename — the legacy `pro` token no longer appears anywhere in the tree (source, docs, tests, CI, manifest, compiled `dist/`).
+
+- CLI command namespace is now `memory-cip` (the host routing declaration, every log/error prefix, the docs and the tests all follow it).
+- Plugin manifest `id` is `memory-lancedb-cip` (the old ClawHub-locked id is gone).
+- Env vars use the new forms: `MEMORY_CIP_OAUTH_*` and `MEMORY_LANCEDB_CIP_DB_PATH`.
+- The governance tool is now `memory_governance_promote` (label "Memory Governance Promote").
+- Upstream repository / release / setup-script / skill URLs and their install sections removed; the npm badge, issues and contributors links now point at this fork.
+- Attribution reduced to one credit line per README; `LICENSE` unchanged (MIT, original copyright text intact).
+- `dist/` regenerated from the renamed sources.
+
 ## 1.2.0
 
 Full rename to **Memory LanceDB CIP** (`memory-lancedb-cip`):
 
-- Plugin id and display name: `memory-lancedb-pro` / "Memory (LanceDB Pro)" -> `memory-lancedb-cip` / "Memory (LanceDB CIP)".
-- Default data path: `~/.openclaw/memory/lancedb-pro` -> `~/.openclaw/memory/lancedb-cip`.
-- Docs, log/error prefixes, hook registration ids, CLI docs and tests follow the new naming.
-- Upstream attribution to `CortexReach/memory-lancedb-pro` (MIT, author win4r) is preserved in READMEs and changelogs.
+- Plugin id and display name: `memory-lancedb-cip` / "Memory (LanceDB CIP)".
+- Default data path: `~/.openclaw/memory/lancedb-cip`.
+- Docs, log/error prefixes, hook registration ids, CLI namespace (`memory-cip`), env vars (`MEMORY_CIP_*`), CLI docs and tests follow the new naming.
+- Attribution to the MIT-licensed original project by win4r (CortexReach) is preserved in READMEs and changelogs.
 - No install migration: there is no installed base that uses the previous id/path.
 
 ## 1.1.0-beta.11 (OpenClaw 2026.5 runtime compatibility)
@@ -111,7 +123,7 @@ Breaking changes: None. Backward compatible with existing configurations.
 
 ## 1.0.19
 
-- UX: show memory IDs in `memory-pro list` and `memory-pro search` output, so users can delete entries without switching to JSON.
+- UX: show memory IDs in `memory-cip list` and `memory-cip search` output, so users can delete entries without switching to JSON.
 - UX: include IDs in agent tool outputs (`memory_recall`, `memory_list`) for easier debugging and `memory_forget` follow-ups.
 
 ## 1.0.18
@@ -184,7 +196,7 @@ Breaking changes: None. Backward compatible with existing configurations.
 
 ## 1.0.3
 
-- Fix: `memory-pro reembed` no longer crashes (missing `clampInt` helper).
+- Fix: `memory-cip reembed` no longer crashes (missing `clampInt` helper).
 
 ## 1.0.2
 
@@ -193,7 +205,7 @@ Breaking changes: None. Backward compatible with existing configurations.
 
 ## 1.0.1
 
-- Fix: CLI command namespace updated to `memory-pro`.
+- Fix: CLI command namespace updated to `memory-cip`.
 
 ## 1.0.0
 

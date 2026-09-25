@@ -27,7 +27,7 @@ retrieverModuleForMock.createRetriever = (...args) => activeCreateRetriever(...a
 embedderModuleForMock.createEmbedder = (...args) => activeCreateEmbedder(...args);
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = storeModuleForMock;
 const origPatchMetadata = MemoryStore.prototype.patchMetadata;
@@ -200,7 +200,7 @@ describe("auto-recall timeout", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const output = await autoRecallHook(
@@ -280,7 +280,7 @@ describe("auto-recall timeout", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const output = await autoRecallHook(
@@ -348,7 +348,7 @@ describe("auto-recall timeout", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const beforeHookMs = Date.now();
@@ -410,7 +410,7 @@ describe("auto-recall timeout", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     await autoRecallHook(
@@ -473,7 +473,7 @@ describe("auto-recall timeout", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const timeoutMarker = Symbol("timeout");

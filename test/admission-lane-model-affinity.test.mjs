@@ -23,7 +23,7 @@ const origCreateEmbedder = embedderModuleForMock.createEmbedder;
 const origCreateLlmClient = llmClientModuleForMock.createLlmClient;
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const { resetRegistration } = pluginModule;
 
 function mockCreateRetriever() {
@@ -150,7 +150,7 @@ describe("admission lane model affinity", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     // The CLI command wrapper eagerly builds its own llmClient bound to the
     // same global model, independent of admission control — that's expected
@@ -172,7 +172,7 @@ describe("admission lane model affinity", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(requestedModels.includes("global-model"), "extraction lane still resolves the global model");
     assert.ok(requestedModels.includes("reflection-model"), "reflection lane resolves the memoryReflection model");
@@ -186,7 +186,7 @@ describe("admission lane model affinity", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(
       requestedModels.every((m) => m === "global-model"),
@@ -203,7 +203,7 @@ describe("admission lane model affinity", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(
       requestedModels.includes("anthropic/claude-opus-4-8"),
@@ -224,7 +224,7 @@ describe("admission lane model affinity", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(requestedModels.includes("global-model"), "the plain extraction client is still built");
     assert.ok(requestedModels.includes("override-model"), "admission calls use the explicit override");

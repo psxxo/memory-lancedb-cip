@@ -16,7 +16,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 const { storeReflectionToLanceDB } = jiti("../src/reflection-store.ts");
@@ -115,7 +115,7 @@ async function invokeReflectionHooks({ workDir, agentId, explicitAgentId = agent
     pluginConfig,
   });
 
-  memoryLanceDBProPlugin.register(harness.api);
+  memoryLanceDBCipPlugin.register(harness.api);
 
   const promptHooks = harness.eventHandlers.get("before_prompt_build") || [];
   const reflectionHooks = promptHooks.filter((hook) => {
@@ -218,7 +218,7 @@ describe("reflection hooks tolerate bypass scope filters", () => {
       pluginConfig,
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const commandHooks = harness.eventHandlers.get("command:new") || [];
     const reflectionCommandHook = commandHooks.find((hook) =>
@@ -277,7 +277,7 @@ describe("reflection hooks tolerate bypass scope filters", () => {
       },
     };
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const sessionFile = path.join(workDir, "session.jsonl");
     writeFileSync(

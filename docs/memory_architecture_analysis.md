@@ -33,7 +33,7 @@
 
 - 无 FTS 时自动回退到 vector-only / lexical fallback
 - 无 lifecycle decay 时回退到旧的 `recency boost + importance weight + time decay`
-- legacy memory 仍能读；可通过 `memory-pro upgrade` 补齐 smart metadata
+- legacy memory 仍能读；可通过 `memory-cip upgrade` 补齐 smart metadata
 - 存储表 schema 未拆分成多张新表，而是保留单表 + `metadata` JSON 扩展
 
 ---
@@ -45,7 +45,7 @@ graph TD
     subgraph Runtime["OpenClaw Runtime Surface"]
         U["用户消息 / Agent 对话"]
         T["Agent Tools<br/>memory_recall / store / forget / update"]
-        C["CLI<br/>openclaw memory-pro ..."]
+        C["CLI<br/>openclaw memory-cip ..."]
         N["/new Hook<br/>sessionMemory"]
         X["可选批处理脚本<br/>jsonl_distill.py -> import"]
     end
@@ -147,7 +147,7 @@ graph TD
 - 创建 `MemoryStore`、`Embedder`、`MemoryRetriever`、`ScopeManager`
 - 可选初始化 `SmartExtractor`
 - 注册 Agent Tools
-- 注册 `memory-pro` CLI
+- 注册 `memory-cip` CLI
 - 注册 `before_agent_start`、`agent_end`、`command:new`
 - 注册后台 service：启动检查、legacy upgrade 提示、自动备份
 
@@ -186,10 +186,10 @@ graph TD
 - `memory_store` Agent Tool 手工写入
 - `memory_update` Agent Tool 原地更新
 - `command:new` 的 session summary 写入
-- `memory-pro import`
-- `memory-pro migrate run`
-- `memory-pro upgrade`
-- `memory-pro reembed`
+- `memory-cip import`
+- `memory-cip migrate run`
+- `memory-cip upgrade`
+- `memory-cip reembed`
 
 其中自动捕获是最核心的在线写入链路。
 
@@ -492,7 +492,7 @@ store 层还承接了多项运维需求：
 
 - `before_agent_start` 自动召回
 - `memory_recall` Agent Tool
-- `memory-pro search` CLI
+- `memory-cip search` CLI
 
 ### 8.2 混合检索主链
 
@@ -692,7 +692,7 @@ graph LR
 
 ### 12.2 CLI
 
-`memory-pro` 当前已经具备完整运维面：
+`memory-cip` 当前已经具备完整运维面：
 
 - `version`
 - `list`
@@ -773,7 +773,7 @@ README 新增的批处理方案是另一条非常值得记录的架构支线：
 - 通过 `scripts/jsonl_distill.py` 增量读取 session JSONL
 - 过滤噪声
 - 用专门 distiller agent 提炼高信号 lesson
-- 最终通过 `memory_store` 或 `memory-pro import` 回灌主库
+- 最终通过 `memory_store` 或 `memory-cip import` 回灌主库
 
 这条链路说明本项目现在已经从“在线对话记忆插件”延伸到“离线记忆蒸馏平台”。
 

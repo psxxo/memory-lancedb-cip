@@ -8,7 +8,7 @@ import jitiFactory from "jiti";
 
 const jiti = jitiFactory(import.meta.url, { interopDefault: true });
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 
@@ -103,7 +103,7 @@ describe("systemSessionMemory before_reset", { concurrency: false }, () => {
     const dbPath = path.join(workDir, "db");
     const api = createApiHarness({ dbPath, embeddingBaseURL });
 
-    memoryLanceDBProPlugin.register(api);
+    memoryLanceDBCipPlugin.register(api);
 
     assert.equal(typeof api.hooks.before_reset, "function");
     assert.equal(api.hooks["command:new"], undefined, "selfImprovement command:new hook should require explicit config (#405)");
@@ -146,7 +146,7 @@ describe("systemSessionMemory before_reset", { concurrency: false }, () => {
     api.logger.debug = (message) => logs.push(["debug", message]);
     api.logger.warn = (message) => logs.push(["warn", message]);
 
-    memoryLanceDBProPlugin.register(api);
+    memoryLanceDBCipPlugin.register(api);
 
     const event = {
       reason: "new",
@@ -182,7 +182,7 @@ describe("systemSessionMemory before_reset", { concurrency: false }, () => {
     api.logger.debug = (message) => logs.push(["debug", message]);
     api.logger.warn = (message) => logs.push(["warn", message]);
 
-    memoryLanceDBProPlugin.register(api);
+    memoryLanceDBCipPlugin.register(api);
 
     const event = {
       reason: "new",
@@ -217,7 +217,7 @@ describe("systemSessionMemory before_reset", { concurrency: false }, () => {
     const dbPath = path.join(workDir, "db-reset");
     const api = createApiHarness({ dbPath, embeddingBaseURL });
 
-    memoryLanceDBProPlugin.register(api);
+    memoryLanceDBCipPlugin.register(api);
 
     await api.hooks.before_reset(
       {

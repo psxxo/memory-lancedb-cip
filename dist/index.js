@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { AsyncLocalStorage } from "node:async_hooks";
-// Detect CLI mode: when running as a CLI subcommand (e.g. `openclaw memory-pro stats`),
+// Detect CLI mode: when running as a CLI subcommand (e.g. `openclaw memory-cip stats`),
 // OpenClaw sets OPENCLAW_CLI=1 in the process environment. Registration and
 // lifecycle logs are noisy in CLI context (printed to stderr before command output),
 // so we downgrade them to debug level when running in CLI mode.
@@ -1390,8 +1390,8 @@ const MEMORY_TRIGGERS = [
 ];
 const CAPTURE_EXCLUDE_PATTERNS = [
     // Memory management / meta-ops: do not store as long-term memory
-    /\b(memory-pro|memory_store|memory_recall|memory_forget|memory_update)\b/i,
-    /\bopenclaw\s+memory-pro\b/i,
+    /\b(memory-cip|memory_store|memory_recall|memory_forget|memory_update)\b/i,
+    /\bopenclaw\s+memory-cip\b/i,
     /\b(delete|remove|forget|purge|cleanup|clean up|clear)\b.*\b(memory|memories|entry|entries)\b/i,
     /\b(memory|memories)\b.*\b(delete|remove|forget|purge|cleanup|clean up|clear)\b/i,
     /\bhow do i\b.*\b(delete|remove|forget|purge|cleanup|clear)\b/i,
@@ -1810,7 +1810,7 @@ function _initPluginState(api) {
     const rerankCostWarning = buildAutoRecallRerankCostWarning(config, resolvedRetrievalConfig);
     if (rerankCostWarning) {
         // Gateway-boot cost advisory (#843); debug in CLI mode so every
-        // memory-pro command does not repeat it before its output (#888).
+        // memory-cip command does not repeat it before its output (#888).
         (isCliMode() ? api.logger.debug : api.logger.warn)(rerankCostWarning);
     }
     const scopeManager = createScopeManager(config.scopes);
@@ -2144,7 +2144,7 @@ export function warnForDisabledChannelPlugin(openclawConfig, logger) {
             `Run "openclaw plugin enable ${channelName}" and restart the gateway.`);
     }
 }
-const memoryLanceDBProPlugin = {
+const memoryLanceDBCipPlugin = {
     id: "memory-lancedb-cip",
     name: "Memory (LanceDB CIP)",
     description: "Enhanced LanceDB-backed long-term memory with hybrid retrieval, multi-scope isolation, and management CLI",
@@ -2636,7 +2636,7 @@ const memoryLanceDBProPlugin = {
                     return undefined;
                 }
             })() : undefined,
-        }), { commands: ["memory-pro"] });
+        }), { commands: ["memory-cip"] });
         // ========================================================================
         // Lifecycle Hooks
         // ========================================================================
@@ -2718,7 +2718,7 @@ const memoryLanceDBProPlugin = {
                 // the session lock is held for the full duration of the retrieval chain
                 // (embedding → rerank → lifecycle), which can silently drop messages on
                 // channels like Telegram when subsequent requests hit lock timeouts.
-                // See: https://github.com/CortexReach/memory-lancedb-pro/issues/253
+                // See: #253
                 let autoRecallTimedOut = false;
                 let lateAutoRecallLogged = false;
                 const recallWork = async () => {
@@ -3171,7 +3171,7 @@ const memoryLanceDBProPlugin = {
                 // returns immediately and does not hold the session lock.  Blocking
                 // here causes downstream channel deliveries (e.g. Telegram) to be
                 // silently dropped when the session store lock times out.
-                // See: https://github.com/CortexReach/memory-lancedb-pro/issues/260
+                // See: #260
                 const backgroundRun = (async () => {
                     try {
                         // Feature 7: Check extraction rate limit before any work
@@ -5408,7 +5408,7 @@ const memoryLanceDBProPlugin = {
                         const counts = await upgrader.countLegacy();
                         if (counts.legacy > 0) {
                             api.logger.info(`memory-lancedb-cip: found ${counts.legacy} legacy memories (of ${counts.total} total) that can be upgraded to the new smart memory format. ` +
-                                `Run 'openclaw memory-pro upgrade' to convert them.`);
+                                `Run 'openclaw memory-cip upgrade' to convert them.`);
                         }
                     }
                     catch {
@@ -5882,4 +5882,4 @@ export function resetRegistration() {
     _hookEventDedup.clear();
     getReflectionEmptyEventGuardMap().clear();
 }
-export default memoryLanceDBProPlugin;
+export default memoryLanceDBCipPlugin;

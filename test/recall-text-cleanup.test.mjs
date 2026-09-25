@@ -24,7 +24,7 @@ const origCreateRetriever = retrieverModuleForMock.createRetriever;
 const origCreateEmbedder = embedderModuleForMock.createEmbedder;
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const {
   registerMemoryExplainRankTool,
@@ -703,7 +703,7 @@ describe("recall text cleanup", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
 
@@ -918,7 +918,7 @@ describe("recall text cleanup", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const output = await autoRecallHook(
       { prompt: "Please recall what I mentioned before about this task." },
@@ -975,7 +975,7 @@ describe("recall text cleanup", () => {
         selfImprovement: { enabled: false, beforeResetNote: false, ensureLearningFiles: false },
       },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const output = await autoRecallHook(
       { prompt: "Please recall what I mentioned before about this task." },
@@ -1035,7 +1035,7 @@ describe("recall text cleanup", () => {
         selfImprovement: { enabled: false, beforeResetNote: false, ensureLearningFiles: false },
       },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
     const output = await autoRecallHook(
       { prompt: "Please recall related details for this task." },
@@ -1165,7 +1165,7 @@ describe("recall text cleanup", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
 
@@ -1245,7 +1245,7 @@ describe("recall text cleanup", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
 
@@ -1307,7 +1307,7 @@ describe("recall text cleanup", () => {
         ...extraConfig,
       },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     return getAutoRecallHook(harness.eventHandlers);
   }
 

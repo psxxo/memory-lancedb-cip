@@ -1,3 +1,15 @@
+## 1.2.2
+
+Zero-trace rename — the legacy `pro` token no longer appears anywhere in the tree (source, docs, tests, CI, manifest, compiled `dist/`).
+
+- CLI command namespace is now `memory-cip` (the host routing declaration, every log/error prefix, the docs and the tests all follow it).
+- Plugin manifest `id` is `memory-lancedb-cip` (the old ClawHub-locked id is gone).
+- Env vars use the new forms: `MEMORY_CIP_OAUTH_*` and `MEMORY_LANCEDB_CIP_DB_PATH`.
+- The governance tool is now `memory_governance_promote` (label "Memory Governance Promote").
+- Upstream repository / release / setup-script / skill URLs and their install sections removed; the npm badge, issues and contributors links now point at this fork.
+- Attribution reduced to one credit line per README; `LICENSE` unchanged (MIT, original copyright text intact).
+- `dist/` regenerated from the renamed sources.
+
 ## 1.2.1
 
 Same content as the aborted 1.2.0 submission (its server-side upload failed; 1.2.1 is the publishable release).
@@ -6,15 +18,15 @@ Same content as the aborted 1.2.0 submission (its server-side upload failed; 1.2
 
 Full rename to **Memory LanceDB CIP** (`memory-lancedb-cip`):
 
-- Plugin id and display name: `memory-lancedb-pro` / "Memory (LanceDB Pro)" -> `memory-lancedb-cip` / "Memory (LanceDB CIP)".
-- Default data path: `~/.openclaw/memory/lancedb-pro` -> `~/.openclaw/memory/lancedb-cip`.
+- Plugin id and display name: `memory-lancedb-cip` / "Memory (LanceDB CIP)".
+- Default data path: `~/.openclaw/memory/lancedb-cip`.
 - Docs, log/error prefixes, hook registration ids, CLI docs and tests follow the new naming.
-- Upstream attribution to `CortexReach/memory-lancedb-pro` (MIT, author win4r) is preserved in READMEs and changelogs.
+- Attribution to the MIT-licensed original project by win4r (CortexReach) is preserved in READMEs and changelogs.
 - No install migration: there is no installed base that uses the previous id/path.
 
 # 1.1.1 — OpenClaw 2026.9.5 port (native)
 
-Fork note: this build ports `memory-lancedb-pro` (upstream: github.com/CortexReach/memory-lancedb-pro, MIT, author win4r)
+Fork note: this build ports the MIT-licensed original project by win4r (CortexReach)
 to OpenClaw **2026.9.5** and replaces the previous compatibility shims with the host's native APIs.
 
 ## Changed
@@ -35,9 +47,9 @@ to OpenClaw **2026.9.5** and replaces the previous compatibility shims with the 
 Rename release: this distribution is now `memory-lancedb-cip` / **Memory LanceDB CIP**.
 
 - Plugin identity renamed end to end: manifest `id`/`name` (`memory-lancedb-cip` / `Memory (LanceDB CIP)`), the plugin `id` registered with the host, memory-capability `provider`/`custom.plugin` ids, hook `registrationId`s (`memory-lancedb-cip.*`), Redis/file lock key prefixes, the diagnostic build tag, and every log/error prefix.
-- **Default data path changed** to `~/.openclaw/memory/lancedb-cip` (was `~/.openclaw/memory/lancedb-pro`). The default OAuth token file moved to `~/.openclaw/.memory-lancedb-cip/oauth.json`.
+- **Default data path** is `~/.openclaw/memory/lancedb-cip`. The default OAuth token file lives at `~/.openclaw/.memory-lancedb-cip/oauth.json`.
 - Install/publish examples now name this fork's distribution package (`clawhub:@psxxo/memory-lancedb-cip`), not the upstream npm package.
-- Upstream attribution is preserved: `CortexReach/memory-lancedb-pro` (MIT, author win4r). Upstream URLs, issue/PR links, the community setup script, and the upstream skill repositories keep their original names.
+- Attribution to the MIT-licensed original project by win4r (CortexReach) is preserved as a plain credit line in every README; all original-project URLs, issue/PR links, setup scripts and skill repositories have been removed from this fork.
 - **No migration is required**: this build has no historical installs, so no data-dir or config-key migration path is shipped. A fresh data directory is created on first start.
 
 ## 1.1.2

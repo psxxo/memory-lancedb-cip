@@ -51,7 +51,7 @@ function makeStore(rows) {
   };
 }
 
-describe("memory-pro upgrade: mapped-row category normalization", () => {
+describe("memory-cip upgrade: mapped-row category normalization", () => {
   it("dry-run reports counts without writing anything", async () => {
     const store = makeStore([
       mappedRow("decision-legacy", "decision"), // no memory_category stamped

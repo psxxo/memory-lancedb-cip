@@ -1191,7 +1191,7 @@ export function registerMemoryStoreTool(api, context) {
                         for (const failure of invalidationFailures) {
                             // The new record is already stored; surface the unconfirmed
                             // invalidation instead of silently reporting it as superseded.
-                            console.warn(`memory-pro: failed to invalidate superseded record ${failure.id.slice(0, 8)}: ${failure.reason}`);
+                            console.warn(`memory-cip: failed to invalidate superseded record ${failure.id.slice(0, 8)}: ${failure.reason}`);
                         }
                         // The replaced statements leave the echo ledger with the rows:
                         // a reversal back to a superseded text is new information once
@@ -1492,7 +1492,7 @@ export function registerMemoryUpdateTool(api, context) {
                             }
                             catch (patchErr) {
                                 // New record is already the source of truth; log but don't fail
-                                console.warn(`memory-pro: failed to patch superseded record ${resolvedId.slice(0, 8)}: ${patchErr}`);
+                                console.warn(`memory-cip: failed to patch superseded record ${resolvedId.slice(0, 8)}: ${patchErr}`);
                             }
                             // The superseding write succeeded: this text will echo through
                             // the same turn's auto-capture extraction exactly like a plain
@@ -1826,12 +1826,12 @@ export function registerMemoryListTool(api, context) {
         };
     }, { name: "memory_list" });
 }
-export function registerMemoryPromoteTool(api, context) {
+export function registerMemoryGovernancePromoteTool(api, context) {
     api.registerTool((toolCtx) => {
         const runtimeContext = resolveToolContext(context, toolCtx);
         return {
-            name: "memory_promote",
-            label: "Memory Promote",
+            name: "memory_governance_promote",
+            label: "Memory Governance Promote",
             description: "Promote a memory into confirmed/durable governance state so it can participate in conservative auto-recall.",
             parameters: Type.Object({
                 memoryId: Type.Optional(Type.String({ description: "Memory id (UUID/prefix). Optional when query is provided." })),
@@ -1897,7 +1897,7 @@ export function registerMemoryPromoteTool(api, context) {
                 });
             },
         };
-    }, { name: "memory_promote" });
+    }, { name: "memory_governance_promote" });
 }
 export function registerMemoryArchiveTool(api, context) {
     api.registerTool((toolCtx) => {
@@ -2225,7 +2225,7 @@ export function registerAllMemoryTools(api, context, options = {}) {
         registerMemoryStatsTool(api, context);
         registerMemoryDebugTool(api, context);
         registerMemoryListTool(api, context);
-        registerMemoryPromoteTool(api, context);
+        registerMemoryGovernancePromoteTool(api, context);
         registerMemoryArchiveTool(api, context);
         registerMemoryReflectionResolveTool(api, context);
         registerMemoryCompactTool(api, context);

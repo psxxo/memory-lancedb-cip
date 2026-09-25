@@ -33,7 +33,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { NoisePrototypeBank } = jiti("../src/noise-prototypes.ts");
 NoisePrototypeBank.prototype.isNoise = () => false;
@@ -198,7 +198,7 @@ describe("host transport composition through the plugin wiring (index.ts)", () =
       pluginConfig: hostConfig(),
       runtimeLlmComplete: createRuntimeLlmStub(captured),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     await fireAgentEnd(
@@ -227,7 +227,7 @@ describe("host transport composition through the plugin wiring (index.ts)", () =
       pluginConfig: config,
       runtimeLlmComplete: createRuntimeLlmStub(captured),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     await fireAgentEnd(

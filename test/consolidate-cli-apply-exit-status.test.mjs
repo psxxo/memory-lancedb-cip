@@ -1,4 +1,4 @@
-// Regression: an incomplete `memory-pro consolidate --apply` (a cluster that failed
+// Regression: an incomplete `memory-cip consolidate --apply` (a cluster that failed
 // to apply, or applied only partially) must exit non-zero so cron jobs, CI and
 // scripts can tell it from a clean apply. A clean apply keeps status 0.
 import { describe, it } from "node:test";
@@ -101,7 +101,7 @@ async function runApply(program) {
   process.exitCode = undefined;
   let exitCode;
   try {
-    await program.parseAsync(["node", "cli", "memory-pro", "consolidate", "--agent", AGENT, "--yes", "--apply"]);
+    await program.parseAsync(["node", "cli", "memory-cip", "consolidate", "--agent", AGENT, "--yes", "--apply"]);
     exitCode = process.exitCode;
   } finally {
     console.log = originalLog;
@@ -113,7 +113,7 @@ async function runApply(program) {
   return { logs: logs.join("\n"), errors: errors.join("\n"), exitCalls, exitCode };
 }
 
-describe("memory-pro consolidate --apply: exit status reflects incomplete work", () => {
+describe("memory-cip consolidate --apply: exit status reflects incomplete work", () => {
   it("a cluster whose apply wrote nothing (every absorbed invalidation failed) exits with status 1", async () => {
     const dbPath = mkdtempSync(path.join(tmpdir(), "consolidate-exit-"));
     try {

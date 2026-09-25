@@ -96,12 +96,12 @@ async function runCliSmoke() {
 
   createMemoryCLI(context)({ program });
 
-  await program.parseAsync(["node", "openclaw", "memory-pro", "version"]);
+  await program.parseAsync(["node", "openclaw", "memory-cip", "version"]);
 
   await program.parseAsync([
     "node",
     "openclaw",
-    "memory-pro",
+    "memory-cip",
     "reembed",
     "--source-db",
     sourceDbPath,
@@ -156,7 +156,7 @@ async function runCliSmoke() {
   const out1 = await captureLogs([
     "node",
     "openclaw",
-    "memory-pro",
+    "memory-cip",
     "import",
     importFile,
     "--scope",
@@ -167,7 +167,7 @@ async function runCliSmoke() {
   const out2 = await captureLogs([
     "node",
     "openclaw",
-    "memory-pro",
+    "memory-cip",
     "import",
     importFile,
     "--scope",
@@ -179,7 +179,7 @@ async function runCliSmoke() {
     await program.parseAsync([
       "node",
       "openclaw",
-      "memory-pro",
+      "memory-cip",
       "list",
       "--scope",
       "agent:smoke",
@@ -187,14 +187,14 @@ async function runCliSmoke() {
     ]);
   });
 
-  assert.equal(listOutput.logs, "", "memory-pro list --json should not use console.log");
+  assert.equal(listOutput.logs, "", "memory-cip list --json should not use console.log");
   assert.equal(JSON.parse(listOutput.stdout)[0].id, importId);
 
   const vaultPath = path.join(workDir, "obsidian-vault");
   const outObsidian = await captureLogs([
     "node",
     "openclaw",
-    "memory-pro",
+    "memory-cip",
     "sync",
     "obsidian",
     "--vault",
@@ -296,7 +296,7 @@ async function runCliSmoke() {
     await searchProgram.parseAsync([
       "node",
       "openclaw",
-      "memory-pro",
+      "memory-cip",
       "search",
       "Jige",
       "--scope",
@@ -305,7 +305,7 @@ async function runCliSmoke() {
     ]);
   });
 
-  assert.equal(searchOutput.logs, "", "memory-pro search --json should not use console.log");
+  assert.equal(searchOutput.logs, "", "memory-cip search --json should not use console.log");
   assert.match(searchOutput.stdout, /search_regression_1/);
   assert.equal(JSON.parse(searchOutput.stdout)[0].entry.id, "search_regression_1");
 

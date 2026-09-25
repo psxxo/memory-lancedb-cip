@@ -26,7 +26,7 @@ retrieverModuleForMock.createRetriever = (...args) => activeCreateRetriever(...a
 embedderModuleForMock.createEmbedder = (...args) => activeCreateEmbedder(...args);
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 const { storeReflectionToLanceDB } = jiti("../src/reflection-store.ts");
@@ -178,7 +178,7 @@ describe("reflection distiller sub-session hook gating", () => {
     mockRetrieverAndEmbedder(() => retrieveCalls++);
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: autoRecallPluginConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoRecallHook(harness.eventHandlers);
 
     const output = await hook(
@@ -195,7 +195,7 @@ describe("reflection distiller sub-session hook gating", () => {
     mockRetrieverAndEmbedder(() => retrieveCalls++);
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: autoRecallPluginConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoRecallHook(harness.eventHandlers);
 
     await hook(
@@ -223,7 +223,7 @@ describe("reflection distiller sub-session hook gating", () => {
     await seedReflection(pluginConfig.dbPath, "dave");
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
 
     const output = await inheritedRules({}, { sessionKey: DISTILLER_SESSION_KEY, agentId: "dave" });
@@ -236,7 +236,7 @@ describe("reflection distiller sub-session hook gating", () => {
     await seedReflection(pluginConfig.dbPath, "dave");
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { derivedFocus } = getReflectionHooks(harness.eventHandlers);
 
     const output = await derivedFocus({}, { sessionKey: DISTILLER_SESSION_KEY, agentId: "dave" });

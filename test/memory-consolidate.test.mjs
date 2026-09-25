@@ -1241,7 +1241,7 @@ describe("memory consolidate: orchestration", () => {
 });
 
 describe("memory consolidate: CLI attachment", () => {
-  it("registers consolidate as a subcommand of the memory-pro group, not the root program", () => {
+  it("registers consolidate as a subcommand of the memory-cip group, not the root program", () => {
     const { createMemoryCLI } = jiti(path.join(testDir, "..", "cli.ts"));
 
     const program = new Command();
@@ -1253,13 +1253,13 @@ describe("memory consolidate: CLI attachment", () => {
     };
     createMemoryCLI(stubContext)({ program });
 
-    const memoryPro = program.commands.find((c) => c.name() === "memory-pro");
-    assert.ok(memoryPro, "memory-pro group command must be registered");
+    const memoryCip = program.commands.find((c) => c.name() === "memory-cip");
+    assert.ok(memoryCip, "memory-cip group command must be registered");
 
-    const groupNames = memoryPro.commands.map((c) => c.name());
+    const groupNames = memoryCip.commands.map((c) => c.name());
     assert.ok(
       groupNames.includes("consolidate"),
-      `expected "consolidate" under the memory-pro group, got: ${groupNames.join(", ")}`
+      `expected "consolidate" under the memory-cip group, got: ${groupNames.join(", ")}`
     );
 
     const rootNames = program.commands.map((c) => c.name());
@@ -1343,7 +1343,7 @@ describe("memory consolidate: CLI system-prompt wiring", () => {
     program.exitOverride();
     createMemoryCLI(context)({ program });
 
-    await program.parseAsync(["node", "openclaw", "memory-pro", "consolidate", "--agent", "testbot", "--apply", "--yes"]);
+    await program.parseAsync(["node", "openclaw", "memory-cip", "consolidate", "--agent", "testbot", "--apply", "--yes"]);
 
     const decide = calls.find((c) => c.label === "consolidate-decide");
     assert.ok(decide, "expected a consolidate-decide completeJson call");
@@ -1358,7 +1358,7 @@ describe("memory consolidate: CLI system-prompt wiring", () => {
   });
 });
 
-describe("memory-pro stats: live/total split (nit)", () => {
+describe("memory-cip stats: live/total split (nit)", () => {
   it("prints both live and total counts in the human-readable output, matching what --json already exposes", async () => {
     const { createMemoryCLI } = jiti(path.join(testDir, "..", "cli.ts"));
 
@@ -1385,7 +1385,7 @@ describe("memory-pro stats: live/total split (nit)", () => {
     const originalLog = console.log;
     console.log = (...args) => logs.push(args.join(" "));
     try {
-      await program.parseAsync(["node", "openclaw", "memory-pro", "stats"]);
+      await program.parseAsync(["node", "openclaw", "memory-cip", "stats"]);
     } finally {
       console.log = originalLog;
     }
@@ -1452,7 +1452,7 @@ describe("memory consolidate: CLI journal-mirror agent identity", () => {
     createMemoryCLI(context)({ program });
 
     await program.parseAsync([
-      "node", "openclaw", "memory-pro", "consolidate",
+      "node", "openclaw", "memory-cip", "consolidate",
       "--apply", "--agent", "agent-one", "--yes",
     ]);
 
@@ -1471,7 +1471,7 @@ describe("memory consolidate: CLI journal-mirror agent identity", () => {
     createMemoryCLI(context)({ program });
 
     await assert.rejects(
-      () => program.parseAsync(["node", "openclaw", "memory-pro", "consolidate", "--apply", "--yes"]),
+      () => program.parseAsync(["node", "openclaw", "memory-cip", "consolidate", "--apply", "--yes"]),
       (err) => err instanceof Error && err.code === "commander.missingMandatoryOptionValue",
     );
     assert.equal(mirrorCalls.length, 0, "nothing may run or write without an agent identity");

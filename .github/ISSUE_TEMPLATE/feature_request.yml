@@ -21,7 +21,7 @@ body:
     attributes:
       label: Proposed Solution
       description: How would you like this to work?
-      placeholder: "It would be great if `openclaw memory-pro` could ..."
+      placeholder: "It would be great if `openclaw memory-cip` could ..."
     validations:
       required: true
 

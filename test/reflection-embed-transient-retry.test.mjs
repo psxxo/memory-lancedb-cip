@@ -186,7 +186,7 @@ const { tmpdir } = await import("node:os");
 const path = (await import("node:path")).default;
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 
@@ -321,7 +321,7 @@ describeIntegration("persistence paths heal one transient embed abort through th
         },
       },
     };
-    memoryLanceDBProPlugin.register(api);
+    memoryLanceDBCipPlugin.register(api);
 
     const sessionFile = path.join(workDir, "session.jsonl");
     writeFileSync(sessionFile, [
@@ -369,7 +369,7 @@ describeIntegration("persistence paths heal one transient embed abort through th
       autoRecall: false,
     };
     const { api, eventHandlers, logs } = createListedApiHarness({ pluginConfig, resolveRoot: workDir });
-    memoryLanceDBProPlugin.register(api);
+    memoryLanceDBCipPlugin.register(api);
 
     const resetHooks = eventHandlers.get("before_reset") || [];
     assert.ok(resetHooks.length > 0, "expected a before_reset hook");

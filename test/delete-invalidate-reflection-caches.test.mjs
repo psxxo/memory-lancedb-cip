@@ -27,7 +27,7 @@ embedderModuleForMock.createEmbedder = () => ({
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 const { storeReflectionToLanceDB } = jiti("../src/reflection-store.ts");
@@ -145,7 +145,7 @@ async function runCliDeleteBulk(cliFactories, scope) {
   program.exitOverride();
   cliFactories[0]({ program });
   await program.parseAsync([
-    "node", "openclaw", "memory-pro", "delete-bulk", "--scope", scope,
+    "node", "openclaw", "memory-cip", "delete-bulk", "--scope", scope,
   ]);
 }
 
@@ -167,7 +167,7 @@ describe("delete/delete-bulk synchronously invalidate in-process reflection cach
     await seedReflection(pluginConfig.dbPath, "dave", "global");
 
     const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
     const ctx = { sessionKey: "agent:dave:test", agentId: "dave" };
 
@@ -193,7 +193,7 @@ describe("delete/delete-bulk synchronously invalidate in-process reflection cach
     await seedReflection(pluginConfig.dbPath, "dave", "agent:dave");
 
     const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
     const ctx = { sessionKey: "agent:dave:test", agentId: "dave" };
 
@@ -242,7 +242,7 @@ describe("delete/delete-bulk synchronously invalidate in-process reflection cach
     await seedReflection(pluginConfig.dbPath, "carol", "agent:carol");
 
     const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
 
     // Prime both agents' cache entries.
@@ -299,7 +299,7 @@ describe("delete/delete-bulk synchronously invalidate in-process reflection cach
         },
       },
     };
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const sessionFile = path.join(workDir, "session.jsonl");
     writeFileSync(
@@ -398,7 +398,7 @@ describe("cross-process deletes are bounded by cache TTL, not by the same-proces
     await seedReflection(pluginConfig.dbPath, "dave", "global");
 
     const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
     const ctx = { sessionKey: "agent:dave:test", agentId: "dave" };
 

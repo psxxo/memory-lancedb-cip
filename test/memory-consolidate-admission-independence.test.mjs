@@ -92,7 +92,7 @@ describe("memory consolidate: item 9 admissionControl independence", () => {
     program.exitOverride();
     createMemoryCLI(context)({ program });
 
-    await program.parseAsync(["node", "openclaw", "memory-pro", "consolidate", "--agent", "testbot", "--apply", "--yes"]);
+    await program.parseAsync(["node", "openclaw", "memory-cip", "consolidate", "--agent", "testbot", "--apply", "--yes"]);
 
     assert.ok(calls.includes("consolidate-decide"), "the decider call must still fire normally");
     assert.ok(calls.includes("consolidate-merge-batch"), "merge-content generation must still fire normally");

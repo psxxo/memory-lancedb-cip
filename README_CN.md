@@ -2,7 +2,7 @@
 
 # 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
 
-> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
+> Upstream: the MIT-licensed original project by win4r (CortexReach) — this package is an independent CIP build.
 
 **[OpenClaw](https://github.com/openclaw/openclaw) 智能体的 AI 记忆助理**
 
@@ -11,7 +11,7 @@
 基于 LanceDB 的 OpenClaw 长期记忆插件，自动存储偏好、决策和项目上下文，在后续会话中自动回忆。
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/memory-lancedb-pro)](https://www.npmjs.com/package/memory-lancedb-pro)
+[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -64,20 +64,9 @@
 
 ## 快速开始
 
-> **CPU 要求：** 你的 CPU 必须支持 **AVX/AVX2** 指令集（Intel Sandy Bridge 2011 年后 / AMD Bulldozer 2011 年后）。LanceDB 的原生向量引擎依赖这些指令——不支持的 CPU 会导致插件崩溃（`SIGILL` 非法指令错误）。检查方法：`grep -o 'avx[^ ]*' /proc/cpuinfo | head -1`（无输出 = 不支持）。详见 [#419](https://github.com/CortexReach/memory-lancedb-pro/issues/419)。
+> **CPU 要求：** 你的 CPU 必须支持 **AVX/AVX2** 指令集（Intel Sandy Bridge 2011 年后 / AMD Bulldozer 2011 年后）。LanceDB 的原生向量引擎依赖这些指令——不支持的 CPU 会导致插件崩溃（`SIGILL` 非法指令错误）。检查方法：`grep -o 'avx[^ ]*' /proc/cpuinfo | head -1`（无输出 = 不支持）。详见 #419。
 
-### 方式 A：一键安装脚本（推荐）
-
-社区维护的 **[安装脚本](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)** 一条命令搞定安装、升级和修复：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
-bash setup-memory.sh
-```
-
-> 脚本覆盖的完整场景和其他社区工具，详见下方 [生态工具](#生态工具)。
-
-### 方式 B：手动安装
+### 手动安装
 
 **通过 OpenClaw CLI（推荐）：**
 ```bash
@@ -145,19 +134,19 @@ openclaw logs --follow --plain | grep "memory-lancedb-cip"
 
 1. 在 `plugins.load.paths` 中添加插件的 **绝对路径**
 2. 绑定记忆插槽：`plugins.slots.memory = "memory-lancedb-cip"`
-3. 验证：`openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
+3. 验证：`openclaw plugins info memory-lancedb-cip && openclaw memory-cip stats`
 
 **从 v1.1.0 之前的版本升级？**
 
 ```bash
 # 1) 备份
-openclaw memory-pro export --scope global --output memories-backup.json
+openclaw memory-cip export --scope global --output memories-backup.json
 # 2) 试运行
-openclaw memory-pro upgrade --dry-run
+openclaw memory-cip upgrade --dry-run
 # 3) 执行升级
-openclaw memory-pro upgrade
+openclaw memory-cip upgrade
 # 4) 验证
-openclaw memory-pro stats
+openclaw memory-cip stats
 ```
 
 详见 `CHANGELOG-v1.1.0.md` 了解行为变更和升级说明。
@@ -191,7 +180,7 @@ Task hints 是插件 `embedding` 配置块下的两个键：
 # 0) 先停网关，避免迁移过程中有写入。
 
 # 1) 备份整个库——直接对 LanceDB 目录做文件系统级拷贝。
-#    （不要用 `memory-pro export`：它默认 --limit 1000、单一 --scope，
+#    （不要用 `memory-cip export`：它默认 --limit 1000、单一 --scope，
 #      会静默丢掉第 1000 行之后的记录以及所有非 global scope。）
 cp -r <你的 dbPath> <你的 dbPath>.bak
 
@@ -200,15 +189,15 @@ cp -r <你的 dbPath> <你的 dbPath>.bak
 #      的前提：新的向量维度只能写进新表。
 
 # 3) Dry run——读源库、打印行数、不写入。
-openclaw memory-pro reembed --source-db <旧 dbPath> --dry-run
+openclaw memory-cip reembed --source-db <旧 dbPath> --dry-run
 
 # 4) 用现在生效的 task hints 把旧库重嵌到新库。源≠目标，每个 id 只落一次。
 #    中断了可加 --skip-existing 安全重跑。
-openclaw memory-pro reembed --source-db <旧 dbPath>
+openclaw memory-cip reembed --source-db <旧 dbPath>
 
-# 5) 切换前先核对：imported 数量、以及新 dbPath 上 `memory-pro stats` 的总数，
+# 5) 切换前先核对：imported 数量、以及新 dbPath 上 `memory-cip stats` 的总数，
 #    都要等于 dry-run 报告的行数。
-openclaw memory-pro stats
+openclaw memory-cip stats
 
 # 6) 启动网关，此时它打开的是新 dbPath。
 ```
@@ -226,7 +215,7 @@ openclaw memory-pro stats
 以下为英文原文，方便直接复制发送给 Bot：
 
 ```text
-Help me connect this memory plugin with the most user-friendly configuration: https://github.com/CortexReach/memory-lancedb-pro
+Help me connect this memory plugin with the most user-friendly configuration: https://github.com/psxxo/memory-lancedb-cip
 
 Requirements:
 1. Set it as the only active memory plugin
@@ -243,58 +232,6 @@ Requirements:
 ```
 
 </details>
-
----
-
-## 生态工具
-
-memory-lancedb-cip 是核心插件。社区围绕它构建了配套工具，让安装和日常使用更加顺畅：
-
-### 安装脚本——一键安装、升级和修复
-
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
-
-不只是简单的安装器——脚本能智能处理各种常见场景：
-
-| 你的情况 | 脚本会做什么 |
-|---|---|
-| 从未安装 | 全新下载 → 安装依赖 → 选择配置 → 写入 openclaw.json → 重启 |
-| 通过 `git clone` 安装，卡在旧版本 | 自动 `git fetch` + `checkout` 到最新 → 重装依赖 → 验证 |
-| 配置中有无效字段 | 自动检测并通过 schema 过滤移除不支持的字段 |
-| 通过 `npm` 安装 | 跳过 git 更新，提醒你自行运行 `npm update` |
-| `openclaw` CLI 因无效配置崩溃 | 降级方案：直接从 `openclaw.json` 文件读取工作目录路径 |
-| `extensions/` 而非 `plugins/` | 从配置或文件系统自动检测插件位置 |
-| 已是最新版 | 仅执行健康检查，不做改动 |
-
-```bash
-bash setup-memory.sh                    # 安装或升级
-bash setup-memory.sh --dry-run          # 仅预览
-bash setup-memory.sh --beta             # 包含预发布版本
-bash setup-memory.sh --uninstall        # 还原配置并移除插件
-```
-
-内置 Provider 预设：**Jina / DashScope / SiliconFlow / OpenAI / Ollama**，或自带任意 OpenAI 兼容 API。完整用法（含 `--ref`、`--selfcheck-only` 等）详见 [安装脚本 README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)。
-
-### Claude Code / OpenClaw Skill——AI 引导式配置
-
-> **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
-
-安装这个 Skill，你的 AI 智能体（Claude Code 或 OpenClaw）就能深度掌握 memory-lancedb-cip 的所有功能。只需说 **"help me enable the best config"** 即可获得：
-
-- **7 步引导式配置流程**，提供 4 套部署方案：
-  - 满血版（Jina + OpenAI）/ 省钱版（免费 SiliconFlow 重排序）/ 简约版（仅 OpenAI）/ 全本地版（Ollama，零 API 成本）
-- **全部 9 个 MCP 工具** 的正确用法：`memory_recall`、`memory_store`、`memory_forget`、`memory_update`、`memory_stats`、`memory_list`、`self_improvement_log`、`self_improvement_extract_skill`、`self_improvement_review` *（完整工具集需要设置 `enableManagementTools: true`——默认快速配置仅暴露 4 个核心工具）*
-- **常见坑规避**：workspace 插件启用、`autoRecall` 默认 false、jiti 缓存、环境变量、作用域隔离等
-
-**Claude Code 安装：**
-```bash
-git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.claude/skills/memory-lancedb-pro
-```
-
-**OpenClaw 安装：**
-```bash
-git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.openclaw/workspace/skills/memory-lancedb-pro-skill
-```
 
 ---
 
@@ -343,7 +280,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 | --- | --- |
 | `index.ts` | 插件入口，注册 OpenClaw 插件 API、解析配置、挂载生命周期钩子 |
 | `openclaw.plugin.json` | 插件元数据 + 完整 JSON Schema 配置声明 |
-| `cli.ts` | CLI 命令：`memory-pro list/search/stats/delete/delete-bulk/export/import/reembed/upgrade/migrate` |
+| `cli.ts` | CLI 命令：`memory-cip list/search/stats/delete/delete-bulk/export/import/reembed/upgrade/migrate` |
 | `src/store.ts` | LanceDB 存储层：建表 / 全文索引 / 向量搜索 / BM25 搜索 / CRUD |
 | `src/embedder.ts` | Embedding 抽象层，兼容任意 OpenAI 兼容 API |
 | `src/retriever.ts` | 混合检索引擎：向量 + BM25 → 混合融合 → 重排序 → 生命周期衰减 → 过滤 |
@@ -626,28 +563,28 @@ OAuth `llm` 配置（使用现有 Codex / ChatGPT 登录缓存来发送 LLM 请�
 ## CLI 命令
 
 ```bash
-openclaw memory-pro list [--scope global] [--category fact] [--limit 20] [--json]
-openclaw memory-pro search "查询" [--scope global] [--limit 10] [--json]
-openclaw memory-pro stats [--scope global] [--json]
-openclaw memory-pro auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-pro auth status
-openclaw memory-pro auth logout
-openclaw memory-pro delete <id>
-openclaw memory-pro delete-bulk --scope global [--before 2025-01-01] [--dry-run]
-openclaw memory-pro export [--scope global] [--output memories.json]
-openclaw memory-pro import memories.json [--scope global] [--dry-run]
-openclaw memory-pro reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
-openclaw memory-pro upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
-openclaw memory-pro migrate check|run|verify [--source /path]
+openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
+openclaw memory-cip search "查询" [--scope global] [--limit 10] [--json]
+openclaw memory-cip stats [--scope global] [--json]
+openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
+openclaw memory-cip auth status
+openclaw memory-cip auth logout
+openclaw memory-cip delete <id>
+openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
+openclaw memory-cip export [--scope global] [--output memories.json]
+openclaw memory-cip import memories.json [--scope global] [--dry-run]
+openclaw memory-cip reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
+openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
+openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
 OAuth 登录流程：
 
-1. 运行 `openclaw memory-pro auth login`
+1. 运行 `openclaw memory-cip auth login`
 2. 如果省略 `--provider` 且当前终端可交互，CLI 会先显示 OAuth provider 选择器
 3. 命令会打印授权 URL，并在未指定 `--no-browser` 时自动打开浏览器
 4. 回调成功后，命令会保存 plugin OAuth 文件（默认：`~/.openclaw/.memory-lancedb-cip/oauth.json`）、为 logout 快照原来的 `api-key` 模式 `llm` 配置，并把插件 `llm` 配置切换为 OAuth 字段（`auth`、`oauthProvider`、`model`、`oauthPath`）
-5. `openclaw memory-pro auth logout` 会删除这份 OAuth 文件，并在存在快照时恢复之前的 `api-key` 模式 `llm` 配置
+5. `openclaw memory-cip auth logout` 会删除这份 OAuth 文件，并在存在快照时恢复之前的 `api-key` 模式 `llm` 配置
 
 ---
 
@@ -781,7 +718,7 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 | **生命周期评分** | Weibull 衰减集成到检索中——高频和高重要性记忆排名更高。 |
 | **层级管理** | 三级系统（核心 → 工作 → 外围），自动晋升/降级。 |
 
-反馈：[GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 回退：`npm i @psxxo/memory-lancedb-cip@latest`
+反馈：[GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 回退：`npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 
@@ -809,15 +746,15 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 <a href="https://github.com/chenjiyong"><img src="https://avatars.githubusercontent.com/u/8199522?v=4" width="48" height="48" alt="@chenjiyong" /></a>
 </p>
 
-完整列表：[Contributors](https://github.com/CortexReach/memory-lancedb-pro/graphs/contributors)
+完整列表：[Contributors](https://github.com/psxxo/memory-lancedb-cip/graphs/contributors)
 
 ## Star 趋势
 
-<a href="https://star-history.dera.page/#CortexReach/memory-lancedb-pro&Date">
+<a href="https://star-history.dera.page/#psxxo/memory-lancedb-cip&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&theme=dark&transparent=true" />
-    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&transparent=true" />
-    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&transparent=true" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&theme=dark&transparent=true" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&transparent=true" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&transparent=true" />
   </picture>
 </a>
 

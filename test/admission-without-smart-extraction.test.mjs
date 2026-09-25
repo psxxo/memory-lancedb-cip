@@ -21,7 +21,7 @@ const origCreateRetriever = retrieverModuleForMock.createRetriever;
 const origCreateEmbedder = embedderModuleForMock.createEmbedder;
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const { resetRegistration } = pluginModule;
 
 function mockCreateRetriever() {
@@ -130,7 +130,7 @@ describe("admission control availability without smart extraction", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const registeredLog = findRegisteredLog(harness.logs);
     assert.ok(registeredLog, "expected a 'plugin registered' log line");
@@ -152,7 +152,7 @@ describe("admission control availability without smart extraction", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const registeredLog = findRegisteredLog(harness.logs);
     assert.ok(registeredLog);
@@ -174,7 +174,7 @@ describe("admission control availability without smart extraction", () => {
       },
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const registeredLog = findRegisteredLog(harness.logs);
     assert.ok(registeredLog);

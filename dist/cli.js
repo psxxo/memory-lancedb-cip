@@ -865,7 +865,7 @@ export function registerMemoryCLI(program, context) {
         };
     };
     const memory = program
-        .command("memory-pro")
+        .command("memory-cip")
         .description("Enhanced memory management commands (LanceDB CIP)");
     // Version
     memory
@@ -1602,7 +1602,7 @@ export function registerMemoryCLI(program, context) {
                     if (!rowScope) {
                         scopeless++;
                         if (scopeless <= 20) {
-                            console.warn(`  Skipping scope-less legacy row ${id.slice(0, 8)}: assign scopes in the source store (memory-pro repair-scopes) and re-run.`);
+                            console.warn(`  Skipping scope-less legacy row ${id.slice(0, 8)}: assign scopes in the source store (memory-cip repair-scopes) and re-run.`);
                         }
                         continue;
                     }
@@ -1955,7 +1955,7 @@ export function registerMemoryCLI(program, context) {
     });
     // repair-scopes: migration path for legacy NULL/blank-scope rows that the
     // scope hardening makes invisible to every scoped reader. Must attach to
-    // the `memory` group: the host routes only `memory-pro <sub>`, so a command
+    // the `memory` group: the host routes only `memory-cip <sub>`, so a command
     // chained off the root program is unreachable in production.
     memory
         .command("repair-scopes")

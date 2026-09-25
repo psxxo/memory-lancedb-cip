@@ -77,7 +77,7 @@ describe("item 6: CLI export/list/obsidian invalidated-row visibility", () => {
       createMemoryCLI(context)({ program });
 
       await program.parseAsync([
-        "node", "openclaw", "memory-pro", "export", "--scope", "test", "--output", outFile,
+        "node", "openclaw", "memory-cip", "export", "--scope", "test", "--output", outFile,
       ]);
 
       const exported = JSON.parse(readFileSync(outFile, "utf8"));
@@ -111,7 +111,7 @@ describe("item 6: CLI export/list/obsidian invalidated-row visibility", () => {
       };
 
       try {
-        await program.parseAsync(["node", "openclaw", "memory-pro", "list", "--scope", "test", "--json"]);
+        await program.parseAsync(["node", "openclaw", "memory-cip", "list", "--scope", "test", "--json"]);
       } finally {
         process.stdout.write = originalWrite;
       }
@@ -145,7 +145,7 @@ describe("item 6: CLI export/list/obsidian invalidated-row visibility", () => {
 
       try {
         await program.parseAsync([
-          "node", "openclaw", "memory-pro", "list", "--scope", "test", "--json", "--include-invalidated",
+          "node", "openclaw", "memory-cip", "list", "--scope", "test", "--json", "--include-invalidated",
         ]);
       } finally {
         process.stdout.write = originalWrite;
@@ -174,14 +174,14 @@ describe("item 6: CLI export/list/obsidian invalidated-row visibility", () => {
       programDefault.exitOverride();
       createMemoryCLI(context)({ program: programDefault });
       await programDefault.parseAsync([
-        "node", "openclaw", "memory-pro", "sync", "obsidian", "--vault", vaultDefault, "--scope", "test",
+        "node", "openclaw", "memory-cip", "sync", "obsidian", "--vault", vaultDefault, "--scope", "test",
       ]);
 
       const programOptIn = new Command();
       programOptIn.exitOverride();
       createMemoryCLI(context)({ program: programOptIn });
       await programOptIn.parseAsync([
-        "node", "openclaw", "memory-pro", "sync", "obsidian", "--vault", vaultOptIn, "--scope", "test", "--include-invalidated",
+        "node", "openclaw", "memory-cip", "sync", "obsidian", "--vault", vaultOptIn, "--scope", "test", "--include-invalidated",
       ]);
 
       const fs = await import("node:fs");
@@ -248,7 +248,7 @@ describe("item 6: CLI export/list/obsidian invalidated-row visibility", () => {
       createMemoryCLI(context)({ program });
       try {
         await program.parseAsync([
-          "node", "openclaw", "memory-pro", "search", "cola", "--scope", "test", "--json",
+          "node", "openclaw", "memory-cip", "search", "cola", "--scope", "test", "--json",
         ]);
       } finally {
         process.stdout.write = originalWrite;

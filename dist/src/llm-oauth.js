@@ -99,16 +99,16 @@ export function isOauthModelSupported(providerId, value) {
     return provider.modelPattern.test(normalizeOauthModel(trimmed));
 }
 function resolveOauthClientId(providerId) {
-    return process.env.MEMORY_PRO_OAUTH_CLIENT_ID?.trim() || getOAuthProvider(providerId).clientId;
+    return process.env.MEMORY_CIP_OAUTH_CLIENT_ID?.trim() || getOAuthProvider(providerId).clientId;
 }
 function resolveOauthAuthorizeUrl(providerId) {
-    return process.env.MEMORY_PRO_OAUTH_AUTHORIZE_URL?.trim() || getOAuthProvider(providerId).authorizeUrl;
+    return process.env.MEMORY_CIP_OAUTH_AUTHORIZE_URL?.trim() || getOAuthProvider(providerId).authorizeUrl;
 }
 function resolveOauthTokenUrl(providerId) {
-    return process.env.MEMORY_PRO_OAUTH_TOKEN_URL?.trim() || getOAuthProvider(providerId).tokenUrl;
+    return process.env.MEMORY_CIP_OAUTH_TOKEN_URL?.trim() || getOAuthProvider(providerId).tokenUrl;
 }
 function resolveOauthRedirectUri(providerId) {
-    return process.env.MEMORY_PRO_OAUTH_REDIRECT_URI?.trim() || getOAuthProvider(providerId).redirectUri;
+    return process.env.MEMORY_CIP_OAUTH_REDIRECT_URI?.trim() || getOAuthProvider(providerId).redirectUri;
 }
 function buildAuthorizationUrl(state, verifier, providerId) {
     const provider = getOAuthProvider(providerId);
@@ -129,7 +129,7 @@ function buildSuccessHtml() {
     return [
         "<!doctype html>",
         "<html><body>",
-        "<h1>memory-pro OAuth complete</h1>",
+        "<h1>memory-cip OAuth complete</h1>",
         "<p>You can close this window and return to your terminal.</p>",
         "</body></html>",
     ].join("");
@@ -138,7 +138,7 @@ function buildErrorHtml(message) {
     return [
         "<!doctype html>",
         "<html><body>",
-        "<h1>memory-pro OAuth failed</h1>",
+        "<h1>memory-cip OAuth failed</h1>",
         `<p>${message}</p>`,
         "</body></html>",
     ].join("");

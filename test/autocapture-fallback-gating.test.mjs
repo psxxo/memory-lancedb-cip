@@ -39,7 +39,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { gateRegexFallbackCapture } = jiti("../src/autocapture-fallback-admission.ts");
 const { MemoryStore } = jiti("../src/store.ts");
@@ -234,7 +234,7 @@ describe("regex-fallback gating (Path 1: minMessages not met)", () => {
 
   it("skips the regex fallback for a below-threshold turn when smart extraction is enabled", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: smartConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     // One rich first message: cumulative=1 < minMessages=2.
@@ -257,7 +257,7 @@ describe("regex-fallback gating (Path 1: minMessages not met)", () => {
 
   it("re-includes the deferred texts in the next turn's extraction input (history flow)", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: smartConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -286,7 +286,7 @@ describe("regex-fallback gating (Path 1: minMessages not met)", () => {
     // with nothing to replace it: the counter advanced correctly, but the actual
     // text content of every deferred turn except the last was silently lost.
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: smartConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const messageReceivedHooks = (harness.eventHandlers.get("message_received") || []).map((h) => h.handler);
     assert.ok(messageReceivedHooks.length > 0, "expected at least one message_received handler");
@@ -329,7 +329,7 @@ describe("regex-fallback gating (Path 1: minMessages not met)", () => {
       resolveRoot: workspaceDir,
       pluginConfig: smartConfig({ smartExtraction: false }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     await fireAgentEnd(hook, userMessages(PREFERENCE_TEXT), { sessionKey: "agent:agent-two:main", agentId: "agent-two" });
@@ -376,7 +376,7 @@ describe("regex-fallback gating (Path 1: minMessages not met)", () => {
         },
       }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     // Two texts: the identity text drives extraction's boundary skip (and is
@@ -552,7 +552,7 @@ describe("standalone admission when smart extraction is off (Path 3)", () => {
         typePriors: { profile: 0.01, preferences: 0.01, entities: 0.01, events: 0.01, cases: 0.01, patterns: 0.01 },
       }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     await fireAgentEnd(hook, userMessages(PREFERENCE_TEXT), { sessionKey: "agent:agent-two:main", agentId: "agent-two" });
@@ -590,7 +590,7 @@ describe("standalone admission when smart extraction is off (Path 3)", () => {
         typePriors: { profile: 0.9, preferences: 0.9, entities: 0.9, events: 0.9, cases: 0.9, patterns: 0.9 },
       }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     await fireAgentEnd(hook, userMessages(PREFERENCE_TEXT), { sessionKey: "agent:agent-two:main", agentId: "agent-two" });
@@ -687,7 +687,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -718,7 +718,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -740,7 +740,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -788,7 +788,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -822,7 +822,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -859,7 +859,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -906,7 +906,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 4 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const messageReceivedHooks = (harness.eventHandlers.get("message_received") || []).map((h) => h.handler);
     assert.ok(messageReceivedHooks.length > 0, "expected at least one message_received handler");
@@ -940,7 +940,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
   it("returns the terminal flush promise from session_end so an awaiting host gets the guarantee", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -964,7 +964,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
   it("flushes a one-turn ingress session's deferred remember request exactly once (storage level)", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const messageReceivedHooks = (harness.eventHandlers.get("message_received") || []).map((h) => h.handler);
     const ingressCtx = { channelId: "synthchat", conversationId: "conv1" };
@@ -994,7 +994,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
   it("flushes deferred history texts at session end", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1012,7 +1012,7 @@ describe("terminal flush of deferred captures at session_end", () => {
       resolveRoot: workspaceDir,
       pluginConfig: flushConfig({ extractMinMessages: 2 }),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1031,7 +1031,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
   it("no-ops a session_end with nothing deferred", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     await fireSessionEnd(harness, hook, { sessionKey: "agent:agent-two:main", agentId: "agent-two" });
@@ -1047,7 +1047,7 @@ describe("terminal flush of deferred captures at session_end", () => {
     // leaves the flush keyed on the raw sessionId, awaiting an empty in-flight
     // set and flushing an empty bucket - every deferred text silently strands.
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionKey = "agent:agent-two:synthchat:conv2";
     const sessionId = "lifecycle-session-0001";
@@ -1101,7 +1101,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
     try {
       const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-      memoryLanceDBProPlugin.register(harness.api);
+      memoryLanceDBCipPlugin.register(harness.api);
       const hook = getAutoCaptureHook(harness.eventHandlers);
       const ctxA = { sessionKey: "agent:agent-one:synthchat:convA", agentId: "agent-one" };
       const ctxB = { sessionKey: "agent:agent-two:synthchat:convB", agentId: "agent-two" };
@@ -1160,7 +1160,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
   it("flushes when session_end carries only the lifecycle sessionId (real payload shape)", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ingressCtx = {
       sessionKey: "agent:agent-two:synthchat:convReal",
@@ -1182,7 +1182,7 @@ describe("terminal flush of deferred captures at session_end", () => {
 
   it("flushes on a host that keys both hooks by sessionId alone", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionId: "session-id-only-1", agentId: "agent-two" };
 
@@ -1214,7 +1214,7 @@ describe("terminal flush of deferred captures at session_end", () => {
     await new Promise((resolve) => llmServer.listen(0, "127.0.0.1", resolve));
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: flushConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1314,7 +1314,7 @@ describe("unique-ingress counting toward extractMinMessages", () => {
 
   it("counts each requeued ingress text once: three unique messages extract on turn 3, not turn 2", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: countingConfig(3) });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const texts = ingressTexts(3);
 
@@ -1335,7 +1335,7 @@ describe("unique-ingress counting toward extractMinMessages", () => {
 
   it("retains at least extractMinMessages deferred texts, so high thresholds do not evict deferred content", async () => {
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: countingConfig(8) });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const texts = ingressTexts(8);
 
@@ -1546,7 +1546,7 @@ describe("settled zero-persisted outcomes are consumed, not retried", () => {
     await new Promise((resolve) => llmServer.listen(0, "127.0.0.1", resolve));
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: settledConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:settled-reject", agentId: "agent-two" };
     const messages = userMessages(PREFERENCE_TEXT, SECOND_TEXT);
@@ -1590,7 +1590,7 @@ describe("settled zero-persisted outcomes are consumed, not retried", () => {
     });
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: config });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:settled-skip", agentId: "agent-two" };
     const messages = userMessages(PREFERENCE_TEXT, SECOND_TEXT);
@@ -1634,7 +1634,7 @@ describe("settled zero-persisted outcomes are consumed, not retried", () => {
     });
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: config });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:settled-support", agentId: "agent-two" };
     const messages = userMessages(PREFERENCE_TEXT, SECOND_TEXT);

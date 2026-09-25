@@ -418,7 +418,7 @@ describe("cli search source tagging", () => {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "search",
         "服务挂了",
         "--debug",
@@ -518,7 +518,7 @@ describe("cli search source tagging", () => {
         program.parseAsync([
           "node",
           "openclaw",
-          "memory-pro",
+          "memory-cip",
           "search",
           "服务挂了",
           "--debug",
@@ -620,7 +620,7 @@ describe("cli search source tagging", () => {
         program.parseAsync([
           "node",
           "openclaw",
-          "memory-pro",
+          "memory-cip",
           "search",
           "服务挂了",
           "--json",
@@ -738,7 +738,7 @@ describe("cli search source tagging", () => {
         program.parseAsync([
           "node",
           "openclaw",
-          "memory-pro",
+          "memory-cip",
           "search",
           "服务挂了",
           "--json",

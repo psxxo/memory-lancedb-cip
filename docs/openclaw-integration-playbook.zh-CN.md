@@ -206,9 +206,9 @@ openclaw hooks list --json
 ### CLI 与存储
 
 ```bash
-openclaw memory-pro stats
-openclaw memory-pro list --scope global --limit 5
-openclaw memory-pro search "your test keyword" --scope global --limit 5
+openclaw memory-cip stats
+openclaw memory-cip list --scope global --limit 5
+openclaw memory-cip search "your test keyword" --scope global --limit 5
 ```
 
 至少验证：

@@ -26,7 +26,7 @@ retrieverModuleForMock.createRetriever = (...args) => activeCreateRetriever(...a
 embedderModuleForMock.createEmbedder = (...args) => activeCreateEmbedder(...args);
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 const { storeReflectionToLanceDB } = jiti("../src/reflection-store.ts");
@@ -192,7 +192,7 @@ describe("memory sub-session prompt-hook gating", () => {
     mockRetrieverAndEmbedder(() => retrieveCalls++);
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: autoRecallPluginConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoRecallHook(harness.eventHandlers);
 
     const output = await hook(
@@ -209,7 +209,7 @@ describe("memory sub-session prompt-hook gating", () => {
     mockRetrieverAndEmbedder(() => retrieveCalls++);
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: autoRecallPluginConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoRecallHook(harness.eventHandlers);
 
     await hook(
@@ -225,7 +225,7 @@ describe("memory sub-session prompt-hook gating", () => {
     mockRetrieverAndEmbedder(() => retrieveCalls++);
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig: autoRecallPluginConfig() });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoRecallHook(harness.eventHandlers);
 
     const output = await hook(
@@ -254,7 +254,7 @@ describe("memory sub-session prompt-hook gating", () => {
     await seedReflection(pluginConfig.dbPath, "dave");
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
 
     const output = await inheritedRules({}, { sessionKey: CONTROL_SESSION_KEY, agentId: "dave" });
@@ -271,7 +271,7 @@ describe("memory sub-session prompt-hook gating", () => {
     await seedReflection(pluginConfig.dbPath, "dave");
 
     const harness = createPluginApiHarness({ resolveRoot: workspaceDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
 
     const output = await inheritedRules({}, { sessionKey: MEMORY_SUBSESSION_KEY, agentId: "dave" });
@@ -291,7 +291,7 @@ describe("memory sub-session prompt-hook gating", () => {
         selfImprovement: { enabled: true, beforeResetNote: true, ensureLearningFiles: false },
       },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const { resetReminder, commandNew } = getSelfImprovementHooks(harness.eventHandlers);
 
     await commandNew({ sessionKey: MEMORY_SUBSESSION_KEY, action: "command:new" });

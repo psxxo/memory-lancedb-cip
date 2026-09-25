@@ -433,7 +433,7 @@ try {
   assert.equal(
     typeof api.memoryCapability?.promptBuilder,
     "function",
-    "plugin should register an OpenClaw memory prompt builder",
+    "plugin should register an OpenClaw memory-related prompt builder",
   );
   assert.equal(
     typeof api.memoryCapability?.flushPlanResolver,
@@ -450,7 +450,7 @@ try {
   });
   assert.ok(
     promptLines.some((line) => /Memory Recall/.test(line)),
-    "memory prompt builder should provide recall guidance",
+    "memory-related prompt builder should provide recall guidance",
   );
   const flushPlan = api.memoryCapability.flushPlanResolver({
     cfg: { agents: { defaults: { userTimezone: "UTC" } } },

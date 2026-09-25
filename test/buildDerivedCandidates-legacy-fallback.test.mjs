@@ -1,6 +1,6 @@
 // Regression test：combined-legacy fallback 不應讓 sub-agent 看到 main derived
-// 對應 PR: https://github.com/CortexReach/memory-lancedb-pro/pull/522
-// Review: https://github.com/CortexReach/memory-lancedb-pro/pull/522#pullrequestreview-4185627472
+// 對應 PR: #522
+// Review: #522
 //
 // 問題：buildDerivedCandidates() 在 itemCandidates 為空時，
 // fallback 到 legacyRows。此時 combined-legacy row（無 itemKind，

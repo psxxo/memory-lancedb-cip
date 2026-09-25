@@ -42,7 +42,7 @@
 仍保留的兼容路径：
 
 - 当 lifecycle decay 未启用或不可用时，retriever 仍可回退到旧的 `Recency Boost → Importance Weight → Time Decay` 排序链
-- 旧格式数据仍可读取，并可通过 `openclaw memory-pro upgrade` 统一补齐 metadata
+- 旧格式数据仍可读取，并可通过 `openclaw memory-cip upgrade` 统一补齐 metadata
 
 ---
 
@@ -223,7 +223,7 @@ extractMaxChars?: number;     // 送入 LLM 的最大字符数（默认 8000）
 #### 启动时旧记忆检测
 
 - 插件启动 5 秒后异步扫描旧格式记忆数量
-- 如发现旧格式记忆，在日志中输出提示：`Run 'openclaw memory-pro upgrade' to convert them.`
+- 如发现旧格式记忆，在日志中输出提示：`Run 'openclaw memory-cip upgrade' to convert them.`
 
 ### `src/retriever.ts` — 检索器
 
@@ -236,10 +236,10 @@ extractMaxChars?: number;     // 送入 LLM 的最大字符数（默认 8000）
 
 ### `cli.ts` — CLI 命令
 
-#### 新增 `memory-pro upgrade` 命令
+#### 新增 `memory-cip upgrade` 命令
 
 ```bash
-openclaw memory-pro upgrade [--dry-run] [--batch-size N] [--no-llm] [--limit N] [--scope SCOPE]
+openclaw memory-cip upgrade [--dry-run] [--batch-size N] [--no-llm] [--limit N] [--scope SCOPE]
 ```
 
 - `--dry-run`：仅统计旧记忆数量，不修改数据
@@ -303,4 +303,4 @@ openclaw memory-pro upgrade [--dry-run] [--batch-size N] [--no-llm] [--limit N] 
 | 去重逻辑       | 仅在 `smartExtraction: true` 时生效            |
 | 已有数据       | 旧记忆正常读取，新记忆额外携带 L0/L1/L2 元数据 |
 | 配置           | 全部新增配置项均有默认值，零配置即可使用       |
-| **旧记忆升级** | `memory-pro upgrade` 命令一键升级为新格式      |
+| **旧记忆升级** | `memory-cip upgrade` 命令一键升级为新格式      |

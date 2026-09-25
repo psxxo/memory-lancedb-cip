@@ -158,7 +158,7 @@ async function runFunctionalE2E() {
     );
 
     const versionOutput = await captureStdout(async () => {
-      await program.parseAsync(["node", "openclaw", "memory-pro", "version"]);
+      await program.parseAsync(["node", "openclaw", "memory-cip", "version"]);
     });
     assert.match(versionOutput, new RegExp(pkg.version.replaceAll(".", "\\.")));
 
@@ -166,7 +166,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "import",
         importFile,
         "--scope",
@@ -179,7 +179,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "list",
         "--scope",
         "agent:e2e",
@@ -193,7 +193,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "search",
         "乌龙茶",
         "--scope",
@@ -209,7 +209,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "stats",
         "--scope",
         "agent:e2e",
@@ -223,7 +223,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "export",
         "--scope",
         "agent:e2e",
@@ -239,7 +239,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "delete",
         "22222222-2222-4222-8222-222222222222",
         "--scope",
@@ -252,7 +252,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "list",
         "--scope",
         "agent:e2e",
@@ -279,7 +279,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "migrate",
         "run",
         "--source",
@@ -295,7 +295,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "migrate",
         "verify",
         "--source",
@@ -308,7 +308,7 @@ async function runFunctionalE2E() {
       await program.parseAsync([
         "node",
         "openclaw",
-        "memory-pro",
+        "memory-cip",
         "list",
         "--scope",
         "agent:e2e",

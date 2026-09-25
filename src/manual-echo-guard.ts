@@ -42,7 +42,7 @@
  *
  * The ledger is in-memory and per process: only the gateway that recorded
  * a text can invalidate it. Deletions made from another process (the
- * memory-pro CLI) are not visible here; the TTL bounds that window to
+ * memory-cip CLI) are not visible here; the TTL bounds that window to
  * MANUAL_ECHO_TTL_MS, after which the stale entry expires on its own.
  */
 

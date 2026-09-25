@@ -1,5 +1,5 @@
 /**
- * Tier Manager — Three-tier memory promotion/demotion system
+ * Tier Manager — Three-tier promotion/demotion system
  *
  * Tiers:
  * - Core (decay floor 0.9): Identity-level facts, almost never forgotten

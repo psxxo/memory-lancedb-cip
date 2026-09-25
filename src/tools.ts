@@ -1571,7 +1571,7 @@ export function registerMemoryStoreTool(
               // The new record is already stored; surface the unconfirmed
               // invalidation instead of silently reporting it as superseded.
               console.warn(
-                `memory-pro: failed to invalidate superseded record ${failure.id.slice(0, 8)}: ${failure.reason}`,
+                `memory-cip: failed to invalidate superseded record ${failure.id.slice(0, 8)}: ${failure.reason}`,
               );
             }
 
@@ -1959,7 +1959,7 @@ export function registerMemoryUpdateTool(
                 } catch (patchErr) {
                   // New record is already the source of truth; log but don't fail
                   console.warn(
-                    `memory-pro: failed to patch superseded record ${resolvedId.slice(0, 8)}: ${patchErr}`,
+                    `memory-cip: failed to patch superseded record ${resolvedId.slice(0, 8)}: ${patchErr}`,
                   );
                 }
 
@@ -2392,7 +2392,7 @@ export function registerMemoryListTool(
   );
 }
 
-export function registerMemoryPromoteTool(
+export function registerMemoryGovernancePromoteTool(
   api: OpenClawPluginApi,
   context: ToolContext,
 ) {
@@ -2400,8 +2400,8 @@ export function registerMemoryPromoteTool(
     (toolCtx) => {
       const runtimeContext = resolveToolContext(context, toolCtx);
       return {
-        name: "memory_promote",
-        label: "Memory Promote",
+        name: "memory_governance_promote",
+        label: "Memory Governance Promote",
         description:
           "Promote a memory into confirmed/durable governance state so it can participate in conservative auto-recall.",
         parameters: Type.Object({
@@ -2500,7 +2500,7 @@ export function registerMemoryPromoteTool(
         },
       };
     },
-    { name: "memory_promote" },
+    { name: "memory_governance_promote" },
   );
 }
 
@@ -2933,7 +2933,7 @@ export function registerAllMemoryTools(
     registerMemoryStatsTool(api, context);
     registerMemoryDebugTool(api, context);
     registerMemoryListTool(api, context);
-    registerMemoryPromoteTool(api, context);
+    registerMemoryGovernancePromoteTool(api, context);
     registerMemoryArchiveTool(api, context);
     registerMemoryReflectionResolveTool(api, context);
     registerMemoryCompactTool(api, context);

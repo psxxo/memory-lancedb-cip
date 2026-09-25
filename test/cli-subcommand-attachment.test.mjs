@@ -52,7 +52,7 @@ async function captureRepairRun(program, extraArgs = []) {
   };
   let exitCode;
   try {
-    await program.parseAsync(["node", "cli", "memory-pro", "repair-summaries", ...extraArgs]);
+    await program.parseAsync(["node", "cli", "memory-cip", "repair-summaries", ...extraArgs]);
   } finally {
     exitCode = process.exitCode;
     process.exitCode = priorExitCode;
@@ -113,38 +113,38 @@ async function runRepairSummaries(rows, extraArgs = [], storeOverrides = {}) {
 }
 
 describe("cli subcommand attachment", () => {
-  it("only registers memory-pro on the root program; every other command lives under the group", () => {
+  it("only registers memory-cip on the root program; every other command lives under the group", () => {
     const program = buildRegisteredProgram();
 
     const rootNames = program.commands.map((c) => c.name());
     assert.deepEqual(
       rootNames,
-      ["memory-pro"],
-      `the root commander program must expose exactly one command (memory-pro); got: ${rootNames.join(", ")}`
+      ["memory-cip"],
+      `the root commander program must expose exactly one command (memory-cip); got: ${rootNames.join(", ")}`
     );
   });
 
-  it("makes reindex-fts reachable as memory-pro reindex-fts", () => {
+  it("makes reindex-fts reachable as memory-cip reindex-fts", () => {
     const program = buildRegisteredProgram();
-    const memoryPro = program.commands.find((c) => c.name() === "memory-pro");
-    assert.ok(memoryPro, "memory-pro group must be registered");
+    const memoryCip = program.commands.find((c) => c.name() === "memory-cip");
+    assert.ok(memoryCip, "memory-cip group must be registered");
 
-    const groupNames = memoryPro.commands.map((c) => c.name());
+    const groupNames = memoryCip.commands.map((c) => c.name());
     assert.ok(
       groupNames.includes("reindex-fts"),
-      `expected "reindex-fts" under the memory-pro group, got: ${groupNames.join(", ")}`
+      `expected "reindex-fts" under the memory-cip group, got: ${groupNames.join(", ")}`
     );
   });
 
-  it("makes repair-summaries reachable as memory-pro repair-summaries", () => {
+  it("makes repair-summaries reachable as memory-cip repair-summaries", () => {
     const program = buildRegisteredProgram();
-    const memoryPro = program.commands.find((c) => c.name() === "memory-pro");
-    assert.ok(memoryPro, "memory-pro group must be registered");
+    const memoryCip = program.commands.find((c) => c.name() === "memory-cip");
+    assert.ok(memoryCip, "memory-cip group must be registered");
 
-    const groupNames = memoryPro.commands.map((c) => c.name());
+    const groupNames = memoryCip.commands.map((c) => c.name());
     assert.ok(
       groupNames.includes("repair-summaries"),
-      `expected "repair-summaries" under the memory-pro group, got: ${groupNames.join(", ")}`
+      `expected "repair-summaries" under the memory-cip group, got: ${groupNames.join(", ")}`
     );
   });
 });

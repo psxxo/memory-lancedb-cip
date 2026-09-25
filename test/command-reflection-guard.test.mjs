@@ -25,7 +25,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 
 function createPluginApiHarness({ pluginConfig, resolveRoot }) {
@@ -100,7 +100,7 @@ describe("runMemoryReflection — invalid agentId guard", () => {
       resolveRoot: workDir,
       pluginConfig: makePluginConfig(workDir),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const hooks = harness.eventHandlers.get("command:new") || [];
     const hook = hooks[0];
@@ -175,7 +175,7 @@ describe("runMemoryReflection — invalid agentId guard", () => {
         resolveRoot: workDir,
         pluginConfig,
       });
-      memoryLanceDBProPlugin.register(harness.api);
+      memoryLanceDBCipPlugin.register(harness.api);
 
       const hooks = harness.eventHandlers.get("command:new") || [];
       assert.notStrictEqual(hooks.length, 0, "command:new hook should be registered");
@@ -229,7 +229,7 @@ describe("runMemoryReflection — invalid agentId guard", () => {
         resolveRoot: workDir,
         pluginConfig,
       });
-      memoryLanceDBProPlugin.register(harness.api);
+      memoryLanceDBCipPlugin.register(harness.api);
 
       const hooks = harness.eventHandlers.get("command:new") || [];
       const reflectionHook = hooks.find((hook) =>
@@ -346,7 +346,7 @@ describe("Unattributable sessionKey — no main masquerade, no mirroring", () =>
         mdMirror: { enabled: true, dir: mirrorDir },
       },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const hooks = harness.eventHandlers.get("command:new") || [];
     assert.ok(hooks.length > 0, "expected a command:new hook");
@@ -396,7 +396,7 @@ describe("Group-chat reflection toggle (memoryReflection.includeGroupChats)", ()
       pluginConfig.memoryReflection.includeGroupChats = includeGroupChats;
     }
     const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     return harness;
   }
 

@@ -40,7 +40,7 @@ reflectionStoreModule.storeReflectionToLanceDB = async (...args) => {
 };
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 
@@ -114,7 +114,7 @@ async function runCliDeleteBulk(cliFactories, scope) {
   program.exitOverride();
   cliFactories[0]({ program });
   await program.parseAsync([
-    "node", "openclaw", "memory-pro", "delete-bulk", "--scope", scope,
+    "node", "openclaw", "memory-cip", "delete-bulk", "--scope", scope,
   ]);
 }
 
@@ -133,7 +133,7 @@ function makeHarnessWithGeneration(workDir) {
       },
     },
   };
-  memoryLanceDBProPlugin.register(harness.api);
+  memoryLanceDBCipPlugin.register(harness.api);
   return { pluginConfig, harness };
 }
 

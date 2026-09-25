@@ -2,7 +2,7 @@
 
 # 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
 
-> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
+> Upstream: the MIT-licensed original project by win4r (CortexReach) — this package is an independent CIP build.
 
 **[OpenClaw](https://github.com/openclaw/openclaw) 에이전트를 위한 AI 메모리 어시스턴트**
 
@@ -11,7 +11,7 @@
 LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의사결정·프로젝트 맥락을 저장하고 이후 세션에서 자동으로 불러옵니다.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/memory-lancedb-pro)](https://www.npmjs.com/package/memory-lancedb-pro)
+[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -64,20 +64,9 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 ## 빠른 시작
 
-> **CPU 요구사항:** CPU가 **AVX/AVX2** 명령어 세트를 지원해야 합니다 (Intel Sandy Bridge 2011년 이후 / AMD Bulldozer 2011년 이후). LanceDB의 네이티브 벡터 엔진에 필수이며, 미지원 CPU에서는 플러그인이 `SIGILL` (잘못된 명령어)로 크래시됩니다. 확인 방법: `grep -o 'avx[^ ]*' /proc/cpuinfo | head -1` (출력 없음 = 미지원). [#419](https://github.com/CortexReach/memory-lancedb-pro/issues/419) 참조.
+> **CPU 요구사항:** CPU가 **AVX/AVX2** 명령어 세트를 지원해야 합니다 (Intel Sandy Bridge 2011년 이후 / AMD Bulldozer 2011년 이후). LanceDB의 네이티브 벡터 엔진에 필수이며, 미지원 CPU에서는 플러그인이 `SIGILL` (잘못된 명령어)로 크래시됩니다. 확인 방법: `grep -o 'avx[^ ]*' /proc/cpuinfo | head -1` (출력 없음 = 미지원). #419 참조.
 
-### 옵션 A: 원클릭 설치 스크립트 (권장)
-
-커뮤니티에서 관리하는 **[설치 스크립트](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**가 설치, 업그레이드, 복구를 하나의 명령어로 처리합니다:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
-bash setup-memory.sh
-```
-
-> 스크립트가 다루는 전체 시나리오와 기타 커뮤니티 도구 목록은 아래 [에코시스템](#에코시스템)을 참조하세요.
-
-### 옵션 B: 수동 설치
+### 수동 설치
 
 **OpenClaw CLI를 통한 설치 (권장):**
 ```bash
@@ -145,19 +134,19 @@ openclaw logs --follow --plain | grep "memory-lancedb-cip"
 
 1. **절대** 경로의 `plugins.load.paths` 항목으로 플러그인 추가
 2. 메모리 슬롯 바인딩: `plugins.slots.memory = "memory-lancedb-cip"`
-3. 확인: `openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
+3. 확인: `openclaw plugins info memory-lancedb-cip && openclaw memory-cip stats`
 
 **v1.1.0 이전 버전에서 업그레이드하는 경우:**
 
 ```bash
 # 1) 백업
-openclaw memory-pro export --scope global --output memories-backup.json
+openclaw memory-cip export --scope global --output memories-backup.json
 # 2) 시뮬레이션 실행
-openclaw memory-pro upgrade --dry-run
+openclaw memory-cip upgrade --dry-run
 # 3) 업그레이드 실행
-openclaw memory-pro upgrade
+openclaw memory-cip upgrade
 # 4) 확인
-openclaw memory-pro stats
+openclaw memory-cip stats
 ```
 
 동작 변경사항과 업그레이드 근거는 `CHANGELOG-v1.1.0.md`를 참조하세요.
@@ -172,7 +161,7 @@ OpenClaw의 Telegram 연동을 사용하는 경우, 수동으로 설정을 편�
 다음 메시지를 전송하세요 (봇에 그대로 복사하여 붙여넣기하는 영문 프롬프트입니다):
 
 ```text
-Help me connect this memory plugin with the most user-friendly configuration: https://github.com/CortexReach/memory-lancedb-pro
+Help me connect this memory plugin with the most user-friendly configuration: https://github.com/psxxo/memory-lancedb-cip
 
 Requirements:
 1. Set it as the only active memory plugin
@@ -189,58 +178,6 @@ Requirements:
 ```
 
 </details>
-
----
-
-## 에코시스템
-
-memory-lancedb-cip는 핵심 플러그인입니다. 커뮤니티에서 설정과 일상적인 사용을 더욱 원활하게 만드는 도구들을 구축했습니다:
-
-### 설치 스크립트 — 원클릭 설치, 업그레이드 및 복구
-
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
-
-단순한 인스톨러가 아닙니다 — 스크립트가 다양한 실제 시나리오를 지능적으로 처리합니다:
-
-| 상황 | 스크립트의 동작 |
-|---|---|
-| 설치한 적 없음 | 새로 다운로드 → 의존성 설치 → 설정 선택 → openclaw.json에 기록 → 재시작 |
-| `git clone`으로 설치, 이전 커밋에서 멈춤 | 자동 `git fetch` + `checkout`으로 최신 버전 이동 → 의존성 재설치 → 확인 |
-| 설정에 유효하지 않은 필드 존재 | 스키마 필터를 통한 자동 감지, 지원되지 않는 필드 제거 |
-| `npm`으로 설치 | git 업데이트 건너뜀, `npm update` 직접 실행 알림 |
-| 유효하지 않은 설정으로 `openclaw` CLI 동작 불가 | 대체 방법: `openclaw.json` 파일에서 직접 워크스페이스 경로 읽기 |
-| `plugins/` 대신 `extensions/` 사용 | 설정 또는 파일시스템에서 플러그인 위치 자동 감지 |
-| 이미 최신 상태 | 상태 확인만 실행, 변경 없음 |
-
-```bash
-bash setup-memory.sh                    # 설치 또는 업그레이드
-bash setup-memory.sh --dry-run          # 미리보기만
-bash setup-memory.sh --beta             # 사전 릴리스 버전 포함
-bash setup-memory.sh --uninstall        # 설정 복원 및 플러그인 제거
-```
-
-내장 프로바이더 프리셋: **Jina / DashScope / SiliconFlow / OpenAI / Ollama**, 또는 자체 OpenAI 호환 API를 사용할 수 있습니다. `--ref`, `--selfcheck-only` 등 전체 사용법은 [설치 스크립트 README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)를 참조하세요.
-
-### Claude Code / OpenClaw Skill — AI 가이드 설정
-
-> **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
-
-이 Skill을 설치하면 AI 에이전트(Claude Code 또는 OpenClaw)가 memory-lancedb-cip의 모든 기능에 대한 깊은 지식을 갖게 됩니다. **"최적의 설정을 도와줘"**라고 말하면 다음을 제공합니다:
-
-- **가이드 7단계 설정 워크플로우**와 4가지 배포 계획:
-  - Full Power (Jina + OpenAI) / Budget (무료 SiliconFlow 리랭커) / Simple (OpenAI만) / Fully Local (Ollama, API 비용 제로)
-- **모든 9개 MCP 도구**의 올바른 사용법: `memory_recall`, `memory_store`, `memory_forget`, `memory_update`, `memory_stats`, `memory_list`, `self_improvement_log`, `self_improvement_extract_skill`, `self_improvement_review` *(전체 도구 세트를 사용하려면 `enableManagementTools: true`가 필요합니다 — 기본 빠른 시작 설정은 4개 핵심 도구만 노출합니다)*
-- **일반적인 함정 방지**: 워크스페이스 플러그인 활성화, `autoRecall` 기본값 false, jiti 캐시, 환경 변수, 스코프 격리 등
-
-**Claude Code용 설치:**
-```bash
-git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.claude/skills/memory-lancedb-pro
-```
-
-**OpenClaw용 설치:**
-```bash
-git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.openclaw/workspace/skills/memory-lancedb-pro-skill
-```
 
 ---
 
@@ -289,7 +226,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 | --- | --- |
 | `index.ts` | 플러그인 진입점. OpenClaw Plugin API에 등록, 설정 파싱, 라이프사이클 훅 마운트 |
 | `openclaw.plugin.json` | 플러그인 메타데이터 + 전체 JSON Schema 설정 선언 |
-| `cli.ts` | CLI 명령어: `memory-pro list/search/stats/delete/delete-bulk/export/import/reembed/upgrade/migrate` |
+| `cli.ts` | CLI 명령어: `memory-cip list/search/stats/delete/delete-bulk/export/import/reembed/upgrade/migrate` |
 | `src/store.ts` | LanceDB 스토리지 레이어. 테이블 생성 / FTS 인덱싱 / 벡터 검색 / BM25 검색 / CRUD |
 | `src/embedder.ts` | 임베딩 추상화. OpenAI 호환 API 프로바이더 모두 지원 |
 | `src/retriever.ts` | 하이브리드 검색 엔진. 벡터 + BM25 → 하이브리드 퓨전 → 리랭크 → 라이프사이클 감쇠 → 필터 |
@@ -571,28 +508,28 @@ OAuth `llm` 설정 (기존 Codex / ChatGPT 로그인 캐시를 LLM 호출에 사
 ## CLI 명령어
 
 ```bash
-openclaw memory-pro list [--scope global] [--category fact] [--limit 20] [--json]
-openclaw memory-pro search "query" [--scope global] [--limit 10] [--json]
-openclaw memory-pro stats [--scope global] [--json]
-openclaw memory-pro auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-pro auth status
-openclaw memory-pro auth logout
-openclaw memory-pro delete <id>
-openclaw memory-pro delete-bulk --scope global [--before 2025-01-01] [--dry-run]
-openclaw memory-pro export [--scope global] [--output memories.json]
-openclaw memory-pro import memories.json [--scope global] [--dry-run]
-openclaw memory-pro reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
-openclaw memory-pro upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
-openclaw memory-pro migrate check|run|verify [--source /path]
+openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
+openclaw memory-cip search "query" [--scope global] [--limit 10] [--json]
+openclaw memory-cip stats [--scope global] [--json]
+openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
+openclaw memory-cip auth status
+openclaw memory-cip auth logout
+openclaw memory-cip delete <id>
+openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
+openclaw memory-cip export [--scope global] [--output memories.json]
+openclaw memory-cip import memories.json [--scope global] [--dry-run]
+openclaw memory-cip reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
+openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
+openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
 OAuth 로그인 흐름:
 
-1. `openclaw memory-pro auth login` 실행
+1. `openclaw memory-cip auth login` 실행
 2. `--provider`를 생략하고 대화형 터미널에서 실행하면, 브라우저를 열기 전에 CLI가 OAuth 프로바이더 선택기를 표시합니다
 3. 명령어가 인증 URL을 출력하고 `--no-browser`가 설정되지 않은 한 브라우저를 엽니다
 4. 콜백이 성공하면, 명령어가 플러그인 OAuth 파일 (기본값: `~/.openclaw/.memory-lancedb-cip/oauth.json`)을 저장하고, 이전 api-key `llm` 설정의 스냅샷을 로그아웃용으로 저장하며, 플러그인 `llm` 설정을 OAuth 설정 (`auth`, `oauthProvider`, `model`, `oauthPath`)으로 교체합니다
-5. `openclaw memory-pro auth logout`은 해당 OAuth 파일을 삭제하고 스냅샷이 존재하면 이전 api-key `llm` 설정을 복원합니다
+5. `openclaw memory-cip auth logout`은 해당 OAuth 파일을 삭제하고 스냅샷이 존재하면 이전 api-key `llm` 설정을 복원합니다
 
 ---
 
@@ -726,7 +663,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 | **라이프사이클 스코어링** | 검색에 Weibull 감쇠 통합 — 높은 빈도와 높은 중요도의 기억이 상위에 랭크. |
 | **단계 관리** | 3단계 시스템 (Core → Working → Peripheral), 자동 승격/강등. |
 
-피드백: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · 되돌리기: `npm i @psxxo/memory-lancedb-cip@latest`
+피드백: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 되돌리기: `npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 
@@ -754,15 +691,15 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 <a href="https://github.com/chenjiyong"><img src="https://avatars.githubusercontent.com/u/8199522?v=4" width="48" height="48" alt="@chenjiyong" /></a>
 </p>
 
-Full list: [Contributors](https://github.com/CortexReach/memory-lancedb-pro/graphs/contributors)
+Full list: [Contributors](https://github.com/psxxo/memory-lancedb-cip/graphs/contributors)
 
 ## Star History
 
-<a href="https://star-history.dera.page/#CortexReach/memory-lancedb-pro&Date">
+<a href="https://star-history.dera.page/#psxxo/memory-lancedb-cip&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&theme=dark&transparent=true" />
-    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&transparent=true" />
-    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&transparent=true" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&theme=dark&transparent=true" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&transparent=true" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&transparent=true" />
   </picture>
 </a>
 

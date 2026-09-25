@@ -25,7 +25,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { resolveReflectionSessionSearchDirs } = jiti("../src/session-recovery.ts");
 
@@ -101,7 +101,7 @@ describe("runMemoryReflection reads the transcript the hook already carries", ()
   async function invoke(context, sessionId) {
     const pluginConfig = makePluginConfig(workDir);
     const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = (harness.eventHandlers.get("command:new") || [])[0];
     assert.ok(hook, "the command:new reflection hook must be registered");
     const sessionKey = `agent:main:session:${sessionId}`;

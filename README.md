@@ -2,7 +2,7 @@
 
 # 🧠 memory-lancedb-cip · 🦞OpenClaw Plugin
 
-> Upstream: [CortexReach/memory-lancedb-pro](https://github.com/CortexReach/memory-lancedb-pro) (MIT, author win4r) — `memory-lancedb-cip` is this repository's distribution name.
+> Upstream: the MIT-licensed original project by win4r (CortexReach) — this package is an independent CIP build.
 
 **AI Memory Assistant for [OpenClaw](https://github.com/openclaw/openclaw) Agents**
 
@@ -12,10 +12,10 @@ A LanceDB-backed OpenClaw memory plugin that stores preferences, decisions, and 
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
 [![OpenClaw 2026.3+](https://img.shields.io/badge/OpenClaw-2026.3%2B-brightgreen)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/memory-lancedb-pro)](https://www.npmjs.com/package/memory-lancedb-pro)
+[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-<h2>⚡ <a href="https://github.com/CortexReach/memory-lancedb-pro/releases/tag/v1.1.0-beta.10">v1.1.0-beta.10 — OpenClaw 2026.3+ Hook Adaptation</a></h2>
+<h2>⚡ v1.1.0-beta.10 — OpenClaw 2026.3+ Hook Adaptation</h2>
 
 <p>
  ✅ Fully adapted for OpenClaw 2026.3+ new plugin architecture<br>
@@ -73,20 +73,9 @@ That's the difference an **AI Memory Assistant** makes — it learns your style,
 
 ## Quick Start
 
-> **CPU Requirement:** Your CPU must support **AVX** instructions. LanceDB native vector search may require **AVX2** on some Linux x64 builds and can crash AVX-only CPUs with `SIGILL`; set `retrieval.disableNativeCosine: true` or `MEMORY_LANCEDB_DISABLE_NATIVE_COSINE=1` to use a scoped row scan plus JavaScript cosine ranking. Check CPU flags with: `grep -o 'avx[^ ]*' /proc/cpuinfo | head -1` (no output = not supported). See [#419](https://github.com/CortexReach/memory-lancedb-pro/issues/419) and [#644](https://github.com/CortexReach/memory-lancedb-pro/issues/644) for details.
+> **CPU Requirement:** Your CPU must support **AVX** instructions. LanceDB native vector search may require **AVX2** on some Linux x64 builds and can crash AVX-only CPUs with `SIGILL`; set `retrieval.disableNativeCosine: true` or `MEMORY_LANCEDB_DISABLE_NATIVE_COSINE=1` to use a scoped row scan plus JavaScript cosine ranking. Check CPU flags with: `grep -o 'avx[^ ]*' /proc/cpuinfo | head -1` (no output = not supported). See #419 and #644 for details.
 
-### Option A: One-Click Install Script (Recommended)
-
-The community-maintained **[setup script](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)** handles install, upgrade, and repair in one command:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/CortexReach/toolbox/main/memory-lancedb-cip-setup/setup-memory.sh -o setup-memory.sh
-bash setup-memory.sh
-```
-
-> See [Ecosystem](#ecosystem) below for the full list of scenarios the script covers and other community tools.
-
-### Option B: Manual Install
+### Manual Install
 
 **Via OpenClaw CLI (recommended):**
 ```bash
@@ -191,19 +180,19 @@ Done! Your agent now has long-term memory.
 
 1. Add the plugin with an **absolute** `plugins.load.paths` entry
 2. Bind the memory slot: `plugins.slots.memory = "memory-lancedb-cip"`
-3. Verify: `openclaw plugins info memory-lancedb-cip && openclaw memory-pro stats`
+3. Verify: `openclaw plugins info memory-lancedb-cip && openclaw memory-cip stats`
 
 **Upgrading from pre-v1.1.0?**
 
 ```bash
 # 1) Backup
-openclaw memory-pro export --scope global --output memories-backup.json
+openclaw memory-cip export --scope global --output memories-backup.json
 # 2) Dry run
-openclaw memory-pro upgrade --dry-run
+openclaw memory-cip upgrade --dry-run
 # 3) Run upgrade
-openclaw memory-pro upgrade
+openclaw memory-cip upgrade
 # 4) Verify
-openclaw memory-pro stats
+openclaw memory-cip stats
 ```
 
 See `CHANGELOG-v1.1.0.md` for behavior changes and upgrade rationale.
@@ -239,7 +228,7 @@ more. `reembed` refuses same-path runs unless you force it, for this reason.
 # 0) Stop the gateway so nothing writes mid-migration.
 
 # 1) Back up the whole store — a real filesystem copy of the LanceDB directory.
-#    (Do NOT rely on `memory-pro export`: it defaults to --limit 1000 and a single
+#    (Do NOT rely on `memory-cip export`: it defaults to --limit 1000 and a single
 #    --scope, so it silently drops rows past 1000 and every non-global scope.)
 cp -r <your dbPath> <your dbPath>.bak
 
@@ -248,15 +237,15 @@ cp -r <your dbPath> <your dbPath>.bak
 #    `embedding.dimensions`: a new vector width can only go into a new table.
 
 # 3) Dry run — reads the source, prints the row count, writes nothing.
-openclaw memory-pro reembed --source-db <old dbPath> --dry-run
+openclaw memory-cip reembed --source-db <old dbPath> --dry-run
 
 # 4) Re-embed old -> new with the now-current task hints. Source != target, so each
 #    id lands exactly once. Safe to re-run with --skip-existing if interrupted.
-openclaw memory-pro reembed --source-db <old dbPath>
+openclaw memory-cip reembed --source-db <old dbPath>
 
 # 5) Verify before trusting the cutover: the "imported" count and
-#    `memory-pro stats` on the new dbPath must equal the dry-run row count.
-openclaw memory-pro stats
+#    `memory-cip stats` on the new dbPath must equal the dry-run row count.
+openclaw memory-cip stats
 
 # 6) Start the gateway; it now opens the new dbPath.
 ```
@@ -274,7 +263,7 @@ If you are using OpenClaw's Telegram integration, the easiest way is to send an 
 Send this message:
 
 ```text
-Help me connect this memory plugin with the most user-friendly configuration: https://github.com/CortexReach/memory-lancedb-pro
+Help me connect this memory plugin with the most user-friendly configuration: https://github.com/psxxo/memory-lancedb-cip
 
 Requirements:
 1. Set it as the only active memory plugin
@@ -291,58 +280,6 @@ Requirements:
 ```
 
 </details>
-
----
-
-## Ecosystem
-
-memory-lancedb-cip is the core plugin. The community has built tools around it to make setup and daily use even smoother:
-
-### Setup Script — One-Click Install, Upgrade & Repair
-
-> **[CortexReach/toolbox/memory-lancedb-pro-setup](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup)**
-
-Not just a simple installer — the script intelligently handles a wide range of real-world scenarios:
-
-| Your situation | What the script does |
-|---|---|
-| Never installed | Fresh download → install deps → pick config → write to openclaw.json → restart |
-| Installed via `git clone`, stuck on old commit | Auto `git fetch` + `checkout` to latest → reinstall deps → verify |
-| Config has invalid fields | Auto-detect via schema filter, remove unsupported fields |
-| Installed via `npm` | Skips git update, reminds you to run `npm update` yourself |
-| `openclaw` CLI broken due to invalid config | Fallback: read workspace path directly from `openclaw.json` file |
-| `extensions/` instead of `plugins/` | Auto-detect plugin location from config or filesystem |
-| Already up to date | Run health checks only, no changes |
-
-```bash
-bash setup-memory.sh                    # Install or upgrade
-bash setup-memory.sh --dry-run          # Preview only
-bash setup-memory.sh --beta             # Include pre-release versions
-bash setup-memory.sh --uninstall        # Revert config and remove plugin
-```
-
-Built-in provider presets: **Jina / DashScope / SiliconFlow / OpenAI / Ollama**, or bring your own OpenAI-compatible API. For full usage (including `--ref`, `--selfcheck-only`, and more), see the [setup script README](https://github.com/CortexReach/toolbox/tree/main/memory-lancedb-cip-setup).
-
-### Claude Code / OpenClaw Skill — AI-Guided Configuration
-
-> **[CortexReach/memory-lancedb-pro-skill](https://github.com/CortexReach/memory-lancedb-pro-skill)**
-
-Install this skill and your AI agent (Claude Code or OpenClaw) gains deep knowledge of every feature in memory-lancedb-cip. Just say **"help me enable the best config"** and get:
-
-- **Guided 7-step configuration workflow** with 4 deployment plans:
-  - Full Power (Jina + OpenAI) / Budget (free SiliconFlow reranker) / Simple (OpenAI only) / Fully Local (Ollama, zero API cost)
-- **All 9 MCP tools** used correctly: `memory_recall`, `memory_store`, `memory_forget`, `memory_update`, `memory_stats`, `memory_list`, `self_improvement_log`, `self_improvement_extract_skill`, `self_improvement_review` *(full toolset requires `enableManagementTools: true` — the default Quick Start config exposes the 4 core tools)*
-- **Common pitfall avoidance**: workspace plugin enablement, `autoRecall` default-false, jiti cache, env vars, scope isolation, and more
-
-**Install for Claude Code:**
-```bash
-git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.claude/skills/memory-lancedb-pro
-```
-
-**Install for OpenClaw:**
-```bash
-git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.openclaw/workspace/skills/memory-lancedb-pro-skill
-```
 
 ---
 
@@ -391,7 +328,7 @@ git clone https://github.com/CortexReach/memory-lancedb-pro-skill.git ~/.opencla
 | --- | --- |
 | `index.ts` | Plugin entry point. Registers with OpenClaw Plugin API, parses config, mounts lifecycle hooks via `api.on()` and command hooks via `api.registerHook()` |
 | `openclaw.plugin.json` | Plugin metadata + full JSON Schema config declaration |
-| `cli.ts` | CLI commands: `memory-pro list/search/stats/delete/delete-bulk/export/import/reembed/upgrade/migrate` |
+| `cli.ts` | CLI commands: `memory-cip list/search/stats/delete/delete-bulk/export/import/reembed/upgrade/migrate` |
 | `src/store.ts` | LanceDB storage layer. Table creation / FTS indexing / Vector search / BM25 search / CRUD |
 | `src/embedder.ts` | Embedding abstraction. Compatible with any OpenAI-compatible API provider |
 | `src/retriever.ts` | Hybrid retrieval engine. Vector + BM25 → Hybrid Fusion → Rerank → Lifecycle Decay → Filter |
@@ -736,28 +673,28 @@ Config keys (under `retrieval`):
 ## CLI Commands
 
 ```bash
-openclaw memory-pro list [--scope global] [--category fact] [--limit 20] [--json]
-openclaw memory-pro search "query" [--scope global] [--limit 10] [--json]
-openclaw memory-pro stats [--scope global] [--json]
-openclaw memory-pro auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-pro auth status
-openclaw memory-pro auth logout
-openclaw memory-pro delete <id>
-openclaw memory-pro delete-bulk --scope global [--before 2025-01-01] [--dry-run]
-openclaw memory-pro export [--scope global] [--output memories.json]
-openclaw memory-pro import memories.json [--scope global] [--dry-run]
-openclaw memory-pro reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
-openclaw memory-pro upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
-openclaw memory-pro migrate check|run|verify [--source /path]
+openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
+openclaw memory-cip search "query" [--scope global] [--limit 10] [--json]
+openclaw memory-cip stats [--scope global] [--json]
+openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
+openclaw memory-cip auth status
+openclaw memory-cip auth logout
+openclaw memory-cip delete <id>
+openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
+openclaw memory-cip export [--scope global] [--output memories.json]
+openclaw memory-cip import memories.json [--scope global] [--dry-run]
+openclaw memory-cip reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
+openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
+openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
 OAuth login flow:
 
-1. Run `openclaw memory-pro auth login`
+1. Run `openclaw memory-cip auth login`
 2. If `--provider` is omitted in an interactive terminal, the CLI shows an OAuth provider picker before opening the browser
 3. The command prints an authorization URL and opens your browser unless `--no-browser` is set
 4. After the callback succeeds, the command saves the plugin OAuth file (default: `~/.openclaw/.memory-lancedb-cip/oauth.json`), snapshots the previous api-key `llm` config for logout, and replaces the plugin `llm` config with OAuth settings (`auth`, `oauthProvider`, `model`, `oauthPath`)
-5. `openclaw memory-pro auth logout` deletes that OAuth file and restores the previous api-key `llm` config when that snapshot exists
+5. `openclaw memory-cip auth logout` deletes that OAuth file and restores the previous api-key `llm` config when that snapshot exists
 
 ---
 
@@ -1024,7 +961,7 @@ openclaw doctor --fix # resolve any stale config after upgrade
 | **Lifecycle Scoring** | Weibull decay integrated into retrieval — high-frequency and high-importance memories rank higher. |
 | **Tier Management** | Three-tier system (Core → Working → Peripheral) with automatic promotion/demotion. |
 
-Feedback: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issues) · Revert: `npm i @psxxo/memory-lancedb-cip@latest`
+Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Revert: `npm i @psxxo/memory-lancedb-cip@latest`
 
 ---
 
@@ -1052,15 +989,15 @@ Feedback: [GitHub Issues](https://github.com/CortexReach/memory-lancedb-pro/issu
 <a href="https://github.com/chenjiyong"><img src="https://avatars.githubusercontent.com/u/8199522?v=4" width="48" height="48" alt="@chenjiyong" /></a>
 </p>
 
-Full list: [Contributors](https://github.com/CortexReach/memory-lancedb-pro/graphs/contributors)
+Full list: [Contributors](https://github.com/psxxo/memory-lancedb-cip/graphs/contributors)
 
 ## Star History
 
-<a href="https://star-history.dera.page/#CortexReach/memory-lancedb-pro&Date">
+<a href="https://star-history.dera.page/#psxxo/memory-lancedb-cip&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&theme=dark&transparent=true" />
-    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&transparent=true" />
-    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=CortexReach/memory-lancedb-pro&type=Date&transparent=true" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&theme=dark&transparent=true" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&transparent=true" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=psxxo/memory-lancedb-cip&type=Date&transparent=true" />
   </picture>
 </a>
 

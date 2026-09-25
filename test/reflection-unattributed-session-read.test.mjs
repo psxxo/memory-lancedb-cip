@@ -37,7 +37,7 @@ embedderModuleForMock.createEmbedder = () => ({
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 const { MemoryStore } = jiti("../src/store.ts");
 const { storeReflectionToLanceDB } = jiti("../src/reflection-store.ts");
@@ -159,7 +159,7 @@ describe("reflection injection refuses an unattributable session", () => {
       await seedMainReflection(pluginConfig.dbPath);
 
       const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-      memoryLanceDBProPlugin.register(harness.api);
+      memoryLanceDBCipPlugin.register(harness.api);
       const { inheritedRules } = getReflectionHooks(harness.eventHandlers);
 
       const served = await inheritedRules({}, { sessionKey: "agent:main:test", agentId: "main" });
@@ -176,7 +176,7 @@ describe("reflection injection refuses an unattributable session", () => {
         await seedMainReflection(pluginConfig.dbPath);
 
         const harness = createPluginApiHarness({ resolveRoot: workDir, pluginConfig });
-        memoryLanceDBProPlugin.register(harness.api);
+        memoryLanceDBCipPlugin.register(harness.api);
         const { inheritedRules, derivedFocus } = getReflectionHooks(harness.eventHandlers);
 
         for (const [hookName, hook] of [

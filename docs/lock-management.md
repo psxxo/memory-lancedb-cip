@@ -24,8 +24,8 @@ multi-container, or network-filesystem deployments, verify this before relying o
 the default lock:
 
 ```bash
-openclaw memory-pro stats --json
-ls -la "$(dirname "$MEMORY_LANCEDB_PRO_DB_PATH")"
+openclaw memory-cip stats --json
+ls -la "$(dirname "$MEMORY_LANCEDB_CIP_DB_PATH")"
 ```
 
 If each process has its own local database directory, no lock can protect writes

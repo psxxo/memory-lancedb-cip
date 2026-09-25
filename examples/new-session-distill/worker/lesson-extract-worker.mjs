@@ -7,7 +7,7 @@
  * - reads session JSONL transcript (streaming)
  * - Map: per-chunk extraction via Gemini (native API)
  * - Reduce: merge/dedupe/score -> 0..20 lessons
- * - writes to LanceDB CIP via `openclaw memory-pro import`
+ * - writes to LanceDB CIP via `openclaw memory-cip import`
  * - sends Telegram notification via `openclaw message send` (optional)
  */
 
@@ -248,7 +248,7 @@ async function importToLanceDb({ lessons, scope }) {
   };
   await fsp.writeFile(importFile, JSON.stringify(payload), "utf-8");
 
-  const { code, out, err } = await run("openclaw", ["memory-pro", "import", importFile, "--scope", scope], { cwd: REPO_ROOT });
+  const { code, out, err } = await run("openclaw", ["memory-cip", "import", importFile, "--scope", scope], { cwd: REPO_ROOT });
   await fsp.unlink(importFile).catch(() => {});
 
   return { code, out, err };

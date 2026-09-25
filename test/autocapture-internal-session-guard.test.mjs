@@ -16,7 +16,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 
 // The reflection distiller's embedded sub-session key shape
@@ -111,7 +111,7 @@ describe("auto-capture internal memory sub-session guard", () => {
       resolveRoot: workspaceDir,
       pluginConfig: pluginConfigWithAutoCapture(),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     hook(
@@ -143,7 +143,7 @@ describe("auto-capture internal memory sub-session guard", () => {
       resolveRoot: workspaceDir,
       pluginConfig: pluginConfigWithAutoCapture(),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     hook(
@@ -169,7 +169,7 @@ describe("auto-capture internal memory sub-session guard", () => {
       resolveRoot: workspaceDir,
       pluginConfig: pluginConfigWithAutoCapture(),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     hook(
@@ -195,7 +195,7 @@ describe("auto-capture internal memory sub-session guard", () => {
       resolveRoot: workspaceDir,
       pluginConfig: pluginConfigWithAutoCapture(),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     hook(
@@ -216,7 +216,7 @@ describe("auto-capture internal memory sub-session guard", () => {
       resolveRoot: workspaceDir,
       pluginConfig: pluginConfigWithAutoCapture(),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     hook(
@@ -248,7 +248,7 @@ describe("auto-capture internal memory sub-session guard", () => {
       resolveRoot: workspaceDir,
       pluginConfig: pluginConfigWithAutoCapture(),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     hook(

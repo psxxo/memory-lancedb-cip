@@ -755,8 +755,8 @@ export class Embedder {
    * For batch requests, we use /v1/embeddings with "input" array as it's more
    * efficient and confirmed working in local testing.
    *
-   * See: https://github.com/CortexReach/memory-lancedb-pro/issues/620
-   * Fix: https://github.com/CortexReach/memory-lancedb-pro/issues/629
+   * See: #620
+   * Fix: #629
    */
   private async embedWithNativeFetch(payload: EmbeddingRequestPayload, signal?: AbortSignal): Promise<ProviderEmbeddingResponse> {
     if (!this._baseURL) {

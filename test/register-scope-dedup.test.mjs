@@ -27,7 +27,7 @@ retrieverModuleForMock.createRetriever = (...args) => activeCreateRetriever(...a
 embedderModuleForMock.createEmbedder = (...args) => activeCreateEmbedder(...args);
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const { resetRegistration } = pluginModule;
 const { MemoryStore } = storeModuleForMock;
 const origPatchMetadata = MemoryStore.prototype.patchMetadata;
@@ -178,7 +178,7 @@ describe("register() re-registration hardening", () => {
       pluginConfig: baseScopeConfig(workspaceDir),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hookCountAfterFirst = (harness.eventHandlers.get("before_prompt_build") || []).length;
     const registeredLogsAfterFirst = harness.logs.info.filter((l) => l.includes("plugin registered")).length;
     assert.ok(hookCountAfterFirst > 0, "expected at least one before_prompt_build hook after first register()");
@@ -186,7 +186,7 @@ describe("register() re-registration hardening", () => {
 
     // Second register() call with the exact same api instance — the existing
     // WeakSet guard should make this a pure no-op.
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const hookCountAfterSecond = (harness.eventHandlers.get("before_prompt_build") || []).length;
     const registeredLogsAfterSecond = harness.logs.info.filter((l) => l.includes("plugin registered")).length;
@@ -204,7 +204,7 @@ describe("register() re-registration hardening", () => {
       resolveRoot: workspaceDir,
       pluginConfig: baseScopeConfig(workspaceDir),
     });
-    memoryLanceDBProPlugin.register(harnessA.api);
+    memoryLanceDBCipPlugin.register(harnessA.api);
 
     // Simulate a scope cache-miss: OpenClaw hands the plugin a brand-new api
     // object (own eventHandlers map) rather than calling register() again on
@@ -214,7 +214,7 @@ describe("register() re-registration hardening", () => {
       pluginConfig: baseScopeConfig(workspaceDir),
       logs: harnessA.logs,
     });
-    memoryLanceDBProPlugin.register(harnessB.api);
+    memoryLanceDBCipPlugin.register(harnessB.api);
 
     const hookB = getAutoRecallHook(harnessB.eventHandlers);
     assert.equal(typeof hookB, "function", "the new api instance must still get its own working hook");
@@ -237,7 +237,7 @@ describe("register() re-registration hardening", () => {
       resolveRoot: workspaceDir,
       pluginConfig: baseScopeConfig(workspaceDir),
     });
-    memoryLanceDBProPlugin.register(harnessA.api);
+    memoryLanceDBCipPlugin.register(harnessA.api);
     const hookA = getAutoRecallHook(harnessA.eventHandlers);
 
     // A second registration for what is (from the host's perspective) the
@@ -247,7 +247,7 @@ describe("register() re-registration hardening", () => {
       pluginConfig: baseScopeConfig(workspaceDir),
       logs: harnessA.logs,
     });
-    memoryLanceDBProPlugin.register(harnessB.api);
+    memoryLanceDBCipPlugin.register(harnessB.api);
     const hookB = getAutoRecallHook(harnessB.eventHandlers);
 
     // Same logical prompt-build event delivered to both attached handlers —
@@ -286,7 +286,7 @@ describe("register() re-registration hardening", () => {
       resolveRoot: workspaceDir,
       pluginConfig: baseScopeConfig(workspaceDir),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoRecallHook(harness.eventHandlers);
 
     const ctx = {

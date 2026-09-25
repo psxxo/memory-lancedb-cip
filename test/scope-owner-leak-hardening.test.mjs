@@ -1071,7 +1071,7 @@ describe("(i) repair-scopes command wiring", () => {
     console.error = (...parts) => errors.push(parts.join(" "));
     let exitCode;
     try {
-      await program.parseAsync(["node", "cli", "memory-pro", "repair-scopes", ...extraArgs]);
+      await program.parseAsync(["node", "cli", "memory-cip", "repair-scopes", ...extraArgs]);
     } finally {
       exitCode = process.exitCode;
       process.exitCode = priorExitCode;
@@ -1081,14 +1081,14 @@ describe("(i) repair-scopes command wiring", () => {
     return { logs: logs.join("\n"), errors: errors.join("\n"), exitCode };
   }
 
-  it("attaches repair-scopes to the memory-pro group the host routes", () => {
+  it("attaches repair-scopes to the memory-cip group the host routes", () => {
     const program = buildCliProgram({});
-    const memoryPro = program.commands.find((c) => c.name() === "memory-pro");
-    assert.ok(memoryPro, "memory-pro group must be registered");
-    const groupNames = memoryPro.commands.map((c) => c.name());
+    const memoryCip = program.commands.find((c) => c.name() === "memory-cip");
+    assert.ok(memoryCip, "memory-cip group must be registered");
+    const groupNames = memoryCip.commands.map((c) => c.name());
     assert.ok(
       groupNames.includes("repair-scopes"),
-      `expected "repair-scopes" under the memory-pro group, got: ${groupNames.join(", ")}`,
+      `expected "repair-scopes" under the memory-cip group, got: ${groupNames.join(", ")}`,
     );
   });
 
@@ -1167,7 +1167,7 @@ describe("(j) repair-scopes unrecovered reporting follow-ups", () => {
     console.error = (...parts) => errors.push(parts.join(" "));
     let exitCode;
     try {
-      await program.parseAsync(["node", "cli", "memory-pro", "repair-scopes", ...extraArgs]);
+      await program.parseAsync(["node", "cli", "memory-cip", "repair-scopes", ...extraArgs]);
     } finally {
       exitCode = process.exitCode;
       process.exitCode = priorExitCode;

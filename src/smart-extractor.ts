@@ -682,7 +682,7 @@ export class SmartExtractor {
       await this.onPersisted(entry, { source, agentId });
     } catch (err) {
       this.log(
-        `memory-pro: smart-extractor: onPersisted callback failed for entry "${entry.text.slice(0, 40)}": ${String(err)}`,
+        `memory-cip: smart-extractor: onPersisted callback failed for entry "${entry.text.slice(0, 40)}": ${String(err)}`,
       );
     }
   }
@@ -717,7 +717,7 @@ export class SmartExtractor {
     const policyMode = resolveExtractionPolicy(targetScope, this.config.extractionPolicy);
     if (policyMode === "none") {
       this.log(
-        `memory-pro: smart-extractor: extraction policy "none" for scope ${targetScope}, skipping extraction`,
+        `memory-cip: smart-extractor: extraction policy "none" for scope ${targetScope}, skipping extraction`,
       );
       return stats;
     }
@@ -747,7 +747,7 @@ export class SmartExtractor {
           echoDropped += 1;
           stats.skipped += 1;
           this.log(
-            `memory-pro: smart-extractor: manual-echo guard dropped candidate (near-identical to a recent manual store) category=${candidate.category} abstract=${JSON.stringify(candidate.abstract.slice(0, 120))}`,
+            `memory-cip: smart-extractor: manual-echo guard dropped candidate (near-identical to a recent manual store) category=${candidate.category} abstract=${JSON.stringify(candidate.abstract.slice(0, 120))}`,
           );
         } else {
           kept.push(candidate);
@@ -757,7 +757,7 @@ export class SmartExtractor {
     }
 
     if (candidates.length === 0) {
-      this.log("memory-pro: smart-extractor: no memories extracted");
+      this.log("memory-cip: smart-extractor: no memories extracted");
       if (echoDropped > 0) {
         stats.settledOutcomes = true;
       }
@@ -775,11 +775,11 @@ export class SmartExtractor {
         // it as noise would pre-filter similar real content away from future
         // extractions.
         this.log(
-          `memory-pro: smart-extractor: skipping noise-bank learning (validation emptied the batch, raw=${extraction.rawCandidateCount})`,
+          `memory-cip: smart-extractor: skipping noise-bank learning (validation emptied the batch, raw=${extraction.rawCandidateCount})`,
         );
       } else {
         this.debugLog(
-          `memory-pro: smart-extractor: skipping noise-bank learning (status=${extraction.status})`,
+          `memory-cip: smart-extractor: skipping noise-bank learning (status=${extraction.status})`,
         );
         stats.extractionFailed = true;
       }
@@ -787,7 +787,7 @@ export class SmartExtractor {
     }
 
     this.log(
-      `memory-pro: smart-extractor: extracted ${candidates.length} candidate(s)`,
+      `memory-cip: smart-extractor: extracted ${candidates.length} candidate(s)`,
     );
 
     // Step 1b: Batch-internal dedup — embed candidate abstracts and remove near-duplicates
@@ -803,12 +803,12 @@ export class SmartExtractor {
         survivingCandidates = dedupResult.survivingIndices.map((i) => capped[i]);
         stats.skipped += dedupResult.duplicateIndices.length;
         this.log(
-          `memory-pro: smart-extractor: batchDedup dropped ${dedupResult.duplicateIndices.length} near-duplicate(s), ${survivingCandidates.length} survivor(s)`,
+          `memory-cip: smart-extractor: batchDedup dropped ${dedupResult.duplicateIndices.length} near-duplicate(s), ${survivingCandidates.length} survivor(s)`,
         );
       }
     } catch (err) {
       this.log(
-        `memory-pro: smart-extractor: batchDedup failed, proceeding without batch dedup: ${String(err)}`,
+        `memory-cip: smart-extractor: batchDedup failed, proceeding without batch dedup: ${String(err)}`,
       );
     }
 
@@ -833,7 +833,7 @@ export class SmartExtractor {
         stats.skipped += 1;
         stats.boundarySkipped = (stats.boundarySkipped ?? 0) + 1;
         this.log(
-          `memory-pro: smart-extractor: skipped USER.md-exclusive [${c.category}] ${c.abstract.slice(0, 60)}`,
+          `memory-cip: smart-extractor: skipped USER.md-exclusive [${c.category}] ${c.abstract.slice(0, 60)}`,
         );
         continue;
       }
@@ -860,7 +860,7 @@ export class SmartExtractor {
         }
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: batch pre-embed failed, will embed individually: ${String(err)}`,
+          `memory-cip: smart-extractor: batch pre-embed failed, will embed individually: ${String(err)}`,
         );
       }
     }
@@ -899,7 +899,7 @@ export class SmartExtractor {
           });
         } catch (err) {
           this.log(
-            `memory-pro: smart-extractor: batch admission evaluation failed, falling back to per-candidate: ${String(err)}`,
+            `memory-cip: smart-extractor: batch admission evaluation failed, falling back to per-candidate: ${String(err)}`,
           );
         }
       }
@@ -927,7 +927,7 @@ export class SmartExtractor {
           );
         } catch (err) {
           this.log(
-            `memory-pro: smart-extractor: admission pre-evaluation failed, deferring to inline evaluation: ${String(err)}`,
+            `memory-cip: smart-extractor: admission pre-evaluation failed, deferring to inline evaluation: ${String(err)}`,
           );
         }
       }
@@ -963,7 +963,7 @@ export class SmartExtractor {
           }
         } catch (err) {
           this.log(
-            `memory-pro: smart-extractor: dedup pre-filter failed, deferring to inline dedup: ${String(err)}`,
+            `memory-cip: smart-extractor: dedup pre-filter failed, deferring to inline dedup: ${String(err)}`,
           );
         }
       }
@@ -998,7 +998,7 @@ export class SmartExtractor {
         );
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: failed to process candidate [${candidate.category}]: ${String(err)}`,
+          `memory-cip: smart-extractor: failed to process candidate [${candidate.category}]: ${String(err)}`,
         );
       }
     }
@@ -1031,7 +1031,7 @@ export class SmartExtractor {
         }
       } else if (pendingSupersedeInvalidations.length > 0) {
         this.log(
-          "memory-pro: smart-extractor: supersede invalidation skipped because bulkStore() did not return created entries",
+          "memory-cip: smart-extractor: supersede invalidation skipped because bulkStore() did not return created entries",
         );
       }
     }
@@ -1122,7 +1122,7 @@ export class SmartExtractor {
       if (seenBurstKeys.has(key)) {
         stats.skipped++;
         this.log(
-          `memory-pro: smart-extractor: gated-candidate burst twin dropped [${item.candidate.category}]`,
+          `memory-cip: smart-extractor: gated-candidate burst twin dropped [${item.candidate.category}]`,
         );
         continue;
       }
@@ -1222,7 +1222,7 @@ export class SmartExtractor {
         }
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: gated-candidate dedup pre-filter failed, deferring to inline dedup: ${String(err)}`,
+          `memory-cip: smart-extractor: gated-candidate dedup pre-filter failed, deferring to inline dedup: ${String(err)}`,
         );
       }
     }
@@ -1262,7 +1262,7 @@ export class SmartExtractor {
           anchorSiblingBySurviving.set(i, siblingIndex);
           stats.skipped++;
           this.log(
-            `memory-pro: smart-extractor: gated candidate judged same-burst duplicate of an earlier sibling [${candidate.category}]`,
+            `memory-cip: smart-extractor: gated candidate judged same-burst duplicate of an earlier sibling [${candidate.category}]`,
           );
           continue;
         }
@@ -1314,7 +1314,7 @@ export class SmartExtractor {
         }
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: failed to process gated candidate [${candidate.category}]: ${String(err)}`,
+          `memory-cip: smart-extractor: failed to process gated candidate [${candidate.category}]: ${String(err)}`,
         );
         // Fail open: this candidate already passed the caller's admission
         // gate, so a processing failure (dedup search, verdict handling)
@@ -1325,7 +1325,7 @@ export class SmartExtractor {
           createSlotBySurviving.set(i, createEntries.length - 1);
           stats.created++;
           this.log(
-            `memory-pro: smart-extractor: fail-open create for gated candidate after processing failure [${candidate.category}]`,
+            `memory-cip: smart-extractor: fail-open create for gated candidate after processing failure [${candidate.category}]`,
           );
         }
       }
@@ -1341,7 +1341,7 @@ export class SmartExtractor {
         await this.applyPendingSupersedeInvalidations(createEntries, stored, pendingSupersedeInvalidations, stats);
       } else if (pendingSupersedeInvalidations.length > 0) {
         this.log(
-          "memory-pro: smart-extractor: gated-candidate supersede invalidation skipped because bulkStore() did not return created entries",
+          "memory-cip: smart-extractor: gated-candidate supersede invalidation skipped because bulkStore() did not return created entries",
         );
       }
     }
@@ -1434,7 +1434,7 @@ export class SmartExtractor {
           );
           stats.created++;
           this.log(
-            `memory-pro: smart-extractor: ${why}, storing gated candidate as new [${pending.candidate.category}]`,
+            `memory-cip: smart-extractor: ${why}, storing gated candidate as new [${pending.candidate.category}]`,
           );
         };
         try {
@@ -1483,13 +1483,13 @@ export class SmartExtractor {
           // caught verdict has enqueued nothing yet and the fallback row
           // lands exactly once.
           this.log(
-            `memory-pro: smart-extractor: deferred sibling ${pending.decision} failed: ${String(err)}`,
+            `memory-cip: smart-extractor: deferred sibling ${pending.decision} failed: ${String(err)}`,
           );
           try {
             await failOpenCreate(`deferred sibling ${pending.decision} unresolved`);
           } catch (fallbackErr) {
             this.log(
-              `memory-pro: smart-extractor: fail-open create failed for a deferred sibling verdict [${pending.candidate.category}]: ${String(fallbackErr)}`,
+              `memory-cip: smart-extractor: fail-open create failed for a deferred sibling verdict [${pending.candidate.category}]: ${String(fallbackErr)}`,
             );
           }
         }
@@ -1518,14 +1518,14 @@ export class SmartExtractor {
 
     if (!Array.isArray(storedEntries)) {
       this.debugLog(
-        "memory-pro: smart-extractor: skipping bulkStore persistence validation: bulkStore() did not return stored entries",
+        "memory-cip: smart-extractor: skipping bulkStore persistence validation: bulkStore() did not return stored entries",
       );
       return undefined;
     }
 
     if (storedEntries.length !== entries.length) {
       this.log(
-        `memory-pro: smart-extractor: bulkStore validation warning: queued ${entries.length} create(s) but bulkStore accepted ${storedEntries.length}`,
+        `memory-cip: smart-extractor: bulkStore validation warning: queued ${entries.length} create(s) but bulkStore accepted ${storedEntries.length}`,
       );
     }
 
@@ -1546,14 +1546,14 @@ export class SmartExtractor {
     const missingIds = await this.findMissingStoredIds(storedEntries);
     if (missingIds.length === 0) {
       this.debugLog(
-        `memory-pro: smart-extractor: bulkStore row-count delta ${observedDelta}/${storedEntries.length} but all returned IDs are readable; likely concurrent delete/compaction`,
+        `memory-cip: smart-extractor: bulkStore row-count delta ${observedDelta}/${storedEntries.length} but all returned IDs are readable; likely concurrent delete/compaction`,
       );
       return storedEntries;
     }
 
     const sample = missingIds.slice(0, 3).map((id) => id.slice(0, 8)).join(", ");
     this.log(
-      `memory-pro: smart-extractor: bulkStore validation warning: expected row delta >= ${storedEntries.length}, observed ${observedDelta} (before=${beforeCount}, after=${afterCount}); missing returned IDs=${missingIds.length}${sample ? ` sample=${sample}` : ""}`,
+      `memory-cip: smart-extractor: bulkStore validation warning: expected row delta >= ${storedEntries.length}, observed ${observedDelta} (before=${beforeCount}, after=${afterCount}); missing returned IDs=${missingIds.length}${sample ? ` sample=${sample}` : ""}`,
     );
     return storedEntries;
   }
@@ -1562,7 +1562,7 @@ export class SmartExtractor {
     const count = (this.store as unknown as { count?: () => Promise<number> }).count;
     if (typeof count !== "function") {
       this.debugLog(
-        `memory-pro: smart-extractor: skipping bulkStore row-count validation (${context}): count() unavailable`,
+        `memory-cip: smart-extractor: skipping bulkStore row-count validation (${context}): count() unavailable`,
       );
       return null;
     }
@@ -1573,11 +1573,11 @@ export class SmartExtractor {
         return value;
       }
       this.debugLog(
-        `memory-pro: smart-extractor: skipping bulkStore row-count validation (${context}): non-finite count ${String(value)}`,
+        `memory-cip: smart-extractor: skipping bulkStore row-count validation (${context}): non-finite count ${String(value)}`,
       );
     } catch (err) {
       this.debugLog(
-        `memory-pro: smart-extractor: skipping bulkStore row-count validation (${context}): ${String(err)}`,
+        `memory-cip: smart-extractor: skipping bulkStore row-count validation (${context}): ${String(err)}`,
       );
     }
     return null;
@@ -2335,7 +2335,7 @@ export class SmartExtractor {
     // otherwise fall back to per-candidate embed call.
     const vector = precomputedVector ?? await this.embedder.embed(`${candidate.abstract} ${candidate.content}`);
     if (!vector || vector.length === 0) {
-      this.log("memory-pro: smart-extractor: embedding failed, storing as-is");
+      this.log("memory-cip: smart-extractor: embedding failed, storing as-is");
       createEntries?.push(this.buildStoreEntry(candidate, vector || [], sessionKey, targetScope));
       stats.created++;
       return;
@@ -2358,7 +2358,7 @@ export class SmartExtractor {
     if (admission?.decision === "reject") {
       stats.rejected = (stats.rejected ?? 0) + 1;
       this.log(
-        `memory-pro: smart-extractor: admission rejected [${candidate.category}] ${candidate.abstract.slice(0, 60)} — ${admission.audit.reason}`,
+        `memory-cip: smart-extractor: admission rejected [${candidate.category}] ${candidate.abstract.slice(0, 60)} — ${admission.audit.reason}`,
       );
       await this.recordRejectedAdmission(
         candidate,
@@ -2425,7 +2425,7 @@ export class SmartExtractor {
 
       case "skip":
         this.log(
-          `memory-pro: smart-extractor: skipped [${candidate.category}] ${candidate.abstract.slice(0, 60)}`,
+          `memory-cip: smart-extractor: skipped [${candidate.category}] ${candidate.abstract.slice(0, 60)}`,
         );
         stats.skipped++;
         break;
@@ -2675,7 +2675,7 @@ export class SmartExtractor {
         });
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: dedup LLM failed: ${String(err)}`,
+          `memory-cip: smart-extractor: dedup LLM failed: ${String(err)}`,
         );
         chunk.forEach((_, i) => {
           out[chunkStart + i] = { decision: "create", reason: `LLM failed: ${String(err)}` };
@@ -2704,7 +2704,7 @@ export class SmartExtractor {
       return this.interpretDedupVerdict(data ?? null, topSimilar);
     } catch (err) {
       this.log(
-        `memory-pro: smart-extractor: dedup LLM failed: ${String(err)}`,
+        `memory-cip: smart-extractor: dedup LLM failed: ${String(err)}`,
       );
       return { decision: "create", reason: `LLM failed: ${String(err)}` };
     }
@@ -2729,7 +2729,7 @@ export class SmartExtractor {
   ): DedupResult {
     if (!data) {
       this.log(
-        "memory-pro: smart-extractor: dedup LLM returned unparseable response, defaulting to CREATE",
+        "memory-cip: smart-extractor: dedup LLM returned unparseable response, defaulting to CREATE",
       );
       return { decision: "create", reason: "LLM response unparseable" };
     }
@@ -2755,7 +2755,7 @@ export class SmartExtractor {
     const destructiveDecisions = new Set(["supersede", "contradict"]);
     if (destructiveDecisions.has(decision) && !hasValidIndex) {
       this.log(
-        `memory-pro: smart-extractor: ${decision} decision has missing/invalid match_index (${idx}), degrading to create`,
+        `memory-cip: smart-extractor: ${decision} decision has missing/invalid match_index (${idx}), degrading to create`,
       );
       return {
         decision: "create",
@@ -2809,7 +2809,7 @@ export class SmartExtractor {
     if (!admissionAudit && precomputedAdmission) {
       if (precomputedAdmission.decision === "reject") {
         this.log(
-          `memory-pro: smart-extractor: admission rejected profile [${candidate.abstract.slice(0, 60)}] — ${precomputedAdmission.audit.reason}`,
+          `memory-cip: smart-extractor: admission rejected profile [${candidate.abstract.slice(0, 60)}] — ${precomputedAdmission.audit.reason}`,
         );
         await this.recordRejectedAdmission(candidate, conversationText, sessionKey, targetScope, scopeFilter ?? [targetScope], precomputedAdmission.audit as AdmissionAuditRecord & { decision: "reject" });
         return "rejected";
@@ -2824,7 +2824,7 @@ export class SmartExtractor {
       });
       if (profileAdmission.decision === "reject") {
         this.log(
-          `memory-pro: smart-extractor: admission rejected profile [${candidate.abstract.slice(0, 60)}] — ${profileAdmission.audit.reason}`,
+          `memory-cip: smart-extractor: admission rejected profile [${candidate.abstract.slice(0, 60)}] — ${profileAdmission.audit.reason}`,
         );
         await this.recordRejectedAdmission(candidate, conversationText, sessionKey, targetScope, scopeFilter ?? [targetScope], profileAdmission.audit as AdmissionAuditRecord & { decision: "reject" });
         return "rejected";
@@ -2921,7 +2921,7 @@ export class SmartExtractor {
     }>(userPrompt, "merge-memory", system);
 
     if (!merged) {
-      this.log("memory-pro: smart-extractor: merge LLM failed, skipping merge");
+      this.log("memory-cip: smart-extractor: merge LLM failed, skipping merge");
       return "llm-failed";
     }
 
@@ -2987,7 +2987,7 @@ export class SmartExtractor {
         // Target vanished between dedup and read: merging into a missing row
         // would silently drop the candidate, so store it as new instead.
         this.log(
-          `memory-pro: smart-extractor: merge target ${matchId.slice(0, 8)} no longer exists, storing as new`,
+          `memory-cip: smart-extractor: merge target ${matchId.slice(0, 8)} no longer exists, storing as new`,
         );
         createEntries?.push(
           await this.externalOrBuiltFallbackEntry(candidate, targetScope, "merge-fallback"),
@@ -3003,7 +3003,7 @@ export class SmartExtractor {
     } catch {
       // Fallback: store as new
       this.log(
-        `memory-pro: smart-extractor: could not read existing memory ${matchId}, storing as new`,
+        `memory-cip: smart-extractor: could not read existing memory ${matchId}, storing as new`,
       );
       createEntries?.push(
         await this.externalOrBuiltFallbackEntry(candidate, targetScope, "merge-fallback"),
@@ -3085,7 +3085,7 @@ export class SmartExtractor {
           createEntries.push(ext.prebuilt);
           stats.created++;
           this.log(
-            `memory-pro: smart-extractor: merge ${why} — falling back to create for gated candidate [${addition.candidate.category}]`,
+            `memory-cip: smart-extractor: merge ${why} — falling back to create for gated candidate [${addition.candidate.category}]`,
           );
         }
       }
@@ -3116,7 +3116,7 @@ export class SmartExtractor {
       const job = pendingMerges[i];
       const merged = contents[i];
       if (!merged) {
-        this.log("memory-pro: smart-extractor: merge LLM failed, skipping merge");
+        this.log("memory-cip: smart-extractor: merge LLM failed, skipping merge");
         failOpenAdditions(job, "generation failed");
         continue;
       }
@@ -3139,7 +3139,7 @@ export class SmartExtractor {
         stats.merged += job.additions.length;
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: failed to apply merged content for ${job.matchId.slice(0, 8)}: ${String(err)}`,
+          `memory-cip: smart-extractor: failed to apply merged content for ${job.matchId.slice(0, 8)}: ${String(err)}`,
         );
         failOpenAdditions(job, "apply failed");
       }
@@ -3198,7 +3198,7 @@ export class SmartExtractor {
         });
       } catch (err) {
         this.log(
-          `memory-pro: smart-extractor: merge LLM failed: ${String(err)}`,
+          `memory-cip: smart-extractor: merge LLM failed: ${String(err)}`,
         );
       }
     }
@@ -3234,7 +3234,7 @@ export class SmartExtractor {
     const existing = await this.store.getById(matchId, scopeFilter);
     if (!existing) {
       this.log(
-        `memory-pro: smart-extractor: merge target ${matchId.slice(0, 8)} vanished before update`,
+        `memory-cip: smart-extractor: merge target ${matchId.slice(0, 8)} vanished before update`,
       );
       return "target-missing";
     }
@@ -3277,7 +3277,7 @@ export class SmartExtractor {
     );
     if (!updated) {
       this.log(
-        `memory-pro: smart-extractor: merge target ${matchId.slice(0, 8)} vanished during update`,
+        `memory-cip: smart-extractor: merge target ${matchId.slice(0, 8)} vanished during update`,
       );
       return "target-missing";
     }
@@ -3309,7 +3309,7 @@ export class SmartExtractor {
       }
 
       this.log(
-        `memory-pro: smart-extractor: merged [${targetCategory}]${contextLabel ? ` [${contextLabel}]` : ""} into ${matchId.slice(0, 8)}`,
+        `memory-cip: smart-extractor: merged [${targetCategory}]${contextLabel ? ` [${contextLabel}]` : ""} into ${matchId.slice(0, 8)}`,
       );
     }
     return "updated";
@@ -3426,7 +3426,7 @@ export class SmartExtractor {
       // The superseded text can no longer echo; keep the manual ledger honest.
       this.config.manualEchoLedger?.invalidate(agentId, existing.text);
       this.log(
-        `memory-pro: smart-extractor: superseded [${candidate.category}] ${matchId.slice(0, 8)} -> ${created.id.slice(0, 8)}`,
+        `memory-cip: smart-extractor: superseded [${candidate.category}] ${matchId.slice(0, 8)} -> ${created.id.slice(0, 8)}`,
       );
       return "superseded";
     }
@@ -3464,7 +3464,7 @@ export class SmartExtractor {
       const created = resolveCreated(pending);
       if (!created) {
         this.log(
-          `memory-pro: smart-extractor: supersede invalidation skipped for ${pending.matchId.slice(0, 8)} because batch create returned no matching replacement entry`,
+          `memory-cip: smart-extractor: supersede invalidation skipped for ${pending.matchId.slice(0, 8)} because batch create returned no matching replacement entry`,
         );
         continue;
       }
@@ -3481,7 +3481,7 @@ export class SmartExtractor {
           stats.superseded = (stats.superseded ?? 0) + 1;
         }
         this.log(
-          `memory-pro: smart-extractor: superseded ${pending.matchId.slice(0, 8)} -> ${created.id.slice(0, 8)}`,
+          `memory-cip: smart-extractor: superseded ${pending.matchId.slice(0, 8)} -> ${created.id.slice(0, 8)}`,
         );
       }
     }
@@ -3553,19 +3553,19 @@ export class SmartExtractor {
       );
     } catch (stripErr) {
       this.log(
-        `memory-pro: smart-extractor: supersede-claim strip failed for ${created.id.slice(0, 8)}: ${String(stripErr)}`,
+        `memory-cip: smart-extractor: supersede-claim strip failed for ${created.id.slice(0, 8)}: ${String(stripErr)}`,
       );
     }
     if (stripped) {
       this.log(
-        `memory-pro: smart-extractor: supersede invalidation failed for ${matchId.slice(0, 8)} (${cause}) — outcome downgraded to plain CREATE, old row remains active`,
+        `memory-cip: smart-extractor: supersede invalidation failed for ${matchId.slice(0, 8)} (${cause}) — outcome downgraded to plain CREATE, old row remains active`,
       );
     } else {
       // The downgrade itself could not be confirmed: the old row is still
       // active AND the replacement still carries a durable supersedes claim.
       // Surface the unresolved repair state instead of a success-style log.
       this.log(
-        `memory-pro: smart-extractor: UNRESOLVED supersede repair for ${matchId.slice(0, 8)} (${cause}) — old row remains active and replacement ${created.id.slice(0, 8)} still carries its supersedes claim (strip unconfirmed)`,
+        `memory-cip: smart-extractor: UNRESOLVED supersede repair for ${matchId.slice(0, 8)} (${cause}) — old row remains active and replacement ${created.id.slice(0, 8)} still carries its supersedes claim (strip unconfirmed)`,
       );
     }
   }
@@ -3588,7 +3588,7 @@ export class SmartExtractor {
     const existing = await this.store.getById(matchId, scopeFilter);
     if (!existing) {
       this.log(
-        `memory-pro: smart-extractor: support target ${matchId.slice(0, 8)} no longer exists`,
+        `memory-cip: smart-extractor: support target ${matchId.slice(0, 8)} no longer exists`,
       );
       return "target-missing";
     }
@@ -3605,13 +3605,13 @@ export class SmartExtractor {
     );
     if (!written) {
       this.log(
-        `memory-pro: smart-extractor: support target ${matchId.slice(0, 8)} vanished during update`,
+        `memory-cip: smart-extractor: support target ${matchId.slice(0, 8)} vanished during update`,
       );
       return "target-missing";
     }
 
     this.log(
-      `memory-pro: smart-extractor: support [${contextLabel || "general"}] on ${matchId.slice(0, 8)} — ${reason}`,
+      `memory-cip: smart-extractor: support [${contextLabel || "general"}] on ${matchId.slice(0, 8)} — ${reason}`,
     );
     return "supported";
   }
@@ -3641,12 +3641,12 @@ export class SmartExtractor {
       targetExists = Boolean(await this.store.getById(matchId, scopeFilter));
       if (!targetExists) {
         this.log(
-          `memory-pro: smart-extractor: contextualize target ${matchId.slice(0, 8)} no longer exists — storing as ordinary create without a relation`,
+          `memory-cip: smart-extractor: contextualize target ${matchId.slice(0, 8)} no longer exists — storing as ordinary create without a relation`,
         );
       }
     } catch (readErr) {
       this.log(
-        `memory-pro: smart-extractor: contextualize target read failed for ${matchId.slice(0, 8)} (${String(readErr)}) — storing as ordinary create without a relation`,
+        `memory-cip: smart-extractor: contextualize target read failed for ${matchId.slice(0, 8)} (${String(readErr)}) — storing as ordinary create without a relation`,
       );
     }
     const contextualizeRelations = targetExists
@@ -3697,7 +3697,7 @@ export class SmartExtractor {
     }
 
     this.log(
-      `memory-pro: smart-extractor: contextualize [${contextLabel || "general"}] new entry linked to ${matchId.slice(0, 8)}`,
+      `memory-cip: smart-extractor: contextualize [${contextLabel || "general"}] new entry linked to ${matchId.slice(0, 8)}`,
     );
   }
 
@@ -3738,17 +3738,17 @@ export class SmartExtractor {
           targetLinked = true;
         } else {
           this.log(
-            `memory-pro: smart-extractor: contradict target ${matchId.slice(0, 8)} vanished during update — storing as ordinary create without a relation`,
+            `memory-cip: smart-extractor: contradict target ${matchId.slice(0, 8)} vanished during update — storing as ordinary create without a relation`,
           );
         }
       } else {
         this.log(
-          `memory-pro: smart-extractor: contradict target ${matchId.slice(0, 8)} no longer exists — storing as ordinary create without a relation`,
+          `memory-cip: smart-extractor: contradict target ${matchId.slice(0, 8)} no longer exists — storing as ordinary create without a relation`,
         );
       }
     } catch (evidenceErr) {
       this.log(
-        `memory-pro: smart-extractor: contradict target read/update failed for ${matchId.slice(0, 8)} (${String(evidenceErr)}) — storing as ordinary create without a relation`,
+        `memory-cip: smart-extractor: contradict target read/update failed for ${matchId.slice(0, 8)} (${String(evidenceErr)}) — storing as ordinary create without a relation`,
       );
     }
 
@@ -3799,7 +3799,7 @@ export class SmartExtractor {
     }
 
     this.log(
-      `memory-pro: smart-extractor: contradict [${contextLabel || "general"}] on ${matchId.slice(0, 8)}, new entry created`,
+      `memory-cip: smart-extractor: contradict [${contextLabel || "general"}] on ${matchId.slice(0, 8)}, new entry created`,
     );
   }
 
@@ -3928,7 +3928,7 @@ export class SmartExtractor {
     await this.store.store(entry);
 
     this.log(
-      `memory-pro: smart-extractor: created [${candidate.category}] ${candidate.abstract.slice(0, 60)}`,
+      `memory-cip: smart-extractor: created [${candidate.category}] ${candidate.abstract.slice(0, 60)}`,
     );
   }
 

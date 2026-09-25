@@ -16,7 +16,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 
 function createPluginApiHarness({ pluginConfig, resolveRoot }) {
@@ -102,7 +102,7 @@ describe("self-improvement reset reminder", () => {
       resolveRoot: workDir,
       pluginConfig: makePluginConfig(workDir),
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     const commandHook = harness.eventHandlers
       .get("command:new")

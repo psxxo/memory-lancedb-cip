@@ -37,7 +37,7 @@ const origCreateEmbedder = embedderModuleForMock.createEmbedder;
 const origCreateLlmClient = llmClientModuleForMock.createLlmClient;
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const { resetRegistration } = pluginModule;
 
 function mockCreateRetriever() {
@@ -168,7 +168,7 @@ describe("llm.transport host credential hygiene", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(capturedConfigs.length >= 1, "expected at least one createLlmClient call");
     for (const config of capturedConfigs) {
@@ -194,7 +194,7 @@ describe("llm.transport host credential hygiene", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(capturedConfigs.length >= 1, "expected at least one createLlmClient call");
     assert.ok(
@@ -217,7 +217,7 @@ describe("llm.transport host credential hygiene", () => {
       }),
     });
 
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
 
     assert.ok(capturedConfigs.length >= 1);
     assert.ok(capturedConfigs.every((c) => c.apiKey === "explicit-llm-key"));

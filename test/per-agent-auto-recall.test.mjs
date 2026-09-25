@@ -15,7 +15,7 @@ const jiti = jitiFactory(import.meta.url, {
   },
 });
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const { parsePluginConfig } = pluginModule;
 const retrieverModuleForMock = jiti("../src/retriever.js");
 const embedderModuleForMock = jiti("../src/embedder.js");
@@ -305,7 +305,7 @@ describe("real before_prompt_build hook", () => {
     });
 
     try {
-      memoryLanceDBProPlugin.register(harness.api);
+      memoryLanceDBCipPlugin.register(harness.api);
       const autoRecallHook = getAutoRecallHook(harness.eventHandlers);
 
       const output = await autoRecallHook(

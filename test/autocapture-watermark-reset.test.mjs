@@ -42,7 +42,7 @@ const jiti = jitiFactory(import.meta.url, {
 });
 
 const pluginModule = jiti("../index.ts");
-const memoryLanceDBProPlugin = pluginModule.default || pluginModule;
+const memoryLanceDBCipPlugin = pluginModule.default || pluginModule;
 const resetRegistration = pluginModule.resetRegistration ?? (() => {});
 // The embedding mock below returns one-hot vectors, which can land arbitrary
 // texts near noise prototypes; force the bank off for determinism.
@@ -231,7 +231,7 @@ describe("auto-capture watermark after successful extraction (history flow)", ()
         },
       },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:dave:main", agentId: "dave" };
 
@@ -318,7 +318,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("the remember-this flow delivers BOTH the prior fact and the command to the real extraction prompt, inside tagged turns", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -351,7 +351,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
     const OLD_PREFERENCE = "I prefer synthetic almond milk in my coffee.";
     const OLD_REMARK = "My synthetic kneeling chair is set to level five.";
     const harness = buildHarness({ extractMinMessages: 4 });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -385,7 +385,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
       ],
     };
     const harness = buildHarness({ extractMinMessages: 3 });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -409,7 +409,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
       sessionCompression: { enabled: true },
       extractMaxChars: 400,
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -429,7 +429,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
     const ASSISTANT_FACT =
       "the synthetic staging endpoint lives at port 8443 behind the demo proxy.";
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -470,7 +470,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
   it("captureAssistant: remember-this walks past the assistant ack to include the user's fact", async () => {
     const USER_FACT = "my synthetic greenhouse door code is 6172, writing it here once.";
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -511,7 +511,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("remember-this survives a fact longer than extractMaxChars: the referenced fact's tail reaches the prompt", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -537,7 +537,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("turns whose rendered blocks fit extractMaxChars arrive whole", async () => {
     const harness = buildHarness({ extractMaxChars: 400 });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -561,7 +561,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a long history is bounded by extractMaxChars in the prompt (restart shape)", async () => {
     const harness = buildHarness({ extractMaxChars: 600 });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -600,7 +600,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
       },
     ];
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -627,7 +627,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("session_end clears the remember window: a post-reset remember finds no referent", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -649,7 +649,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a compaction session_end preserves the remember window: the conversation continues", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -670,7 +670,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("an idle session_end preserves the remember window: the conversation continues", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -691,7 +691,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a daily session_end preserves the remember window: the conversation continues", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -716,7 +716,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
     // assistant's answer as a user turn, so assistant-authored content
     // reached the extraction prompt inside user_message tags.
     const harness = buildHarness({ captureAssistant: true, extractMinMessages: 4 });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -771,7 +771,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
     // successor's first remember command has no referent.
     const QUEUED_TEXT = "synthetic courier note about parcel 7731 arriving friday.";
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const messageHooks = (harness.eventHandlers.get("message_received") || []).map(
       (entry) => entry.handler,
@@ -822,7 +822,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a reason-less session_end that announces a successor preserves the remember window", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -843,7 +843,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a reset session_end wipes the remember window even though it announces a successor", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -864,7 +864,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("an unknown-reason session_end with no successor wipes the remember window", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -885,7 +885,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("captureAssistant: a six-block assistant reply must not evict the remembered fact from the window", async () => {
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -925,7 +925,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("captureAssistant: the prepended referent survives transcript bounding, it is not the first block sacrificed", async () => {
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -967,7 +967,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("the extraction request is split into a system half and a user half carrying the transcript", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -996,7 +996,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
     const harness = buildHarness({
       extractionThrottle: { skipLowValue: false, maxExtractionsPerHour: 1 },
     });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1014,7 +1014,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("captureAssistant: a two-block user fact survives eviction whole, not just its trailer block", async () => {
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1061,7 +1061,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
   it("session_end leaves the shared conversation ingress queue intact for co-resident agents", async () => {
     const QUEUED_TEXT = "synthetic courier note about parcel 5520 arriving tomorrow.";
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const messageHooks = (harness.eventHandlers.get("message_received") || []).map(
       (entry) => entry.handler,
@@ -1097,7 +1097,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a repeated remember command anchors on the fact, not the earlier command", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1113,7 +1113,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("an unattributable session key never receives another session's remember window", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     const HINT = "agent one synthetic vault hint is 7181, keep it handy.";
@@ -1129,7 +1129,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a shared literal session key stays agent-scoped: one agent's remember window never feeds another's extraction", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
     const HINT = "agent one synthetic vault hint is 7181, keep it handy.";
@@ -1145,7 +1145,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a terminal on a shared session key clears the writer's window even though the host names the default agent", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const sessionEndHooks = (harness.eventHandlers.get("session_end") || []).map(
       (entry) => entry.handler,
@@ -1169,7 +1169,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a turn that strips to pure envelope metadata is not rendered as an empty tagged block", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1189,7 +1189,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("a delta that strips entirely to envelope metadata skips the extraction call", async () => {
     const harness = buildHarness();
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1205,7 +1205,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("captureAssistant: remember-this anchors past an envelope-only user turn to the real fact", async () => {
     const harness = buildHarness({ captureAssistant: true });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
@@ -1232,7 +1232,7 @@ describe("tagged extraction transcript mirrors the final text sequence", () => {
 
   it("an extractMaxChars below the tag envelope skips extraction instead of prompting on nothing", async () => {
     const harness = buildHarness({ extractMaxChars: 20 });
-    memoryLanceDBProPlugin.register(harness.api);
+    memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
     const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
 
