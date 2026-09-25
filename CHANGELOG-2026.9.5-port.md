@@ -15,3 +15,7 @@ to OpenClaw **2026.9.5** and replaces the previous compatibility shims with the 
 - `tsc` build: 0 errors against the 2026.9.5 host types.
 - ClawHub Plugin Inspector (runtime capture): PASS, 0 breakages, 0 warnings.
 - Full suite: 187 files, failures identical to the pre-port baseline (environment-only), 0 new failures.
+
+## 1.1.2
+- Removed the unsupported top-level `hooks` field from `openclaw.plugin.json` (ClawHub `manifest-unknown-fields`). Conversation hook access is granted where the host reads it: `plugins.entries.<id>.hooks.allowConversationAccess` in `openclaw.json`.
+- Added `assets/icon.png` (256x256 PNG) for ClawHub catalog artwork and included `assets/**` in the published files.

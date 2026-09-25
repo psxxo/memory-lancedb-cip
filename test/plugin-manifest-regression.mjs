@@ -345,9 +345,9 @@ assert.equal(
   "openclaw.plugin.json version should stay aligned with package.json",
 );
 assert.equal(
-  manifest.hooks?.allowConversationAccess,
-  true,
-  "openclaw.plugin.json should declare conversation hook access for non-bundled OpenClaw plugins",
+  manifest.hooks,
+  undefined,
+  "conversation hook access belongs in openclaw.json (plugins.entries.<id>.hooks.allowConversationAccess), not in the plugin manifest",
 );
 assert.equal(
   pkg.dependencies["apache-arrow"],
