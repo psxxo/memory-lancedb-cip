@@ -566,6 +566,16 @@ function formatDurationMs(ms: number): string {
   return ms < 1000 ? `${Math.max(0, Math.round(ms))}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
+/**
+ * Lifecycle diagnostics go to stderr on purpose: stdout belongs to the command
+ * result and is consumed as data (this repo's own CLI tests pipe it back), so an
+ * informational line on stdout can corrupt a caller's parsing. Warnings and
+ * errors keep using console.warn/console.error, which are already stderr.
+ */
+function logDiagnostic(message: string): void {
+  process.stderr.write(`[memory-lancedb-cip] ${message}\n`);
+}
+
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1353,8 +1363,8 @@ export class MemoryStore {
     this.dataModsSinceIndexFold = 0;
     const startedAt = Date.now();
     const foldTimeoutMs = resolveIndexCatchUpTimeoutMs(this.config);
-    console.log(
-      `[memory-lancedb-cip] index fold starting (reason=${reason}, modsSinceLast=${mods}, timeout=${formatDurationMs(foldTimeoutMs)})`,
+    logDiagnostic(
+      `index fold starting (reason=${reason}, modsSinceLast=${mods}, timeout=${formatDurationMs(foldTimeoutMs)})`,
     );
     try {
       await this.runWithWriteLock(async () => {
@@ -1364,8 +1374,8 @@ export class MemoryStore {
           `index fold (reason=${reason}) at "${this.config.dbPath}" did not return`,
         );
       });
-      console.log(
-        `[memory-lancedb-cip] index fold completed (reason=${reason}, modsSinceLast=${mods}, elapsed=${formatDurationMs(Date.now() - startedAt)})`,
+      logDiagnostic(
+        `index fold completed (reason=${reason}, modsSinceLast=${mods}, elapsed=${formatDurationMs(Date.now() - startedAt)})`,
       );
     } catch (err) {
       // Re-arm the counter so a transient failure retries on later writes.
@@ -1394,8 +1404,8 @@ export class MemoryStore {
 
   private async scheduleStartupIndexCatchUp(): Promise<void> {
     if (!resolveIndexCatchUpEnabled(this.config)) {
-      console.log(
-        "[memory-lancedb-cip] FTS catch-up fold skipped (storage.indexCatchUp=false / MEMORY_LANCEDB_INDEX_CATCHUP=0)",
+      logDiagnostic(
+        "FTS catch-up fold skipped (storage.indexCatchUp=false / MEMORY_LANCEDB_INDEX_CATCHUP=0)",
       );
       return;
     }
@@ -1410,8 +1420,8 @@ export class MemoryStore {
       const stats = await table.indexStats((fts as any).name ?? "text_idx");
       const backlog = stats?.numUnindexedRows ?? 0;
       if (backlog >= MemoryStore.INDEX_FOLD_OP_THRESHOLD) {
-        console.log(
-          `[memory-lancedb-cip] FTS index has ${backlog} unindexed rows; scheduling background catch-up fold ` +
+        logDiagnostic(
+          `FTS index has ${backlog} unindexed rows; scheduling background catch-up fold ` +
           `(reads are not blocked; bounded by indexCatchUpTimeoutMs)`,
         );
         void this.foldIndices("startup-backlog");
@@ -1442,7 +1452,7 @@ export class MemoryStore {
     const initStartedAt = Date.now();
     const openTimeoutMs = resolveOpenTimeoutMs(this.config);
     const logStage = (message: string) =>
-      console.log(`[memory-lancedb-cip] ${message} (+${formatDurationMs(Date.now() - initStartedAt)})`);
+      logDiagnostic(`${message} (+${formatDurationMs(Date.now() - initStartedAt)})`);
 
     logStage(`opening store at "${this.config.dbPath}" (open timeout ${openTimeoutMs}ms)`);
     try {

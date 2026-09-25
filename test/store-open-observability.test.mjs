@@ -36,16 +36,21 @@ function makeEntry(i, text = `open-probe-${i}`) {
   };
 }
 
+/**
+ * Lifecycle diagnostics are written to stderr (stdout carries command output
+ * and is parsed as data), so capture process.stderr.write for these assertions.
+ */
 function captureLogs() {
   const logs = [];
-  const originalLog = console.log;
-  console.log = (...args) => {
-    logs.push(args.map((value) => (typeof value === "string" ? value : String(value))).join(" "));
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = (chunk, ...rest) => {
+    logs.push(String(chunk));
+    return originalWrite(chunk, ...rest);
   };
   return {
     logs,
     restore: () => {
-      console.log = originalLog;
+      process.stderr.write = originalWrite;
     },
   };
 }
@@ -74,6 +79,38 @@ describe("store open phases and doctor", { concurrency: 1 }, () => {
       assert.ok(joined.includes(fragment), `expected open log to include ${JSON.stringify(fragment)}:\n${joined}`);
     }
     assert.match(joined, /ready in \d+(\.\d+)?m?s/, "ready line must carry elapsed time");
+
+    // Lifecycle diagnostics must not pollute stdout: it is parsed as data.
+    assert.strictEqual(existsSync(dir), true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("keeps stdout clean: lifecycle diagnostics go to stderr only", async () => {
+    const dir = makeDbPath();
+    const store = new MemoryStore({ dbPath: dir, vectorDim: 3 });
+
+    const capturedStdout = [];
+    const originalWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (chunk, ...rest) => {
+      capturedStdout.push(String(chunk));
+      return originalWrite(chunk, ...rest);
+    };
+    const captured = captureLogs();
+    try {
+      await store.ensureInitialized();
+      await store.store(makeEntry(1, "stdout-clean-probe"));
+    } finally {
+      captured.restore();
+      process.stdout.write = originalWrite;
+    }
+
+    assert.deepStrictEqual(
+      capturedStdout,
+      [],
+      `stdout must stay empty for library calls (it is parsed as data), got: ${capturedStdout.join("")}`,
+    );
+    assert.ok(captured.logs.length > 0, "the same diagnostics must still be emitted, on stderr");
+    assert.ok(captured.logs.join("\n").includes("ready in"));
 
     rmSync(dir, { recursive: true, force: true });
   });
