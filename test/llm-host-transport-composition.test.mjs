@@ -103,6 +103,10 @@ function createPluginApiHarness({ pluginConfig, resolveRoot, runtimeLlmComplete 
   const logs = { info: [], warn: [], debug: [] };
   const api = {
     pluginConfig,
+    // v1.2.6 — smart extraction requires a CONFIRMED host model catalog.
+    config: {
+      models: { providers: { openrouter: { models: [{ id: "vendor-example/model-x" }] } } },
+    },
     runtime: { llm: { complete: runtimeLlmComplete } },
     resolvePath(target) {
       if (typeof target !== "string") return target;

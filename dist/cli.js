@@ -10,6 +10,7 @@ import JSON5 from "json5";
 import { loadLanceDB } from "./src/store.js";
 import { createRetriever } from "./src/retriever.js";
 import { createMemoryUpgrader, isCurrentReflectionMemory } from "./src/memory-upgrader.js";
+import { resolveGenerationModel, evaluateGenerationModelAvailability, formatLoadSafetyLines, } from "./src/load-safety.js";
 import { runConsolidate, formatConsolidateCostPreview, formatConsolidatePlanForDisplay, pluralCount, DEFAULT_SCAN_LIMIT, loadConsolidateSettledLedger, saveConsolidateSettledLedger } from "./src/consolidate.js";
 import { getDefaultOauthModelForProvider, getOAuthProviderLabel, isOauthModelSupported, listOAuthProviders, normalizeOauthModel, normalizeOAuthProviderId, performOAuthLogin, } from "./src/llm-oauth.js";
 // ============================================================================
@@ -882,6 +883,46 @@ export async function runImportMarkdown(ctx, workspaceGlob, options) {
         elapsedMs: Date.now() - startMs,
         embedBatches,
         bulkStoreCalls,
+    };
+}
+/**
+ * v1.2.6 — load-time safety report for `memory-cip doctor`.
+ * Prefers the report captured in register() (which could read the host model
+ * catalog). A standalone CLI harness has no host config, so it derives an
+ * "unconfirmed" report and never claims the feature is active.
+ */
+function resolveDoctorLoadSafety(context) {
+    if (context.loadSafety)
+        return context.loadSafety;
+    const cfg = (context.pluginConfig ?? {});
+    const llm = cfg.llm ?? undefined;
+    const generationModel = resolveGenerationModel({ llm: llm });
+    const inventory = {
+        refs: new Set(),
+        providers: new Set(),
+        sources: [],
+        confirmed: false,
+    };
+    const availability = evaluateGenerationModelAvailability({ inventory, model: generationModel });
+    const embedding = cfg.embedding ?? undefined;
+    const requested = cfg.smartExtraction === true;
+    return {
+        generationModel: generationModel.modelRef,
+        generationModelExplicit: generationModel.explicit,
+        generationModelStatus: availability.status,
+        generationModelReason: availability.reason,
+        modelInventorySource: availability.inventorySource,
+        modelInventorySize: availability.inventorySize,
+        smartExtractionRequested: requested,
+        smartExtractionActive: false,
+        smartExtractionDisabledReason: requested
+            ? `standalone CLI: host model catalog unavailable (${availability.status})`
+            : undefined,
+        loadTimeNetwork: "none",
+        loadDurationMs: 0,
+        loadWarnAfterMs: 2000,
+        embeddingModel: typeof embedding?.model === "string" ? embedding.model : "text-embedding-3-small",
+        embeddingProvider: typeof embedding?.provider === "string" ? embedding.provider : "openai-compatible",
     };
 }
 export function registerMemoryCLI(program, context) {
@@ -1992,6 +2033,10 @@ export function registerMemoryCLI(program, context) {
             console.log("    - raise the wait limit: storage.writeLockTimeoutMs (or MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS)");
             console.log("    - skip background index catch-up: storage.indexCatchUp=false");
             console.log("    - corrupt table, never delete data: mv \"<dbPath>/memories.lance\" \"<dbPath>/memories.lance.corrupt-<UTC>\"");
+            // v1.2.6 — load-time safety report: which generation model resolves, whether
+            // it is confirmed available, whether smartExtraction is actually active, and
+            // the zero-network-at-load conclusion.
+            console.log(formatLoadSafetyLines(resolveDoctorLoadSafety(context)));
         }
         catch (error) {
             console.error("doctor failed:", error);

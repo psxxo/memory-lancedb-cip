@@ -15,6 +15,13 @@ import type { MemoryScopeManager } from "./src/scopes.js";
 import type { MemoryMigrator } from "./src/migrate.js";
 import { createMemoryUpgrader, isCurrentReflectionMemory } from "./src/memory-upgrader.js";
 import type { LlmClient } from "./src/llm-client.js";
+import {
+  resolveGenerationModel,
+  evaluateGenerationModelAvailability,
+  formatLoadSafetyLines,
+  type HostModelInventory,
+  type LoadSafetyReport,
+} from "./src/load-safety.js";
 import type { MdMirrorWriter } from "./src/tools.js";
 import { runConsolidate, formatConsolidateCostPreview, formatConsolidatePlanForDisplay, pluralCount, DEFAULT_SCAN_LIMIT, loadConsolidateSettledLedger, saveConsolidateSettledLedger } from "./src/consolidate.js";
 import {
@@ -53,6 +60,12 @@ interface CLIContext {
     ) => string | Promise<string>;
   };
   mdMirror?: MdMirrorWriter | null;
+  /**
+   * v1.2.6 — load-time safety conclusions captured in register(). Present when
+   * the CLI was wired from a live plugin registration; absent in standalone CLI
+   * harnesses, where doctor derives an "unconfirmed" report from pluginConfig.
+   */
+  loadSafety?: LoadSafetyReport;
 }
 
 // ============================================================================
@@ -1115,6 +1128,46 @@ export async function runImportMarkdown(
   };
     }
 
+
+/**
+ * v1.2.6 — load-time safety report for `memory-cip doctor`.
+ * Prefers the report captured in register() (which could read the host model
+ * catalog). A standalone CLI harness has no host config, so it derives an
+ * "unconfirmed" report and never claims the feature is active.
+ */
+function resolveDoctorLoadSafety(context: CLIContext): LoadSafetyReport {
+  if (context.loadSafety) return context.loadSafety;
+  const cfg = (context.pluginConfig ?? {}) as Record<string, unknown>;
+  const llm = (cfg.llm as Record<string, unknown> | undefined) ?? undefined;
+  const generationModel = resolveGenerationModel({ llm: llm as { model?: string } | undefined });
+  const inventory: HostModelInventory = {
+    refs: new Set<string>(),
+    providers: new Set<string>(),
+    sources: [],
+    confirmed: false,
+  };
+  const availability = evaluateGenerationModelAvailability({ inventory, model: generationModel });
+  const embedding = (cfg.embedding as Record<string, unknown> | undefined) ?? undefined;
+  const requested = cfg.smartExtraction === true;
+  return {
+    generationModel: generationModel.modelRef,
+    generationModelExplicit: generationModel.explicit,
+    generationModelStatus: availability.status,
+    generationModelReason: availability.reason,
+    modelInventorySource: availability.inventorySource,
+    modelInventorySize: availability.inventorySize,
+    smartExtractionRequested: requested,
+    smartExtractionActive: false,
+    smartExtractionDisabledReason: requested
+      ? `standalone CLI: host model catalog unavailable (${availability.status})`
+      : undefined,
+    loadTimeNetwork: "none",
+    loadDurationMs: 0,
+    loadWarnAfterMs: 2000,
+    embeddingModel: typeof embedding?.model === "string" ? embedding.model : "text-embedding-3-small",
+    embeddingProvider: typeof embedding?.provider === "string" ? embedding.provider : "openai-compatible",
+  };
+}
 
 export function registerMemoryCLI(program: Command, context: CLIContext): void {
   let lastSearchDiagnostics: ReturnType<MemoryRetriever["getLastDiagnostics"]> =
@@ -2403,6 +2456,11 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
         console.log("    - raise the wait limit: storage.writeLockTimeoutMs (or MEMORY_LANCEDB_WRITE_LOCK_TIMEOUT_MS)");
         console.log("    - skip background index catch-up: storage.indexCatchUp=false");
         console.log("    - corrupt table, never delete data: mv \"<dbPath>/memories.lance\" \"<dbPath>/memories.lance.corrupt-<UTC>\"");
+
+        // v1.2.6 — load-time safety report: which generation model resolves, whether
+        // it is confirmed available, whether smartExtraction is actually active, and
+        // the zero-network-at-load conclusion.
+        console.log(formatLoadSafetyLines(resolveDoctorLoadSafety(context)));
       } catch (error) {
         console.error("doctor failed:", error);
         process.exit(1);

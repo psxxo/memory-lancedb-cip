@@ -1637,7 +1637,17 @@ export class SmartExtractor {
     }
 
     const noiseBank = this.config.noiseBank;
-    if (!noiseBank || !noiseBank.initialized) {
+    if (!noiseBank) {
+      return { texts: staticFiltered, keptIndices: staticKeptIndices };
+    }
+    // v1.2.6 — the bank is no longer warmed during register() (that issued
+    // network embedding calls at load). Initialize it lazily here, on the
+    // first extraction that actually needs it. Optional so the test doubles
+    // that pass a bare bank keep working.
+    if (typeof (noiseBank as { ensureInit?: unknown }).ensureInit === "function") {
+      await (noiseBank as { ensureInit: (e: unknown) => Promise<void> }).ensureInit(this.embedder);
+    }
+    if (!noiseBank.initialized) {
       return { texts: staticFiltered, keptIndices: staticKeptIndices };
     }
 
@@ -1715,7 +1725,11 @@ export class SmartExtractor {
    */
   private async learnAsNoise(conversationText: string): Promise<void> {
     const noiseBank = this.config.noiseBank;
-    if (!noiseBank || !noiseBank.initialized) return;
+    if (!noiseBank) return;
+    if (typeof (noiseBank as { ensureInit?: unknown }).ensureInit === "function") {
+      await (noiseBank as { ensureInit: (e: unknown) => Promise<void> }).ensureInit(this.embedder);
+    }
+    if (!noiseBank.initialized) return;
 
     try {
       const tail = conversationText.slice(-300);

@@ -50,6 +50,12 @@ export class NoisePrototypeBank {
     private vectors: number[][] = [];
     private builtinCount = 0;
     private _initialized = false;
+    // v1.2.6 — load-time safety: the bank is initialized LAZILY on first use,
+    // never during register(). `_initAttempted` makes ensureInit() idempotent
+    // even when init() bails out (degenerate embeddings) without setting
+    // `_initialized`, and `_initPromise` shares one in-flight attempt.
+    private _initAttempted = false;
+    private _initPromise: Promise<void> | null = null;
     private debugLog: (msg: string) => void;
 
     constructor(debugLog?: (msg: string) => void) {
@@ -67,8 +73,24 @@ export class NoisePrototypeBank {
     }
 
     /**
+     * Lazily initialize on first use (v1.2.6). The plugin no longer warms the
+     * bank at load time — doing so issued embedding requests over the network
+     * during register(), which must never happen. Callers that need the bank
+     * await this instead; it is a no-op after the first attempt.
+     */
+    ensureInit(embedder: Embedder): Promise<void> {
+        if (this._initAttempted) return this._initPromise ?? Promise.resolve();
+        this._initAttempted = true;
+        this._initPromise = this.init(embedder).catch((err) => {
+            this.debugLog(`noise-prototype-bank: lazy init failed: ${String(err)}`);
+        });
+        return this._initPromise;
+    }
+
+    /**
      * Embed all built-in noise prototypes and cache their vectors.
-     * Call once at plugin startup. Safe to call multiple times (no-op after first).
+     * Prefer ensureInit() at runtime; the plugin no longer calls this at load.
+     * Safe to call multiple times (no-op after first).
      */
     async init(embedder: Embedder): Promise<void> {
         if (this._initialized) return;

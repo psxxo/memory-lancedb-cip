@@ -136,6 +136,8 @@ function createMockApi(dbPath, embeddingBaseURL, llmBaseURL, logs, pluginConfigO
         },
       },
     },
+    // v1.2.6 — smart extraction requires a CONFIRMED host model catalog.
+    config: { models: { providers: { test: { models: [{ id: "mock-memory-model" }] } } } },
     hooks: {},
     toolFactories: {},
     services: [],

@@ -27,6 +27,12 @@ let dualMemoryHintLogged = false;
 // Import core components
 import { MemoryStore, normalizeStoragePath, type MemoryEntry } from "./src/store.js";
 import {
+  resolveGenerationModel,
+  resolveHostModelInventory,
+  evaluateGenerationModelAvailability,
+  type LoadSafetyReport,
+} from "./src/load-safety.js";
+import {
   createEmbedder,
   getEffectiveVectorDimensions,
 } from "./src/embedder.js";
@@ -186,6 +192,8 @@ interface PluginConfig {
     /** Quarantine a structurally corrupt memories.lance by renaming (never
      *  deleting) it. Env: MEMORY_LANCEDB_QUARANTINE_CORRUPT=1. Default false. */
     quarantineCorruptTable?: boolean;
+    /** Warn when the synchronous load/init phase exceeds this (ms). Default 2000. */
+    loadWarnAfterMs?: number;
   };
   locking?: {
     redis?: {
@@ -2301,6 +2309,15 @@ export function _getRegisteredApisForTest(): Map<OpenClawPluginApi, boolean> {
   return _registeredApisMap;
 }
 
+/**
+ * Returns the load-time safety report captured by the current singleton
+ * registration — for unit test inspection only (v1.2.6).
+ * @public (test API)
+ */
+export function _getLoadSafetyReportForTest(): LoadSafetyReport | null {
+  return _singletonState?.loadSafetyReport ?? null;
+}
+
 // ============================================================================
 // Hook Event Deduplication (Phase 1)
 // ============================================================================
@@ -2445,6 +2462,8 @@ interface PluginSingletonState {
   captureReflectionAdmissionController: () => AdmissionController | null;
   makeLaneLlmClient: (model: string, thinkLevel?: string, modelExplicit?: boolean) => LlmClient;
   admissionRejectionAuditWriter: ((entry: AdmissionRejectionAuditEntry) => Promise<void>) | null;
+  /** v1.2.6 — load-time safety conclusions (zero network + generation-model gate). */
+  loadSafetyReport: LoadSafetyReport;
 }
 
 interface DreamingSchedulerState {
@@ -2457,7 +2476,53 @@ interface DreamingSchedulerState {
 let _singletonState: PluginSingletonState | null = null;
 
 function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
+  // v1.2.6 — load-time safety.
+  // This function is SYNCHRONOUS by construction: it performs no awaits, so the
+  // plugin's load path can never block the host event loop on I/O, and it makes
+  // ZERO outbound requests (no embedding warmup, no LLM probe). Any warmup is
+  // deferred to first use (see NoisePrototypeBank.ensureInit). The report below
+  // is the machine-checkable conclusion surfaced by `memory-cip doctor`.
+  const loadStartedAt = Date.now();
   const config = parsePluginConfig(api.pluginConfig);
+  // Bounded/observable load: warn when synchronous init exceeds this threshold.
+  const loadWarnAfterMs = config.storage?.loadWarnAfterMs ?? 2000;
+  const generationModel = resolveGenerationModel(config);
+  const modelInventory = resolveHostModelInventory(api as unknown as {
+    config?: unknown;
+    runtime?: unknown;
+    modelCatalog?: unknown;
+  });
+  const modelAvailability = evaluateGenerationModelAvailability({
+    inventory: modelInventory,
+    model: generationModel,
+  });
+  const smartExtractionRequested = config.smartExtraction === true;
+  const smartExtractionEnabled =
+    smartExtractionRequested && modelAvailability.status === "available";
+  let smartExtractionDisabledReason: string | undefined;
+  if (smartExtractionRequested && !smartExtractionEnabled) {
+    smartExtractionDisabledReason =
+      `generation LLM "${generationModel.modelRef}" is ${modelAvailability.status}: ${modelAvailability.reason}`
+      + " | fix: set llm.model to a model this host serves (or configure the provider), or leave smartExtraction disabled (the default)"
+      + (modelAvailability.status === "unconfirmed"
+        ? "; the host surfaced no readable model catalog"
+        : "");
+    // Loud, but never fatal: throwing from register() could break host boot, and
+    // the incident was a hang, not a crash. Fail closed = the feature never runs.
+    const message = `memory-lancedb-cip: smartExtraction DISABLED at load — ${smartExtractionDisabledReason}. No LLM call will be made.`;
+    // Defensive: some hosts/test doubles expose only warn/debug. Never let a
+    // missing log level turn a safe downgrade into a load crash.
+    const logLoud =
+      generationModel.explicit && typeof api.logger.error === "function"
+        ? api.logger.error.bind(api.logger)
+        : api.logger.warn.bind(api.logger);
+    logLoud(message);
+  }
+  api.logger.debug?.(
+    `memory-lancedb-cip: load-safety — generation model ${generationModel.modelRef} is ${modelAvailability.status}`
+    + ` (inventory: ${modelAvailability.inventorySource}, ${modelAvailability.inventorySize} entries);`
+    + ` smartExtraction: requested=${smartExtractionRequested} active=${smartExtractionEnabled}`,
+  );
   let resolvedDbPath = normalizeStoragePath(api.resolvePath(config.dbPath || getDefaultDbPath()));
 
   const vectorDim = getEffectiveVectorDimensions(
@@ -2644,7 +2709,7 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
   const manualEchoLedger = new ManualEchoLedger();
   let admissionController: AdmissionController | null = null;
   let admissionControllerReflectionLane: AdmissionController | null = null;
-  if (config.smartExtraction !== false || config.admissionControl?.enabled === true) {
+  if (smartExtractionEnabled || config.admissionControl?.enabled === true) {
     try {
       const { llmClient, llmModel, llmModelExplicit, llmTimeoutMs, makeClientForModel } = buildMemoryLlmClient();
 
@@ -2714,17 +2779,17 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
               admissionConfigWithChunk,
               (msg: string) => api.logger.debug(msg),
             );
-      if (admissionController && config.smartExtraction === false) {
+      if (admissionController && !smartExtractionEnabled) {
         api.logger.info(
           "memory-lancedb-cip: admission control constructed for capture fallbacks (smart extraction inactive)",
         );
       }
 
-      if (config.smartExtraction !== false) {
+      if (smartExtractionEnabled) {
         const noiseBank = new NoisePrototypeBank((msg: string) => api.logger.debug(msg));
-        noiseBank.init(embedder).catch((err) =>
-          api.logger.debug(`memory-lancedb-cip: noise bank init: ${String(err)}`),
-        );
+        // v1.2.6 — NO load-time warmup. noiseBank.init() embedded every built-in
+        // prototype over the network during register(); the bank is now lazily
+        // initialized on first extraction (SmartExtractor calls ensureInit).
 
         smartExtractor = new SmartExtractor(store, embedder, llmClient, {
           user: "User",
@@ -2753,7 +2818,7 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
         );
       }
     } catch (err) {
-      if (config.smartExtraction !== false) {
+      if (smartExtractionEnabled) {
         api.logger.warn(`memory-lancedb-cip: smart extraction init failed, falling back to regex: ${String(err)}`);
       } else {
         api.logger.error(
@@ -2795,6 +2860,35 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
   const autoCaptureSessionIdToKey = new Map<string, string>();
   const autoCaptureInFlightRuns = new Map<string, Set<Promise<void>>>();
 
+  // v1.2.6 — load-time safety conclusion (zero network + generation-model gate).
+  const loadElapsedMs = Date.now() - loadStartedAt;
+  const loadSafetyReport: LoadSafetyReport = {
+    generationModel: generationModel.modelRef,
+    generationModelExplicit: generationModel.explicit,
+    generationModelStatus: modelAvailability.status,
+    generationModelReason: modelAvailability.reason,
+    modelInventorySource: modelAvailability.inventorySource,
+    modelInventorySize: modelAvailability.inventorySize,
+    smartExtractionRequested,
+    smartExtractionActive: smartExtractor !== null,
+    smartExtractionDisabledReason: smartExtractor === null ? smartExtractionDisabledReason : undefined,
+    loadTimeNetwork: "none",
+    loadDurationMs: loadElapsedMs,
+    loadWarnAfterMs,
+    embeddingModel: config.embedding.model || "text-embedding-3-small",
+    embeddingProvider: config.embedding.provider || "openai-compatible",
+  };
+  api.logger.debug?.(
+    `memory-lancedb-cip: load phase complete in ${loadElapsedMs}ms ` +
+    `(no network at load; store/embedder are lazy)`,
+  );
+  if (loadElapsedMs >= loadWarnAfterMs) {
+    api.logger.warn(
+      `memory-lancedb-cip: load phase took ${loadElapsedMs}ms (threshold ${loadWarnAfterMs}ms); ` +
+      "set storage.loadWarnAfterMs to adjust the warning threshold",
+    );
+  }
+
   return {
     config,
     resolvedDbPath,
@@ -2832,6 +2926,7 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
     captureReflectionAdmissionController,
     makeLaneLlmClient,
     admissionRejectionAuditWriter,
+    loadSafetyReport,
   };
 }
 export function isAgentOrSessionExcluded(
@@ -3013,6 +3108,7 @@ const memoryLanceDBCipPlugin = {
       captureReflectionAdmissionController,
       makeLaneLlmClient,
       admissionRejectionAuditWriter,
+      loadSafetyReport,
     } = singleton;
 
     const learnAutoCaptureSessionAlias = (sessionId: unknown, sessionKey: unknown) => {
@@ -3524,6 +3620,7 @@ const memoryLanceDBCipPlugin = {
         migrator,
         embedder,
         mdMirror,
+        loadSafety: loadSafetyReport,
         llmClient: smartExtractor ? (() => {
           try {
             const llmAuth = config.llm?.auth || "api-key";
@@ -7135,6 +7232,7 @@ export function parsePluginConfig(value: unknown): PluginConfig {
           typeof storageRaw.quarantineCorruptTable === "boolean"
             ? storageRaw.quarantineCorruptTable
             : undefined,
+        loadWarnAfterMs: parseNonNegativeInt(storageRaw.loadWarnAfterMs),
       }
       : undefined,
     autoCapture: cfg.autoCapture !== false,
@@ -7214,7 +7312,11 @@ export function parsePluginConfig(value: unknown): PluginConfig {
     decay: typeof cfg.decay === "object" && cfg.decay !== null ? cfg.decay as any : undefined,
     tier: typeof cfg.tier === "object" && cfg.tier !== null ? cfg.tier as any : undefined,
     // Smart extraction config (Phase 1)
-    smartExtraction: cfg.smartExtraction !== false, // Default ON
+    // v1.2.6 — BEHAVIOR CHANGE: smart extraction is opt-in (default OFF).
+    // Defaulting it ON shipped an LLM path that ran with a model the host did
+    // not have, blocking the main process on 30s timeouts. Opt in with
+    // smartExtraction: true (and a reachable llm.model).
+    smartExtraction: cfg.smartExtraction === true, // Default OFF (was: !== false)
     llm: llmRaw
       ? (() => {
         const llm = { ...llmRaw };

@@ -21,6 +21,7 @@ const isCliMode = () => process.env.OPENCLAW_CLI === "1";
 let dualMemoryHintLogged = false;
 // Import core components
 import { MemoryStore, normalizeStoragePath } from "./src/store.js";
+import { resolveGenerationModel, resolveHostModelInventory, evaluateGenerationModelAvailability, } from "./src/load-safety.js";
 import { createEmbedder, getEffectiveVectorDimensions, } from "./src/embedder.js";
 import { createRetriever, normalizeRetrievalConfig, } from "./src/retriever.js";
 import { createScopeManager, resolveScopeFilter, isSystemBypassId, parseAgentIdFromSessionKey } from "./src/scopes.js";
@@ -1677,6 +1678,14 @@ let _registeredApisMap = new Map();
 export function _getRegisteredApisForTest() {
     return _registeredApisMap;
 }
+/**
+ * Returns the load-time safety report captured by the current singleton
+ * registration — for unit test inspection only (v1.2.6).
+ * @public (test API)
+ */
+export function _getLoadSafetyReportForTest() {
+    return _singletonState?.loadSafetyReport ?? null;
+}
 // ============================================================================
 // Hook Event Deduplication (Phase 1)
 // ============================================================================
@@ -1773,7 +1782,45 @@ async function getReflectionEmptyEventGuardKey(params) {
 }
 let _singletonState = null;
 function _initPluginState(api) {
+    // v1.2.6 — load-time safety.
+    // This function is SYNCHRONOUS by construction: it performs no awaits, so the
+    // plugin's load path can never block the host event loop on I/O, and it makes
+    // ZERO outbound requests (no embedding warmup, no LLM probe). Any warmup is
+    // deferred to first use (see NoisePrototypeBank.ensureInit). The report below
+    // is the machine-checkable conclusion surfaced by `memory-cip doctor`.
+    const loadStartedAt = Date.now();
     const config = parsePluginConfig(api.pluginConfig);
+    // Bounded/observable load: warn when synchronous init exceeds this threshold.
+    const loadWarnAfterMs = config.storage?.loadWarnAfterMs ?? 2000;
+    const generationModel = resolveGenerationModel(config);
+    const modelInventory = resolveHostModelInventory(api);
+    const modelAvailability = evaluateGenerationModelAvailability({
+        inventory: modelInventory,
+        model: generationModel,
+    });
+    const smartExtractionRequested = config.smartExtraction === true;
+    const smartExtractionEnabled = smartExtractionRequested && modelAvailability.status === "available";
+    let smartExtractionDisabledReason;
+    if (smartExtractionRequested && !smartExtractionEnabled) {
+        smartExtractionDisabledReason =
+            `generation LLM "${generationModel.modelRef}" is ${modelAvailability.status}: ${modelAvailability.reason}`
+                + " | fix: set llm.model to a model this host serves (or configure the provider), or leave smartExtraction disabled (the default)"
+                + (modelAvailability.status === "unconfirmed"
+                    ? "; the host surfaced no readable model catalog"
+                    : "");
+        // Loud, but never fatal: throwing from register() could break host boot, and
+        // the incident was a hang, not a crash. Fail closed = the feature never runs.
+        const message = `memory-lancedb-cip: smartExtraction DISABLED at load — ${smartExtractionDisabledReason}. No LLM call will be made.`;
+        // Defensive: some hosts/test doubles expose only warn/debug. Never let a
+        // missing log level turn a safe downgrade into a load crash.
+        const logLoud = generationModel.explicit && typeof api.logger.error === "function"
+            ? api.logger.error.bind(api.logger)
+            : api.logger.warn.bind(api.logger);
+        logLoud(message);
+    }
+    api.logger.debug?.(`memory-lancedb-cip: load-safety — generation model ${generationModel.modelRef} is ${modelAvailability.status}`
+        + ` (inventory: ${modelAvailability.inventorySource}, ${modelAvailability.inventorySize} entries);`
+        + ` smartExtraction: requested=${smartExtractionRequested} active=${smartExtractionEnabled}`);
     let resolvedDbPath = normalizeStoragePath(api.resolvePath(config.dbPath || getDefaultDbPath()));
     const vectorDim = getEffectiveVectorDimensions(config.embedding.model || "text-embedding-3-small", config.embedding.dimensions, config.embedding.requestDimensions);
     const embeddingApiKey = resolveSecretCredentialArray(api, config.embedding.apiKey, "embedding.apiKey");
@@ -1931,7 +1978,7 @@ function _initPluginState(api) {
     const manualEchoLedger = new ManualEchoLedger();
     let admissionController = null;
     let admissionControllerReflectionLane = null;
-    if (config.smartExtraction !== false || config.admissionControl?.enabled === true) {
+    if (smartExtractionEnabled || config.admissionControl?.enabled === true) {
         try {
             const { llmClient, llmModel, llmModelExplicit, llmTimeoutMs, makeClientForModel } = buildMemoryLlmClient();
             // Model resolution for admission calls: explicit admissionControl.model
@@ -1988,12 +2035,14 @@ function _initPluginState(api) {
                 admissionModelReflection === admissionModelExtraction && reflectionThinkLevel === globalThinkLevel
                     ? admissionController
                     : createAdmissionController(store, admissionClientFor(admissionModelReflection, reflectionThinkLevel, admissionModelExplicitReflection), admissionConfigWithChunk, (msg) => api.logger.debug(msg));
-            if (admissionController && config.smartExtraction === false) {
+            if (admissionController && !smartExtractionEnabled) {
                 api.logger.info("memory-lancedb-cip: admission control constructed for capture fallbacks (smart extraction inactive)");
             }
-            if (config.smartExtraction !== false) {
+            if (smartExtractionEnabled) {
                 const noiseBank = new NoisePrototypeBank((msg) => api.logger.debug(msg));
-                noiseBank.init(embedder).catch((err) => api.logger.debug(`memory-lancedb-cip: noise bank init: ${String(err)}`));
+                // v1.2.6 — NO load-time warmup. noiseBank.init() embedded every built-in
+                // prototype over the network during register(); the bank is now lazily
+                // initialized on first extraction (SmartExtractor calls ensureInit).
                 smartExtractor = new SmartExtractor(store, embedder, llmClient, {
                     user: "User",
                     manualEchoLedger,
@@ -2019,7 +2068,7 @@ function _initPluginState(api) {
             }
         }
         catch (err) {
-            if (config.smartExtraction !== false) {
+            if (smartExtractionEnabled) {
                 api.logger.warn(`memory-lancedb-cip: smart extraction init failed, falling back to regex: ${String(err)}`);
             }
             else {
@@ -2056,6 +2105,30 @@ function _initPluginState(api) {
     const autoCaptureDeferredFlushTurns = new Map();
     const autoCaptureSessionIdToKey = new Map();
     const autoCaptureInFlightRuns = new Map();
+    // v1.2.6 — load-time safety conclusion (zero network + generation-model gate).
+    const loadElapsedMs = Date.now() - loadStartedAt;
+    const loadSafetyReport = {
+        generationModel: generationModel.modelRef,
+        generationModelExplicit: generationModel.explicit,
+        generationModelStatus: modelAvailability.status,
+        generationModelReason: modelAvailability.reason,
+        modelInventorySource: modelAvailability.inventorySource,
+        modelInventorySize: modelAvailability.inventorySize,
+        smartExtractionRequested,
+        smartExtractionActive: smartExtractor !== null,
+        smartExtractionDisabledReason: smartExtractor === null ? smartExtractionDisabledReason : undefined,
+        loadTimeNetwork: "none",
+        loadDurationMs: loadElapsedMs,
+        loadWarnAfterMs,
+        embeddingModel: config.embedding.model || "text-embedding-3-small",
+        embeddingProvider: config.embedding.provider || "openai-compatible",
+    };
+    api.logger.debug?.(`memory-lancedb-cip: load phase complete in ${loadElapsedMs}ms ` +
+        `(no network at load; store/embedder are lazy)`);
+    if (loadElapsedMs >= loadWarnAfterMs) {
+        api.logger.warn(`memory-lancedb-cip: load phase took ${loadElapsedMs}ms (threshold ${loadWarnAfterMs}ms); ` +
+            "set storage.loadWarnAfterMs to adjust the warning threshold");
+    }
     return {
         config,
         resolvedDbPath,
@@ -2093,6 +2166,7 @@ function _initPluginState(api) {
         captureReflectionAdmissionController,
         makeLaneLlmClient,
         admissionRejectionAuditWriter,
+        loadSafetyReport,
     };
 }
 export function isAgentOrSessionExcluded(agentId, sessionKey, patterns) {
@@ -2218,7 +2292,7 @@ const memoryLanceDBCipPlugin = {
             _registeredApisMap.delete(api); // dual-track rollback: Map un-claim
             throw err;
         }
-        const { config, resolvedDbPath, vectorDim, store, embedder, retriever, canonicalCorpusIndexer, dreamingEngine, dreamingScheduler, scopeManager, migrator, smartExtractor, manualEchoLedger, mdMirror, decayEngine, tierManager, extractionRateLimiter, reflectionErrorStateBySession, reflectionDerivedBySession, reflectionDerivedSuppressionBySession, reflectionByAgentCache, reflectionByAgentCacheGeneration, recallHistory, turnCounter, autoCaptureSeenTextCount, autoCapturePendingIngressTexts, autoCaptureCountedPendingCount, autoCaptureRecentTurns, autoCaptureDeferredFlushTurns, autoCaptureSessionIdToKey, autoCaptureInFlightRuns, captureAdmissionController, captureAdmissionAudit, captureReflectionAdmissionController, makeLaneLlmClient, admissionRejectionAuditWriter, } = singleton;
+        const { config, resolvedDbPath, vectorDim, store, embedder, retriever, canonicalCorpusIndexer, dreamingEngine, dreamingScheduler, scopeManager, migrator, smartExtractor, manualEchoLedger, mdMirror, decayEngine, tierManager, extractionRateLimiter, reflectionErrorStateBySession, reflectionDerivedBySession, reflectionDerivedSuppressionBySession, reflectionByAgentCache, reflectionByAgentCacheGeneration, recallHistory, turnCounter, autoCaptureSeenTextCount, autoCapturePendingIngressTexts, autoCaptureCountedPendingCount, autoCaptureRecentTurns, autoCaptureDeferredFlushTurns, autoCaptureSessionIdToKey, autoCaptureInFlightRuns, captureAdmissionController, captureAdmissionAudit, captureReflectionAdmissionController, makeLaneLlmClient, admissionRejectionAuditWriter, loadSafetyReport, } = singleton;
         const learnAutoCaptureSessionAlias = (sessionId, sessionKey) => {
             if (typeof sessionId !== "string" || !sessionId
                 || typeof sessionKey !== "string" || !sessionKey
@@ -2625,6 +2699,7 @@ const memoryLanceDBCipPlugin = {
             migrator,
             embedder,
             mdMirror,
+            loadSafety: loadSafetyReport,
             llmClient: smartExtractor ? (() => {
                 try {
                     const llmAuth = config.llm?.auth || "api-key";
@@ -5697,6 +5772,7 @@ export function parsePluginConfig(value) {
                 quarantineCorruptTable: typeof storageRaw.quarantineCorruptTable === "boolean"
                     ? storageRaw.quarantineCorruptTable
                     : undefined,
+                loadWarnAfterMs: parseNonNegativeInt(storageRaw.loadWarnAfterMs),
             }
             : undefined,
         autoCapture: cfg.autoCapture !== false,
@@ -5776,7 +5852,11 @@ export function parsePluginConfig(value) {
         decay: typeof cfg.decay === "object" && cfg.decay !== null ? cfg.decay : undefined,
         tier: typeof cfg.tier === "object" && cfg.tier !== null ? cfg.tier : undefined,
         // Smart extraction config (Phase 1)
-        smartExtraction: cfg.smartExtraction !== false, // Default ON
+        // v1.2.6 — BEHAVIOR CHANGE: smart extraction is opt-in (default OFF).
+        // Defaulting it ON shipped an LLM path that ran with a model the host did
+        // not have, blocking the main process on 30s timeouts. Opt in with
+        // smartExtraction: true (and a reachable llm.model).
+        smartExtraction: cfg.smartExtraction === true, // Default OFF (was: !== false)
         llm: llmRaw
             ? (() => {
                 const llm = { ...llmRaw };

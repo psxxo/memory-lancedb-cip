@@ -1183,7 +1183,17 @@ export class SmartExtractor {
             staticKeptIndices.push(inputIndex);
         }
         const noiseBank = this.config.noiseBank;
-        if (!noiseBank || !noiseBank.initialized) {
+        if (!noiseBank) {
+            return { texts: staticFiltered, keptIndices: staticKeptIndices };
+        }
+        // v1.2.6 — the bank is no longer warmed during register() (that issued
+        // network embedding calls at load). Initialize it lazily here, on the
+        // first extraction that actually needs it. Optional so the test doubles
+        // that pass a bare bank keep working.
+        if (typeof noiseBank.ensureInit === "function") {
+            await noiseBank.ensureInit(this.embedder);
+        }
+        if (!noiseBank.initialized) {
             return { texts: staticFiltered, keptIndices: staticKeptIndices };
         }
         // Partition: short/long texts bypass noise check; mid-length need embedding
@@ -1252,7 +1262,12 @@ export class SmartExtractor {
      */
     async learnAsNoise(conversationText) {
         const noiseBank = this.config.noiseBank;
-        if (!noiseBank || !noiseBank.initialized)
+        if (!noiseBank)
+            return;
+        if (typeof noiseBank.ensureInit === "function") {
+            await noiseBank.ensureInit(this.embedder);
+        }
+        if (!noiseBank.initialized)
             return;
         try {
             const tail = conversationText.slice(-300);

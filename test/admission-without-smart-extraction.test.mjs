@@ -52,12 +52,17 @@ function mockCreateEmbedder() {
   };
 }
 
-function createPluginApiHarness({ pluginConfig, resolveRoot }) {
+function createPluginApiHarness({ pluginConfig, resolveRoot, hostConfig }) {
   const eventHandlers = new Map();
   const logs = { info: [], warn: [], debug: [] };
 
   const api = {
     pluginConfig,
+    // v1.2.6 — smart extraction requires a CONFIRMED host model catalog. Give
+    // the harness one so the availability gate can confirm the effective model.
+    config: hostConfig ?? {
+      models: { providers: { openai: { models: [{ id: "gpt-oss-120b" }] } } },
+    },
     resolvePath(target) {
       if (typeof target !== "string") return target;
       if (path.isAbsolute(target)) return target;

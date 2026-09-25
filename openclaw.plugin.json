@@ -2,7 +2,7 @@
   "id": "memory-lancedb-cip",
   "name": "Memory (LanceDB CIP)",
   "description": "Enhanced LanceDB-backed long-term memory with hybrid retrieval, multi-scope isolation, long-context chunking, and management CLI",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "kind": "memory",
   "skills": [
     "./skills"
@@ -477,8 +477,8 @@
       },
       "smartExtraction": {
         "type": "boolean",
-        "default": true,
-        "description": "Enable LLM-powered memory extraction. Falls back to regex capture when false."
+        "default": false,
+        "description": "Enable LLM-powered memory extraction. Opt-in (default false); regex capture is used otherwise. When enabled, the plugin verifies the effective llm.model exists in the host model catalog and disables the feature (loudly, never calling the LLM) if it cannot be confirmed available."
       },
       "extractMinMessages": {
         "type": "integer",
@@ -1973,7 +1973,7 @@
     },
     "smartExtraction": {
       "label": "Smart Extraction",
-      "help": "Enable LLM-powered 6-category memory extraction. Falls back to regex capture when off."
+      "help": "Opt-in (default off): LLM-powered 6-category memory extraction. Falls back to regex capture when off. When on, the plugin refuses to run (no LLM call) unless the effective llm.model is confirmed present in this host's model catalog."
     },
     "llm.apiKey": {
       "label": "LLM API Key",

@@ -88,6 +88,8 @@ function createPluginApiHarness({ pluginConfig, resolveRoot }) {
 
   const api = {
     pluginConfig,
+    // v1.2.6 — smart extraction requires a CONFIRMED host model catalog.
+    config: { models: { providers: { test: { models: [{ id: "global-model" }] } } } },
     resolvePath(target) {
       if (typeof target !== "string") return target;
       if (path.isAbsolute(target)) return target;

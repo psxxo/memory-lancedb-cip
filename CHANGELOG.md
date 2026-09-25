@@ -1,3 +1,34 @@
+## 1.2.6
+
+**Behavior change — load-time safety.** A plugin installed into a host must never be
+able to wedge it at load time. Two real incident root causes are now structurally
+guarded: (1) a generation-LLM path that shipped ON by default with a model the host
+did not have (`openai/gpt-oss-120b`) and a 30s timeout, repeatedly blocking the main
+process, and (2) a load-time embedding warmup that issued network requests during
+`register()`.
+
+- **`smartExtraction` now defaults to `false` (opt-in).** This is a behavior change:
+  upgrading hosts keep regex capture until they explicitly set `smartExtraction: true`.
+  The old default shipped an LLM path that could block the main process on a model
+  the host did not serve.
+- **Generation-model availability gate with safe downgrade.** When smart extraction is
+  enabled, the effective `llm.model` (or the built-in default) is resolved and checked
+  against the HOST model inventory (`config.models.providers`, agent model bindings, and
+  any host runtime model catalog). If the model cannot be confirmed available — absent
+  from a confirmed catalog, provider missing, or the catalog unreadable — smart
+  extraction is disabled and a loud, actionable warning/error is logged. The LLM is
+  never called, and nothing hangs silently.
+- **Zero network at load.** `register()` / `_initPluginState` are synchronous and make
+  no outbound requests: the noise-prototype bank is now initialized lazily on first
+  extraction (`NoisePrototypeBank.ensureInit`) instead of warming up at load. The
+  `dist/` build ships this guarantee and `memory-cip doctor` reports it.
+- **Bounded + observable load.** The synchronous load phase is timed and logged, warns
+  when it exceeds `storage.loadWarnAfterMs` (default 2000ms), and reports the
+  network-at-load conclusion.
+- **`memory-cip doctor` additions.** Reports the embedding model/provider, the resolved
+  generation LLM and whether it is available, whether smart extraction is actually
+  active (with the reason when it is not), and the zero-network-at-load conclusion.
+
 ## 1.2.5
 
 Hang-hardening: a stuck memory store can no longer look like a dead process, and
