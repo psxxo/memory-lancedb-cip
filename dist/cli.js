@@ -342,6 +342,56 @@ function memoryTitle(memory) {
     }
     return `Memory ${memory.id}`;
 }
+// ── `import <file>` diagnostics ────────────────────────────────────────────
+// A malformed import file must produce a human-readable message and a non-zero
+// exit code, never a raw stack trace. These helpers own that reporting so the
+// command handler stays declarative.
+const IMPORT_EXPECTED_SHAPE = 'Invalid import file: expected {"version": number, "memories": [{ "text": string, ... }]}';
+const IMPORT_HELP_HINT = "See: openclaw memory-cip import --help";
+/** Thrown for user-facing import-file problems (no stack trace is printed). */
+class ImportFileError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "ImportFileError";
+    }
+}
+/** Describe a JSON value in prose for error messages ("an array", "null", ...). */
+function describeImportValue(value) {
+    if (value === null)
+        return "null";
+    if (Array.isArray(value))
+        return "an array";
+    const type = typeof value;
+    return type === "object" ? "an object" : `${type === "undefined" ? "undefined" : `a ${type}`}`;
+}
+/**
+ * Validate the top-level import envelope. Returns the `memories` array on
+ * success, or a human-readable `error` describing the shape that was found.
+ */
+function validateImportEnvelope(data) {
+    if (data === null) {
+        return { memories: [], error: "Found null instead of an object." };
+    }
+    if (Array.isArray(data)) {
+        return { memories: [], error: "Found top-level array." };
+    }
+    if (typeof data !== "object") {
+        return { memories: [], error: `Found top-level ${typeof data} instead of an object.` };
+    }
+    const envelope = data;
+    const version = envelope.version;
+    if (version !== undefined && typeof version !== "number" && typeof version !== "string") {
+        return { memories: [], error: `Found "version" of type ${typeof version} instead of a number.` };
+    }
+    const memories = envelope.memories;
+    if (memories === undefined) {
+        return { memories: [], error: 'Found an object without a "memories" array.' };
+    }
+    if (!Array.isArray(memories)) {
+        return { memories: [], error: `Found "memories" of type ${typeof memories} instead of an array.` };
+    }
+    return { memories };
+}
 function formatObsidianMemory(memory) {
     const created = memoryDate(memory);
     const title = memoryTitle(memory);
@@ -458,17 +508,39 @@ export async function runImportMarkdown(ctx, workspaceGlob, options) {
     }
     catch { /* use default */ }
     const fsPromises = await import("node:fs/promises");
-    // Scan workspace directories
-    let workspaceEntries;
-    try {
-        workspaceEntries = await fsPromises.readdir(workspaceDir, { withFileTypes: true });
+    // An explicit path to an existing Markdown file (e.g.
+    // `import-markdown /path/to/MEMORY.md`) imports exactly that file. Anything
+    // else (a bare workspace name, or a path that does not exist) keeps the
+    // workspace scan + glob behavior below.
+    let explicitMarkdownFile;
+    if (workspaceGlob && (/[/\\]/.test(workspaceGlob) || /\.md$/i.test(workspaceGlob))) {
+        try {
+            const candidate = path.resolve(workspaceGlob);
+            if ((await fsPromises.stat(candidate)).isFile()) {
+                explicitMarkdownFile = candidate;
+            }
+        }
+        catch { /* not an existing file — fall through to glob behavior */ }
     }
-    catch {
-        // [FIXED P1] Throw instead of process.exit(1) so CLI handler can catch it
-        throw new Error(`Failed to read workspace directory: ${workspaceDir}`);
+    // Scan workspace directories
+    let workspaceEntries = [];
+    if (!explicitMarkdownFile) {
+        try {
+            workspaceEntries = await fsPromises.readdir(workspaceDir, { withFileTypes: true });
+        }
+        catch {
+            // [FIXED P1] Throw instead of process.exit(1) so CLI handler can catch it
+            throw new Error(`Failed to read workspace directory: ${workspaceDir}`);
+        }
     }
     // Collect all markdown files to scan
     const mdFiles = [];
+    if (explicitMarkdownFile) {
+        mdFiles.push({
+            filePath: explicitMarkdownFile,
+            scope: options.scope || workspaceScope || "global",
+        });
+    }
     for (const entry of workspaceEntries) {
         if (!entry.isDirectory())
             continue;
@@ -1371,38 +1443,75 @@ export function registerMemoryCLI(program, context) {
     // Import memories
     memory
         .command("import <file>")
-        .description("Import memories from JSON file")
+        .description('Import memories from a JSON file ({"version": number, "memories": [{"text": string}]})')
         .option("--scope <scope>", "Import into specific scope")
         .option("--dry-run", "Show what would be imported without actually importing")
         .action(async (file, options) => {
         try {
             const fs = await import("node:fs/promises");
-            const content = await fs.readFile(file, "utf-8");
-            const data = JSON.parse(content);
-            if (!data.memories || !Array.isArray(data.memories)) {
-                throw new Error("Invalid import file format");
+            let content;
+            try {
+                content = await fs.readFile(file, "utf-8");
+            }
+            catch (readError) {
+                throw new ImportFileError(`Unable to read import file "${file}" (${readError.message}).`);
+            }
+            // Report the expected envelope and the shape actually found instead of
+            // letting JSON.parse / property access throw a raw stack trace.
+            let parsed;
+            try {
+                parsed = JSON.parse(content);
+            }
+            catch (parseError) {
+                throw new ImportFileError(`Found invalid JSON (${parseError.message}).`);
+            }
+            const envelope = validateImportEnvelope(parsed);
+            if (envelope.error) {
+                throw new ImportFileError(envelope.error);
+            }
+            const importMemories = envelope.memories;
+            if (importMemories.length === 0) {
+                console.log('Import file has an empty "memories" array; nothing to import.');
+                return;
             }
             if (options.dryRun) {
                 console.log("DRY RUN - No memories will be imported");
-                console.log(`Would import ${data.memories.length} memories`);
+                console.log(`Would import ${importMemories.length} memories`);
                 if (options.scope) {
                     console.log(`Target scope: ${options.scope}`);
                 }
                 return;
             }
-            console.log(`Importing ${data.memories.length} memories...`);
+            console.log(`Importing ${importMemories.length} memories...`);
             let imported = 0;
             let skipped = 0;
+            let invalidEntries = 0;
             if (!context.embedder) {
                 console.error("Import requires an embedder (not available in basic CLI mode).");
                 console.error("Use the plugin's memory_store tool or pass embedder to createMemoryCLI.");
                 return;
             }
             const targetScope = options.scope || context.scopeManager.getDefaultScope();
-            for (const memory of data.memories) {
+            for (const [index, rawMemory] of importMemories.entries()) {
                 try {
+                    // A non-object entry (null, string, nested array) used to reach
+                    // `memory.text` and throw inside the per-entry catch. Report it
+                    // explicitly so the skip is diagnosable from the output alone.
+                    if (rawMemory === null || typeof rawMemory !== "object" || Array.isArray(rawMemory)) {
+                        invalidEntries++;
+                        skipped++;
+                        console.warn(`  memories[${index}]: expected an object, found ${describeImportValue(rawMemory)}; skipped.`);
+                        continue;
+                    }
+                    const memory = rawMemory;
                     const text = memory.text;
-                    if (!text || typeof text !== "string" || text.length < 2) {
+                    if (typeof text !== "string" || text.trim().length === 0) {
+                        invalidEntries++;
+                        skipped++;
+                        console.warn(`  memories[${index}]: missing "text" (expected a non-empty string); skipped.`);
+                        continue;
+                    }
+                    if (text.length < 2) {
                         skipped++;
                         continue;
                     }
@@ -1478,9 +1587,19 @@ export function registerMemoryCLI(program, context) {
                     skipped++;
                 }
             }
-            console.log(`Import completed: ${imported} imported, ${skipped} skipped`);
+            console.log(`Import completed: ${imported} imported, ${skipped} skipped` +
+                (invalidEntries > 0
+                    ? ` (${invalidEntries} invalid entr${invalidEntries === 1 ? "y" : "ies"} skipped)`
+                    : ""));
         }
         catch (error) {
+            if (error instanceof ImportFileError) {
+                console.error(IMPORT_EXPECTED_SHAPE);
+                console.error(`${error.message} ${IMPORT_HELP_HINT}`);
+                // exitCode (not exit) so both stderr lines are fully flushed.
+                process.exitCode = 1;
+                return;
+            }
             console.error("Import failed:", error);
             process.exit(1);
         }
@@ -1491,7 +1610,8 @@ export function registerMemoryCLI(program, context) {
      */
     memory
         .command("import-markdown [workspace-glob]")
-        .description("Import memories from Markdown files (MEMORY.md, memory/YYYY-MM-DD.md) into the plugin store")
+        .description("Import memories from Markdown files (MEMORY.md, memory/YYYY-MM-DD.md) into the plugin store; " +
+        "pass the path to an existing .md file to import just that file")
         .option("--dry-run", "Show what would be imported without importing")
         .option("--scope <scope>", "Import into specific scope (default: auto-discovered from workspace)")
         .option("--openclaw-home <path>", "OpenClaw home directory (default: ~/.openclaw)")

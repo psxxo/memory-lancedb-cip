@@ -13,3 +13,5 @@ test/addressing-identity-regression.mjs
 tmp/
 validate-memory-lancedb-cip-pr/
 .venv-skill-tools
+
+reports/

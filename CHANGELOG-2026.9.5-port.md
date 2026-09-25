@@ -1,3 +1,14 @@
+## 1.2.4
+
+CLI robustness fixes:
+
+- `import <file>` now reports malformed import files in human-readable form
+  (`Invalid import file: expected {"version": number, "memories": [{ "text": string, ... }]}`)
+  and exits non-zero instead of printing a stack trace. Invalid array entries are skipped
+  with a per-index note.
+- `import-markdown` accepts an explicit Markdown file path in addition to a workspace glob.
+- Generated inspector reports are no longer tracked in the repository.
+
 ## 1.2.3
 
 Published as `@psxxo/lancedb-cip` (the previously used `@psxxo/lancedb-cip` name is soft-deleted on ClawHub).
