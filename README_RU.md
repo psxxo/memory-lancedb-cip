@@ -11,7 +11,7 @@
 Плагин долгосрочной памяти для OpenClaw на базе LanceDB, который сохраняет предпочтения, решения и контекст проекта, а затем автоматически вспоминает их в будущих сессиях.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@
 
 **Через OpenClaw CLI (рекомендуется):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **Или через npm:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > Если используете npm, вам также нужно добавить директорию установки плагина как **абсолютный** путь в `plugins.load.paths` вашего `openclaw.json`. Это самая частая проблема при настройке.
 
@@ -657,7 +657,7 @@ openclaw memory-cip migrate check|run|verify [--source /path]
 
 ## Бета: Smart Memory v1.1.0
 
-> Статус: Beta — доступно через `npm i @psxxo/memory-lancedb-cip`. Пользователи стабильного `latest` не затронуты.
+> Статус: Beta — доступно через `npm i @psxxo/lancedb-cip`. Пользователи стабильного `latest` не затронуты.
 
 | Возможность | Описание |
 |---------|-------------|
@@ -665,7 +665,7 @@ openclaw memory-cip migrate check|run|verify [--source /path]
 | **Оценка жизненного цикла** | Затухание Weibull встроено в поиск по памяти: записи с высокой частотой и важностью ранжируются выше. |
 | **Управление уровнями** | Трехуровневая система (Core → Working → Peripheral) с автоматическим повышением и понижением. |
 
-Обратная связь: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Откат: `npm i @psxxo/memory-lancedb-cip@latest`
+Обратная связь: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Откат: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

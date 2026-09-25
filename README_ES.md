@@ -11,7 +11,7 @@
 Un plugin de memoria para OpenClaw respaldado por LanceDB que almacena preferencias, decisiones y contexto de proyectos, y los recupera automáticamente en sesiones futuras.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@ Esa es la diferencia que hace un **Asistente de Memoria IA** — aprende tu esti
 
 **Mediante la CLI de OpenClaw (recomendado):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **O mediante npm:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > Si usas npm, también necesitarás agregar el directorio de instalación del plugin como una ruta **absoluta** en `plugins.load.paths` en tu `openclaw.json`. Este es el problema de configuración más común.
 
@@ -657,7 +657,7 @@ En LanceDB 0.26+, algunas columnas numéricas pueden devolverse como `BigInt`. A
 
 ## Beta: Smart Memory v1.1.0
 
-> Estado: Beta — disponible mediante `npm i @psxxo/memory-lancedb-cip`. Los usuarios estables en `latest` no se ven afectados.
+> Estado: Beta — disponible mediante `npm i @psxxo/lancedb-cip`. Los usuarios estables en `latest` no se ven afectados.
 
 | Característica | Descripción |
 |----------------|-------------|
@@ -665,7 +665,7 @@ En LanceDB 0.26+, algunas columnas numéricas pueden devolverse como `BigInt`. A
 | **Puntuación de Ciclo de Vida** | Decaimiento Weibull integrado en la recuperación — los recuerdos de alta frecuencia y alta importancia se clasifican mejor. |
 | **Gestión de Niveles** | Sistema de tres niveles (Core → Working → Peripheral) con promoción/degradación automática. |
 
-Comentarios: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Revertir: `npm i @psxxo/memory-lancedb-cip@latest`
+Comentarios: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Revertir: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

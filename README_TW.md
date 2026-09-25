@@ -11,7 +11,7 @@
 基於 LanceDB 的 OpenClaw 長期記憶外掛，自動儲存偏好、決策和專案上下文，在後續工作階段中自動回憶。
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@
 
 **透過 OpenClaw CLI（推薦）：**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **或透過 npm：**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > 如果用 npm 安裝，你還需要在 `openclaw.json` 的 `plugins.load.paths` 中新增外掛安裝目錄的 **絕對路徑**。這是最常見的安裝問題。
 
@@ -657,7 +657,7 @@ v1.1.0 常用 `metadata` 欄位：`l0_abstract`、`l1_overview`、`l2_content`�
 
 ## 測試版：智慧記憶 v1.1.0
 
-> 狀態：Beta（測試版）——透過 `npm i @psxxo/memory-lancedb-cip` 安裝。使用 `latest` 的穩定版使用者不受影響。
+> 狀態：Beta（測試版）——透過 `npm i @psxxo/lancedb-cip` 安裝。使用 `latest` 的穩定版使用者不受影響。
 
 | 功能 | 說明 |
 |------|------|
@@ -665,7 +665,7 @@ v1.1.0 常用 `metadata` 欄位：`l0_abstract`、`l1_overview`、`l2_content`�
 | **生命週期評分** | Weibull 衰減整合到檢索中——高頻和高重要性記憶排名更高。 |
 | **層級管理** | 三級系統（核心 → 工作 → 外圍），自動晉升/降級。 |
 
-回饋：[GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 回退：`npm i @psxxo/memory-lancedb-cip@latest`
+回饋：[GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 回退：`npm i @psxxo/lancedb-cip@latest`
 
 ---
 

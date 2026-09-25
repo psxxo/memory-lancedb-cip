@@ -1,6 +1,6 @@
 ## 1.2.3
 
-Published as `@psxxo/lancedb-cip` (the previously used `@psxxo/memory-lancedb-cip` name is soft-deleted on ClawHub).
+Published as `@psxxo/lancedb-cip` (the previously used `@psxxo/lancedb-cip` name is soft-deleted on ClawHub).
 
 Fixes two host-integration defects:
 
@@ -57,7 +57,7 @@ Rename release: this distribution is now `memory-lancedb-cip` / **Memory LanceDB
 
 - Plugin identity renamed end to end: manifest `id`/`name` (`memory-lancedb-cip` / `Memory (LanceDB CIP)`), the plugin `id` registered with the host, memory-capability `provider`/`custom.plugin` ids, hook `registrationId`s (`memory-lancedb-cip.*`), Redis/file lock key prefixes, the diagnostic build tag, and every log/error prefix.
 - **Default data path** is `~/.openclaw/memory/lancedb-cip`. The default OAuth token file lives at `~/.openclaw/.memory-lancedb-cip/oauth.json`.
-- Install/publish examples now name this fork's distribution package (`clawhub:@psxxo/memory-lancedb-cip`), not the upstream npm package.
+- Install/publish examples now name this fork's distribution package (`clawhub:@psxxo/lancedb-cip`), not the upstream npm package.
 - Attribution to the MIT-licensed original project by win4r (CortexReach) is preserved as a plain credit line in every README; all original-project URLs, issue/PR links, setup scripts and skill repositories have been removed from this fork.
 - **No migration is required**: this build has no historical installs, so no data-dir or config-key migration path is shipped. A fresh data directory is created on first start.
 

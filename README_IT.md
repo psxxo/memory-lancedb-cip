@@ -11,7 +11,7 @@
 Un plugin di memoria a lungo termine per OpenClaw basato su LanceDB che memorizza preferenze, decisioni e contesto di progetto, e li richiama automaticamente nelle sessioni future.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@ Questa è la differenza che fa un **Assistente Memoria IA** — impara il tuo st
 
 **Tramite OpenClaw CLI (consigliato):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **Oppure tramite npm:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > Se usi npm, dovrai anche aggiungere la directory di installazione del plugin come percorso **assoluto** in `plugins.load.paths` nel tuo `openclaw.json`. Questo è il problema di configurazione più comune.
 
@@ -657,7 +657,7 @@ Con LanceDB 0.26+, alcune colonne numeriche potrebbero essere restituite come `B
 
 ## Beta: Smart Memory v1.1.0
 
-> Stato: Beta — disponibile tramite `npm i @psxxo/memory-lancedb-cip`. Gli utenti stabili su `latest` non sono interessati.
+> Stato: Beta — disponibile tramite `npm i @psxxo/lancedb-cip`. Gli utenti stabili su `latest` non sono interessati.
 
 | Funzionalità | Descrizione |
 |---------|-------------|
@@ -665,7 +665,7 @@ Con LanceDB 0.26+, alcune colonne numeriche potrebbero essere restituite come `B
 | **Punteggio ciclo di vita** | Decadimento Weibull integrato nella ricerca — i ricordi frequenti e importanti si posizionano più in alto. |
 | **Gestione livelli** | Sistema a tre livelli (Core → Working → Peripheral) con promozione/retrocessione automatica. |
 
-Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Ripristina: `npm i @psxxo/memory-lancedb-cip@latest`
+Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Ripristina: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

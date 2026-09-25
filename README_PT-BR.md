@@ -11,7 +11,7 @@
 Um plugin de memória de longo prazo para OpenClaw baseado em LanceDB que armazena preferências, decisões e contexto de projetos, e os recupera automaticamente em sessões futuras.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@ Essa é a diferença que um **Assistente de Memória IA** faz — aprende seu es
 
 **Via OpenClaw CLI (recomendado):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **Ou via npm:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > Se usar npm, você também precisará adicionar o diretório de instalação do plugin como caminho **absoluto** em `plugins.load.paths` no seu `openclaw.json`. Este é o problema de configuração mais comum.
 
@@ -657,7 +657,7 @@ No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`.
 
 ## Beta: Smart Memory v1.1.0
 
-> Status: Beta — disponível via `npm i @psxxo/memory-lancedb-cip`. Usuários estáveis no `latest` não são afetados.
+> Status: Beta — disponível via `npm i @psxxo/lancedb-cip`. Usuários estáveis no `latest` não são afetados.
 
 | Funcionalidade | Descrição |
 |---------|-------------|
@@ -665,7 +665,7 @@ No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`.
 | **Pontuação do ciclo de vida** | Decaimento Weibull integrado à busca — memórias frequentes e importantes ficam mais bem ranqueadas. |
 | **Gerenciamento de níveis** | Sistema de três níveis (Core → Working → Peripheral) com promoção/rebaixamento automático. |
 
-Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Reverter: `npm i @psxxo/memory-lancedb-cip@latest`
+Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Reverter: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

@@ -11,7 +11,7 @@
 LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思決定・プロジェクトコンテキストを自動保存し、将来のセッションで自動的に想起します。
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 
 **OpenClaw CLI 経由（推奨）：**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **または npm 経由：**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > npm を使用する場合、`openclaw.json` の `plugins.load.paths` にプラグインのインストールディレクトリの **絶対パス** を追加する必要があります。これが最も一般的なセットアップの問題です。
 
@@ -657,7 +657,7 @@ LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返され�
 
 ## Beta：スマートメモリ v1.1.0
 
-> ステータス：Beta——`npm i @psxxo/memory-lancedb-cip` でインストール可能。`latest` を使用している安定版ユーザーには影響しません。
+> ステータス：Beta——`npm i @psxxo/lancedb-cip` でインストール可能。`latest` を使用している安定版ユーザーには影響しません。
 
 | 機能 | 説明 |
 |---------|-------------|
@@ -665,7 +665,7 @@ LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返され�
 | **ライフサイクルスコアリング** | Weibull 減衰を検索に統合——高頻度・高重要度のメモリが上位にランク。 |
 | **階層管理** | 3段階システム（コア → ワーキング → 周辺）、自動昇格/降格。 |
 
-フィードバック：[GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 元に戻す：`npm i @psxxo/memory-lancedb-cip@latest`
+フィードバック：[GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 元に戻す：`npm i @psxxo/lancedb-cip@latest`
 
 ---
 

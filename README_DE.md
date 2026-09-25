@@ -11,7 +11,7 @@
 Ein LanceDB-basiertes OpenClaw-Langzeitgedächtnis-Plugin, das Präferenzen, Entscheidungen und Projektkontext speichert und in zukünftigen Sitzungen automatisch abruft.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@ Das ist der Unterschied, den ein **KI-Gedächtnisassistent** macht — er lernt 
 
 **Über OpenClaw CLI (empfohlen):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **Oder über npm:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > Bei npm-Installation müssen Sie auch das Plugin-Installationsverzeichnis als **absoluten** Pfad in `plugins.load.paths` Ihrer `openclaw.json` hinzufügen. Dies ist das häufigste Einrichtungsproblem.
 
@@ -657,7 +657,7 @@ Bei LanceDB 0.26+ können einige numerische Spalten als `BigInt` zurückgegeben 
 
 ## Beta: Smart Memory v1.1.0
 
-> Status: Beta — verfügbar über `npm i @psxxo/memory-lancedb-cip`. Stabile Benutzer auf `latest` sind nicht betroffen.
+> Status: Beta — verfügbar über `npm i @psxxo/lancedb-cip`. Stabile Benutzer auf `latest` sind nicht betroffen.
 
 | Funktion | Beschreibung |
 |---------|-------------|
@@ -665,7 +665,7 @@ Bei LanceDB 0.26+ können einige numerische Spalten als `BigInt` zurückgegeben 
 | **Lebenszyklus-Scoring** | Weibull-Zerfall in die Suche integriert — häufige und wichtige Erinnerungen ranken höher. |
 | **Stufenverwaltung** | Dreistufiges System (Core → Working → Peripheral) mit automatischer Beförderung/Herabstufung. |
 
-Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Zurücksetzen: `npm i @psxxo/memory-lancedb-cip@latest`
+Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Zurücksetzen: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

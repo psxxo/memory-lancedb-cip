@@ -11,7 +11,7 @@
 LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의사결정·프로젝트 맥락을 저장하고 이후 세션에서 자동으로 불러옵니다.
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -70,12 +70,12 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 **OpenClaw CLI를 통한 설치 (권장):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **또는 npm을 통한 설치:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > npm을 사용하는 경우, `openclaw.json`의 `plugins.load.paths`에 플러그인 설치 디렉터리의 **절대** 경로를 추가해야 합니다. 이것이 가장 흔한 설정 문제입니다.
 
@@ -657,7 +657,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 
 ## 베타: Smart Memory v1.1.0
 
-> 상태: 베타 — `npm i @psxxo/memory-lancedb-cip`로 사용 가능. `latest`를 사용하는 안정 버전 사용자는 영향 없음.
+> 상태: 베타 — `npm i @psxxo/lancedb-cip`로 사용 가능. `latest`를 사용하는 안정 버전 사용자는 영향 없음.
 
 | 기능 | 설명 |
 |---------|-------------|
@@ -665,7 +665,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 | **라이프사이클 스코어링** | 검색에 Weibull 감쇠 통합 — 높은 빈도와 높은 중요도의 기억이 상위에 랭크. |
 | **단계 관리** | 3단계 시스템 (Core → Working → Peripheral), 자동 승격/강등. |
 
-피드백: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 되돌리기: `npm i @psxxo/memory-lancedb-cip@latest`
+피드백: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · 되돌리기: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

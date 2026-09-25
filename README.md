@@ -12,7 +12,7 @@ A LanceDB-backed OpenClaw memory plugin that stores preferences, decisions, and 
 
 [![OpenClaw Plugin](https://img.shields.io/badge/OpenClaw-Plugin-blue)](https://github.com/openclaw/openclaw)
 [![OpenClaw 2026.3+](https://img.shields.io/badge/OpenClaw-2026.3%2B-brightgreen)](https://github.com/openclaw/openclaw)
-[![npm version](https://img.shields.io/npm/v/@psxxo/memory-lancedb-cip)](https://www.npmjs.com/package/@psxxo/memory-lancedb-cip)
+[![npm version](https://img.shields.io/npm/v/@psxxo/lancedb-cip)](https://www.npmjs.com/package/@psxxo/lancedb-cip)
 [![LanceDB](https://img.shields.io/badge/LanceDB-Vectorstore-orange)](https://lancedb.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 <h2>⚡ v1.1.0-beta.10 — OpenClaw 2026.3+ Hook Adaptation</h2>
@@ -79,12 +79,12 @@ That's the difference an **AI Memory Assistant** makes — it learns your style,
 
 **Via OpenClaw CLI (recommended):**
 ```bash
-openclaw plugins install clawhub:@psxxo/memory-lancedb-cip
+openclaw plugins install clawhub:@psxxo/lancedb-cip
 ```
 
 **Or via npm:**
 ```bash
-npm i @psxxo/memory-lancedb-cip
+npm i @psxxo/lancedb-cip
 ```
 > If using npm, you will also need to add the plugin's install directory as an **absolute** path in `plugins.load.paths` in your `openclaw.json`. This is the most common setup issue.
 
@@ -955,7 +955,7 @@ openclaw doctor --fix # resolve any stale config after upgrade
 
 ## Beta: Smart Memory v1.1.0
 
-> Status: Beta — available via `npm i @psxxo/memory-lancedb-cip`. Stable users on `latest` are not affected.
+> Status: Beta — available via `npm i @psxxo/lancedb-cip`. Stable users on `latest` are not affected.
 
 | Feature | Description |
 |---------|-------------|
@@ -963,7 +963,7 @@ openclaw doctor --fix # resolve any stale config after upgrade
 | **Lifecycle Scoring** | Weibull decay integrated into retrieval — high-frequency and high-importance memories rank higher. |
 | **Tier Management** | Three-tier system (Core → Working → Peripheral) with automatic promotion/demotion. |
 
-Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Revert: `npm i @psxxo/memory-lancedb-cip@latest`
+Feedback: [GitHub Issues](https://github.com/psxxo/memory-lancedb-cip/issues) · Revert: `npm i @psxxo/lancedb-cip@latest`
 
 ---
 

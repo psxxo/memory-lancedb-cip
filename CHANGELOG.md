@@ -1,6 +1,6 @@
 ## 1.2.3
 
-Published as `@psxxo/lancedb-cip` (the previously used `@psxxo/memory-lancedb-cip` name is soft-deleted on ClawHub).
+Published as `@psxxo/lancedb-cip` (the previously used `@psxxo/lancedb-cip` name is soft-deleted on ClawHub).
 
 Fixes two host-integration defects:
 
