@@ -19,6 +19,3 @@ to OpenClaw **2026.9.5** and replaces the previous compatibility shims with the 
 ## 1.1.2
 - Removed the unsupported top-level `hooks` field from `openclaw.plugin.json` (ClawHub `manifest-unknown-fields`). Conversation hook access is granted where the host reads it: `plugins.entries.<id>.hooks.allowConversationAccess` in `openclaw.json`.
 - Added `assets/icon.png` (256x256 PNG) for ClawHub catalog artwork and included `assets/**` in the published files.
-
-## 1.1.3
-- Same content as the aborted 1.1.2 submission (its server-side upload failed with an OOM, leaving a version stub): manifest without the unsupported top-level `hooks`, `assets/icon.png` catalog artwork.
