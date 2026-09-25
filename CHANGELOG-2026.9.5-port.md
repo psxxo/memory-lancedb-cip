@@ -1,3 +1,7 @@
+## 1.2.1
+
+Same content as the aborted 1.2.0 submission (its server-side upload failed; 1.2.1 is the publishable release).
+
 ## 1.2.0
 
 Full rename to **Memory LanceDB CIP** (`memory-lancedb-cip`):
