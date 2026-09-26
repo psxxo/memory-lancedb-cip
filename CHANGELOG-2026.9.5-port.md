@@ -1,3 +1,15 @@
+## 1.2.8
+
+**Memory-runtime provenance contract.** The memory capability runtime now exposes
+`classifyWorkspaceMemoryPaths(params)` and `supportsWorkspaceMemoryReadSources`, so the host
+upholds `MEMORY.md` / `USER.md` as automatically injectable memory context (see
+`CHANGELOG.md` for the full entry).
+
+## 1.2.7
+
+**Category taxonomy alignment.** One 10-category vocabulary, identity storage mapping, and
+the `import --unknown` / `--category-map` policy (see `CHANGELOG.md` for the full entry).
+
 ## 1.2.6
 
 **Behavior change — load-time safety.** A plugin installed into a host must never be
