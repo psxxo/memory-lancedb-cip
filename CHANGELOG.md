@@ -1,3 +1,23 @@
+## 1.2.8
+
+**Memory-runtime provenance contract.** The host excludes `MEMORY.md` / `USER.md` from the
+automatic memory context unless the selected memory runtime can classify the provenance of
+workspace memory paths. This release implements that contract.
+
+- **`classifyWorkspaceMemoryPaths(params)`** on the memory capability runtime: returns
+  `{ relativePath, originClass }` for every requested path, in order, and never throws
+  (a per-path failure degrades to `untrusted`).
+- **`supportsWorkspaceMemoryReadSources: true`**: accepted when the host resolves paths
+  through restricted workspace read sources; classification is then driven only by the
+  matching `canonicalRelativePath` (validated strictly; missing/invalid entry → `untrusted`).
+- **Classification:** `USER.md` → `owner`; `MEMORY.md` / `memory.md` → `agent`;
+  `memory/**` (daily notes, `memory/dreaming/**`, `.dreams`, short-term promotion) → `agent`;
+  any other root file, unreadable path, path outside the workspace, or a non-normalized /
+  absolute / backslash path → `untrusted` (unchanged safe behaviour).
+- Effect: `MEMORY.md` / `USER.md` become eligible for automatic prompt injection and the
+  host warning `excluding automatic memory context: selected memory runtime does not support
+  provenance classification` disappears.
+
 ## 1.2.7
 
 **Category taxonomy alignment — one vocabulary, no silent coercion.** The store no longer
