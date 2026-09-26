@@ -574,13 +574,36 @@ openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
-openclaw memory-cip import memories.json [--scope global] [--dry-run]
+openclaw memory-cip import memories.json [--scope global] [--dry-run] [--unknown reject|other|<canonical>] [--category-map map.json]
 openclaw memory-cip reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
 openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
 `--category` 接受规范 10 类（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`）以及输入别名（`preference` / `entity` / `event` / `case` / `pattern`）。未知取值会被拒绝并返回校验错误，不会静默回退到 `patterns` 或 `other`。
+
+**`import` 分类策略（绝不静默强转）。** 每一行的分类按以下顺序解析：
+
+1. **规范类别名精确匹配** —— 原样存储；
+2. **内置别名**（`preference` → `preferences`、`entity` → `entities`、`event` → `events`、`case` → `cases`、`pattern` → `patterns`）；
+3. **`--category-map <file>`** —— 一个 JSON 对象，把任意输入名映射到规范类别，例如 `{"lemmas":"cases"}`；
+4. **`--unknown <policy>`** —— 决定剩下未能识别的名称：
+   - `reject`（**默认**）：跳过该行，并逐行打印包含规范类别名的警告；
+   - `other`：存为 `other`，且仅因操作者明确要求；
+   - 任意规范类别名：存为该类别。
+
+每一步决定都会逐行报告；`--dry-run` 会在写入任何内容前打印完整的解析方案（请求值 → `canonical` / `aliased` / `mapped` / `other` / `rejected` → 最终类别），以便安全地反复调整策略。`--unknown` 取值无法识别、或 `--category-map` 的值不是规范类别/别名时，命令直接失败，不会导入任何数据。
+
+```bash
+# 预览每一行的分类解析结果（不写入任何数据）
+openclaw memory-cip import memories.json --dry-run
+
+# 显式路由两个已知的非规范名，其余一律拒绝
+openclaw memory-cip import memories.json --category-map map.json --unknown reject
+
+# 同上，但把其他未识别的名称显式落到 other
+openclaw memory-cip import memories.json --unknown other
+```
 
 OAuth 登录流程：
 

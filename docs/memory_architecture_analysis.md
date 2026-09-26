@@ -300,6 +300,17 @@ texts
 `decision` / `fact` / `reflection` / `other` 本身就是规范名。未知名称会被
 **拒绝**（Tool / CLI 返回校验错误），绝不会静默回退到 `patterns` 或 `other`。
 
+### import 的分类解析顺序（操作者可控）
+
+`memory-cip import` 是唯一允许操作者对“未识别名称”显式选择落点的地方。每一行按以下顺序解析：
+
+1. **规范类别名精确匹配** —— 原样存储；
+2. **内置别名** —— 折叠到对应规范复数形式；
+3. **`--category-map <file>`** —— JSON 对象，把任意输入名映射为规范类别（例如 `{"lemmas":"cases"}`）；
+4. **`--unknown <policy>`** —— 决定其余未识别名称：`reject`（**默认**，跳过该行并逐行警告）、`other`（仅因操作者明确要求而存为 `other`）、或某个规范类别名（存为该类别）。
+
+`--dry-run` 会为每一行打印解析方案（请求值 → `canonical` / `aliased` / `mapped` / `other` / `rejected` → 最终类别），写入前可见，便于反复调整；任何一层都不会静默强转。`--unknown` 取值非法或 `--category-map` 的值不是规范类别/别名时，命令直接失败、不导入任何数据。Tool 路径（`memory_store` / `memory_update`）保持**一律拒绝**未知名称，并在错误信息中同时列出 10 个规范类别与 5 个可接受别名。
+
 ### 行为矩阵
 
 | 规范类别 | 合并策略 | 时间线 | 持久性 | 备注 |

@@ -382,7 +382,7 @@ Query → BM25 FTS ─────┘
 
 ### Smart Memory Extraction (v1.1.0)
 
-- **LLM-Powered 10-Category Extraction**: `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` — one single vocabulary; the canonical name is what gets stored in the `category` column. Singular aliases (`preference`, `entity`, `event`, `case`, `pattern`) are accepted on input, and unknown names are rejected.
+- **LLM-Powered 10-Category Extraction**: `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` — one single vocabulary; the canonical name is what gets stored in the `category` column. Singular aliases (`preference`, `entity`, `event`, `case`, `pattern`) are accepted on input, and unknown names are rejected. For JSON imports, an operator can set an explicit policy for unknown names (`--unknown reject|other|<canonical>`, default `reject`) and map arbitrary input names to canonical categories (`--category-map`).
 - **L0/L1/L2 Layered Storage**: L0 (one-sentence index) → L1 (structured summary) → L2 (full narrative)
 - **Two-Stage Dedup**: vector similarity pre-filter (≥0.7) → LLM semantic decision (CREATE/MERGE/SKIP)
 - **Category-Aware Merge**: `profile` always merges; `preferences` / `entities` / `patterns` / `fact` / `reflection` merge when duplicates are detected; `events` / `cases` / `decision` are append-only (never merged)
@@ -684,13 +684,36 @@ openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
-openclaw memory-cip import memories.json [--scope global] [--dry-run]
+openclaw memory-cip import memories.json [--scope global] [--dry-run] [--unknown reject|other|<canonical>] [--category-map map.json]
 openclaw memory-cip reembed --source-db /path/to/old-db [--batch-size 32] [--skip-existing]
 openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
 `--category` accepts the canonical 10 categories (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`) plus the input aliases (`preference` / `entity` / `event` / `case` / `pattern`). Unknown values are rejected with a validation error rather than silently falling back to `patterns` or `other`.
+
+**`import` category policy (nothing is ever silently coerced).** For each row, the category is resolved in this order:
+
+1. **exact canonical name** — stored verbatim;
+2. **built-in alias** (`preference` → `preferences`, `entity` → `entities`, `event` → `events`, `case` → `cases`, `pattern` → `patterns`);
+3. **`--category-map <file>`** — a JSON object mapping arbitrary input names to canonical categories, e.g. `{"lemmas":"cases"}`;
+4. **`--unknown <policy>`** — decides the remaining, unrecognized names:
+   - `reject` (**default**): skip the row and print a per-row warning that lists the canonical names;
+   - `other`: store the row as `other`, only because the operator explicitly asked;
+   - any canonical category name: store the row as that category.
+
+Every decision is reported per row, and `--dry-run` prints the full resolution plan (`requested` value → `canonical` / `aliased` / `mapped` / `other` / `rejected` → resulting category) before anything is written, so the policy can be iterated safely. An unrecognized `--unknown` value or a `--category-map` value that is not a canonical category/alias fails the command instead of importing anything.
+
+```bash
+# Preview how each row's category would resolve; stores nothing.
+openclaw memory-cip import memories.json --dry-run
+
+# Route the two known non-canonical names explicitly, reject everything else.
+openclaw memory-cip import memories.json --category-map map.json --unknown reject
+
+# Same, but land any other unrecognized name in "other" (explicitly).
+openclaw memory-cip import memories.json --unknown other
+```
 
 OAuth login flow:
 
