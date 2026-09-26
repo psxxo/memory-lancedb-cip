@@ -441,7 +441,7 @@ describe("batched prompt slot conformance (system = static, user = per-call data
     assertSlotSplit(prompt, {
       staticSentinels: [
         "You are a memory admission judge.",
-        "The memory system stores six categories:",
+        "The memory system stores ten categories:",
         "Score each candidate's future usefulness independently",
         "--- EXAMPLE (not your current batch) ---",
         "Return JSON only (the raw object, no markdown code fences), with exactly one entry per candidate",
@@ -459,7 +459,7 @@ describe("batched prompt slot conformance (system = static, user = per-call data
     assertSlotSplit(prompt, {
       staticSentinels: [
         "You are a memory dedup judge.",
-        "The memory system stores six categories:",
+        "The memory system stores ten categories:",
         "- SKIP: Candidate memory duplicates existing memories",
         "IMPORTANT:",
         "Return JSON only (the raw object, no markdown code fences), with exactly one entry per candidate",
@@ -482,7 +482,7 @@ describe("batched prompt slot conformance (system = static, user = per-call data
     assertSlotSplit(prompt, {
       staticSentinels: [
         "You are a memory merge writer.",
-        "The memory system stores six categories:",
+        "The memory system stores ten categories:",
         "Requirements:",
         "Return JSON only (the raw object, no markdown code fences), with exactly one entry per job",
       ],

@@ -174,6 +174,22 @@ export const DURABLE_CATEGORIES = new Set<MemoryCategory>([
  */
 export const FICTION_JUDGED_CATEGORIES = new Set<MemoryCategory>(["events"]);
 
+/**
+ * Durable categories that an in-fiction batch drops outright.
+ *
+ * Fiction-judged categories ("events") are durable too, but they are NOT
+ * dropped by the register rule: an event may be a TRUE assertion ABOUT a
+ * fiction session ("we played for three hours"), so it survives only on a
+ * positive grounding-judge confirmation — the same fail-closed gate an
+ * ambiguous category gets. Every other durable category is dropped
+ * unconditionally in a fiction-register batch.
+ */
+export const FICTION_UNCONDITIONAL_DROP_CATEGORIES = new Set<MemoryCategory>(
+  [...DURABLE_CATEGORIES].filter(
+    (category) => !FICTION_JUDGED_CATEGORIES.has(category),
+  ),
+);
+
 /** Register strictness ordering; a rejudge verdict may tighten, never relax, on partial coverage. */
 export const REGISTER_STRICTNESS: Record<ConversationRegister, number> = {
   real: 0,
