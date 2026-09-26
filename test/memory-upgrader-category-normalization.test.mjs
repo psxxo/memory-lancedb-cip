@@ -13,11 +13,21 @@ Module._initPaths();
 const jiti = jitiFactory(import.meta.url, { interopDefault: true });
 const { createMemoryUpgrader } = jiti("../src/memory-upgrader.ts");
 
+// Canonical storage column for each mapped kind. `user-model` -> preferences,
+// `agent-model` -> patterns, `lesson`/`decision` -> cases (plan B identity
+// storage map).
+const CANONICAL_COLUMN = {
+  "user-model": "preferences",
+  "agent-model": "patterns",
+  lesson: "cases",
+  decision: "cases",
+};
+
 function mappedRow(id, mappedKind, overrides = {}) {
   return {
     id,
     text: `${mappedKind} row ${id}`,
-    category: mappedKind === "decision" ? "decision" : mappedKind === "lesson" ? "fact" : "preference",
+    category: overrides.category ?? CANONICAL_COLUMN[mappedKind],
     scope: "global",
     importance: 0.8,
     timestamp: Date.now(),
@@ -195,12 +205,12 @@ describe("memory-cip upgrade: mapped-row category normalization", () => {
     );
   });
 
-  it("repairs a six-category value left in the storage column even when the stamp is already correct", async () => {
-    // Pre-contract-fix builds wrote the six-category vocabulary straight into
-    // the legacy-typed column. The backfill must move the column back to the
-    // legacy storage vocabulary while keeping the stamp.
+  it("repairs a non-canonical value left in the storage column even when the stamp is already correct", async () => {
+    // The canonical storage column already carries "patterns"; a row whose
+    // column still holds some other value must be brought back in line with
+    // the stamp while the stamp itself stays untouched.
     const row = mappedRow("agent-model-sixcat", "agent-model", { memory_category: "patterns" });
-    row.category = "patterns";
+    row.category = "fact";
     const store = makeStore([row]);
     const upgrader = createMemoryUpgrader(store, null, { log: () => {} });
 
@@ -208,8 +218,8 @@ describe("memory-cip upgrade: mapped-row category normalization", () => {
 
     assert.equal(result.normalized, 1);
     assert.equal(store.updates.length, 1);
-    assert.equal(store.updates[0].patch.category, "other");
-    assert.equal(row.category, "other");
+    assert.equal(store.updates[0].patch.category, "patterns");
+    assert.equal(row.category, "patterns");
     assert.equal(JSON.parse(row.metadata).memory_category, "patterns");
   });
 

@@ -151,9 +151,14 @@ describe("category filter normalization", () => {
   it("maps legacy singular category filters to smart-extractor categories", () => {
     assert.equal(normalizeCategory("preference"), "preferences");
     assert.equal(normalizeCategory("entity"), "entities");
+    assert.equal(normalizeCategory("decision"), "decision");
+    assert.equal(normalizeCategory("fact"), "fact");
+    assert.equal(normalizeCategory("not-a-category"), null);
     assert.equal(matchesMemoryCategoryFilter("preferences", "preference"), true);
     assert.equal(matchesMemoryCategoryFilter("preference", "preferences"), true);
     assert.equal(matchesMemoryCategoryFilter("other", "preferences"), false);
+    // An unknown filter matches nothing instead of silently matching a fallback.
+    assert.equal(matchesMemoryCategoryFilter("preferences", "not-a-category"), false);
     assert.deepEqual(
       resolveCategoryFilterCandidates("preference"),
       ["preference", "preferences"],
@@ -261,13 +266,14 @@ describe("category filter normalization", () => {
       assert.deepEqual(profile.map((entry) => entry.text), [
         "Profile: Alice is the release owner",
       ]);
-      assert.equal(profile[0].category, "fact");
+      // Plan B: the storage column holds the canonical name itself.
+      assert.equal(profile[0].category, "profile");
       assert.equal(parseSmartMetadata(profile[0].metadata, profile[0]).memory_category, "profile");
 
       assert.deepEqual(cases.map((entry) => entry.text), [
         "Case: postgres outage runbook",
       ]);
-      assert.equal(cases[0].category, "fact");
+      assert.equal(cases[0].category, "cases");
       assert.equal(parseSmartMetadata(cases[0].metadata, cases[0]).memory_category, "cases");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
@@ -287,12 +293,12 @@ describe("category filter normalization", () => {
       await store.store({
         text: profileText,
         vector: makeVector(profileText),
-        category: "fact",
+        category: "profile",
         scope: "global",
         importance: 0.9,
         metadata: stringifySmartMetadata(
           buildSmartMetadata(
-            { text: profileText, category: "fact", importance: 0.9 },
+            { text: profileText, category: "profile", importance: 0.9 },
             { memory_category: "profile", l0_abstract: profileText },
           ),
         ),
@@ -300,12 +306,12 @@ describe("category filter normalization", () => {
       await store.store({
         text: caseText,
         vector: makeVector(caseText),
-        category: "fact",
+        category: "cases",
         scope: "global",
         importance: 0.7,
         metadata: stringifySmartMetadata(
           buildSmartMetadata(
-            { text: caseText, category: "fact", importance: 0.7 },
+            { text: caseText, category: "cases", importance: 0.7 },
             { memory_category: "cases", l0_abstract: caseText },
           ),
         ),
@@ -344,11 +350,11 @@ describe("category filter normalization", () => {
       });
 
       assert.equal(result.details.category, "events");
-      assert.equal(result.details.rawCategory, "decision");
+      assert.equal(result.details.rawCategory, "events");
 
       const entries = await store.list(["global"], "events", 10, 0);
       assert.equal(entries.length, 1);
-      assert.equal(entries[0].category, "decision");
+      assert.equal(entries[0].category, "events");
       assert.equal(parseSmartMetadata(entries[0].metadata, entries[0]).memory_category, "events");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
@@ -367,12 +373,12 @@ describe("category filter normalization", () => {
       const entry = await store.store({
         text,
         vector: makeVector(text),
-        category: "fact",
+        category: "cases",
         scope: "global",
         importance: 0.7,
         metadata: stringifySmartMetadata(
           buildSmartMetadata(
-            { text, category: "fact", importance: 0.7 },
+            { text, category: "cases", importance: 0.7 },
             { memory_category: "cases", l0_abstract: text },
           ),
         ),
@@ -386,7 +392,7 @@ describe("category filter normalization", () => {
 
       assert.equal(result.details.action, "updated");
       const updated = await store.getById(entry.id, ["global"]);
-      assert.equal(updated.category, "decision");
+      assert.equal(updated.category, "events");
       assert.equal(parseSmartMetadata(updated.metadata, updated).memory_category, "events");
       assert.deepEqual((await store.list(["global"], "events", 10, 0)).map((e) => e.id), [entry.id]);
       assert.deepEqual(await store.list(["global"], "cases", 10, 0), []);

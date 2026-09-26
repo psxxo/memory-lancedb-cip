@@ -104,23 +104,35 @@ describe("reflection-mapped write-time memory_category stamping", () => {
 });
 
 describe("reflection-mapped storage-column vocabulary contract", () => {
-  it("derives the stored category column in the legacy storage vocabulary for every kind", () => {
-    // entry.category speaks the legacy storage vocabulary; the six-category
-    // taxonomy value lives only in metadata.memory_category. These pins go
-    // through the central smart-to-storage mapping, so a table change upstream
-    // fails loudly here instead of silently shifting stored vocabularies.
-    assert.equal(getReflectionMappedStorageCategory("user-model"), "preference");
-    assert.equal(getReflectionMappedStorageCategory("agent-model"), "other");
-    assert.equal(getReflectionMappedStorageCategory("lesson"), "fact");
-    assert.equal(getReflectionMappedStorageCategory("decision"), "fact");
+  it("derives the stored category column as the canonical memory category for every kind", () => {
+    // Single canonical vocabulary: the column holds the canonical name (the
+    // smart-to-storage map is the identity), so it equals the stamped
+    // memory_category for the kind. These pins go through the central mapping,
+    // so a table change upstream fails loudly here instead of silently
+    // shifting stored vocabularies.
+    assert.equal(getReflectionMappedStorageCategory("user-model"), "preferences");
+    assert.equal(getReflectionMappedStorageCategory("agent-model"), "patterns");
+    assert.equal(getReflectionMappedStorageCategory("lesson"), "cases");
+    assert.equal(getReflectionMappedStorageCategory("decision"), "cases");
   });
 
-  it("never emits a six-category value for the column", () => {
-    const SIX = ["profile", "preferences", "entities", "events", "cases", "patterns"];
+  it("emits only canonical categories for the column", () => {
+    const CANONICAL = [
+      "profile",
+      "preferences",
+      "entities",
+      "events",
+      "cases",
+      "patterns",
+      "decision",
+      "fact",
+      "reflection",
+      "other",
+    ];
     for (const kind of ["user-model", "agent-model", "lesson", "decision"]) {
       assert.ok(
-        !SIX.includes(getReflectionMappedStorageCategory(kind)),
-        `storage category for ${kind} must be legacy vocabulary`,
+        CANONICAL.includes(getReflectionMappedStorageCategory(kind)),
+        `storage category for ${kind} must be a canonical category`,
       );
     }
   });

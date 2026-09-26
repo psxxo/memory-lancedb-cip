@@ -168,12 +168,12 @@ async function runTests() {
     const entry1 = await store.store({
       text: origText,
       vector: makeVector(1),
-      category: "fact",
+      category: "cases",
       scope: "test",
       importance: 0.6,
       metadata: stringifySmartMetadata(
         buildSmartMetadata(
-          { text: origText, category: "fact", importance: 0.6 },
+          { text: origText, category: "cases", importance: 0.6 },
           {
             l0_abstract: origText,
             l1_overview: "- tech conference 2026",
@@ -212,12 +212,12 @@ async function runTests() {
     const entry2 = await store.store({
       text: origText2,
       vector: makeVector(3),
-      category: "fact",
+      category: "cases",
       scope: "test",
       importance: 0.7,
       metadata: stringifySmartMetadata(
         buildSmartMetadata(
-          { text: origText2, category: "fact", importance: 0.7 },
+          { text: origText2, category: "cases", importance: 0.7 },
           {
             l0_abstract: origText2,
             l1_overview: `- ${origText2}`,
@@ -264,12 +264,12 @@ async function runTests() {
     const entry3 = await store.store({
       text: origText3,
       vector: makeVector(5),
-      category: "fact",
+      category: "cases",
       scope: "test",
       importance: 0.5,
       metadata: stringifySmartMetadata(
         buildSmartMetadata(
-          { text: origText3, category: "fact", importance: 0.5 },
+          { text: origText3, category: "cases", importance: 0.5 },
           {
             l0_abstract: origText3,
             l1_overview: `- ${origText3}`,
@@ -326,7 +326,7 @@ async function runTests() {
             l0_abstract: origText4,
             l1_overview: `- ${origText4}`,
             l2_content: origText4,
-            memory_category: "facts",
+            memory_category: "fact",
             tier: "working",
             confidence: 0.5,
           },
@@ -376,7 +376,7 @@ async function runTests() {
             l0_abstract: origText5,
             l1_overview: `- ${origText5}`,
             l2_content: origText5,
-            memory_category: "facts",
+            memory_category: "fact",
             tier: "working",
             confidence: 0.6,
           },
@@ -410,12 +410,12 @@ async function runTests() {
     const entry6 = await store.store({
       text: origText6,
       vector: makeVector(9),
-      category: "preference",
+      category: "preferences",
       scope: "test",
       importance: 0.8,
       metadata: stringifySmartMetadata(
         buildSmartMetadata(
-          { text: origText6, category: "preference", importance: 0.8 },
+          { text: origText6, category: "preferences", importance: 0.8 },
           {
             l0_abstract: origText6,
             l1_overview: "- Vim",

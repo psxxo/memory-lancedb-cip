@@ -17,9 +17,9 @@ const { shouldSkipRetrieval } = jiti("../src/adaptive-retrieval.ts");
 
 const germanCaptureCases = [
   ["Merke dir: Testtoken ist Cobalt Tiger 7742", "fact"],
-  ["Ich bevorzuge Espresso nach dem Mittagessen", "preference"],
+  ["Ich bevorzuge Espresso nach dem Mittagessen", "preferences"],
   ["Wir haben entschieden ab sofort Qdrant nicht mehr zu nutzen", "decision"],
-  ["Mein Projektname ist Atlas Nord", "entity"],
+  ["Mein Projektname ist Atlas Nord", "entities"],
   ["Wichtig: immer die EU-Region fuer Deployments verwenden", "fact"],
 ];
 

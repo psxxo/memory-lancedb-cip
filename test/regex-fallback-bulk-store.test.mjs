@@ -35,11 +35,13 @@ const { isUserMdExclusiveMemory } = await jiti("../src/workspace-boundary.ts");
 const { buildSmartMetadata, stringifySmartMetadata } = await jiti("../src/smart-metadata.ts");
 
 // detectCategory() - copied from index.ts (not exported)
+// Returns canonical category names (plan B single vocabulary): the singular
+// alias tokens are normalized before anything is persisted.
 function detectCategory(text) {
   const lower = text.toLowerCase();
-  if (/prefer|like|love|hate|want|偏好|喜歡|喜欢|討厭|讨厌/i.test(lower)) return "preference";
+  if (/prefer|like|love|hate|want|偏好|喜歡|喜欢|討厭|讨厌/i.test(lower)) return "preferences";
   if (/decided|will use|switch|migrate|決定|選擇|改用/i.test(lower)) return "decision";
-  if (/\+\d{10,}|@[\w.-]+\.\w+|jmenuje se|我的.*是|叫我/i.test(lower)) return "entity";
+  if (/\+\d{10,}|@[\w.-]+\.\w+|jmenuje se|我的.*是|叫我/i.test(lower)) return "entities";
   if (/\b(is|are|has|have|je|má|總是|总是|從不|从不)/i.test(lower)) return "fact";
   return "other";
 }
