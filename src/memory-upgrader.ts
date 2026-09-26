@@ -1,14 +1,14 @@
 /**
  * Memory Upgrader — Convert legacy memories to new smart memory format
  *
- * Legacy memories lack L0/L1/L2 metadata, memory_category (6-category),
+ * Legacy memories lack L0/L1/L2 metadata, memory_category,
  * tier, access_count, and confidence fields. This module enriches them
  * to enable unified memory lifecycle management (decay, tier promotion,
  * smart dedup).
  *
  * Pipeline per batch:
  *   1. Detect legacy format (missing `memory_category` in metadata)
- *   2. Reverse-map 5-category → 6-category and generate L0/L1/L2
+ *   2. Reverse-map the stored category and generate L0/L1/L2
  *   3. Prepare update patches without holding the DB write lock
  *   4. Write prepared patches in a batch where the store supports it
  */
@@ -93,7 +93,7 @@ interface EnrichedMetadata {
   access_count: number;
   confidence: number;
   last_accessed_at: number;
-  upgraded_from: string; // original 5-category
+  upgraded_from: string; // original stored category
   upgraded_at: number;   // timestamp of upgrade
 }
 
@@ -138,7 +138,7 @@ export function isCurrentReflectionMemory(entry: MemoryEntry): boolean {
 // ============================================================================
 
 /**
- * Reverse-map old 5-category → new 6-category.
+ * Reverse-map the stored category onto the canonical taxonomy.
  *
  * Ambiguous case: `fact` maps to both `profile` and `cases`.
  * Without LLM, defaults to `cases` (conservative).

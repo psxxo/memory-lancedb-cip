@@ -62,7 +62,7 @@ export function getReflectionMappedDecayDefaults(kind: ReflectionMappedKind): Re
 
 /**
  * mappedKind is known structurally at write time (each kind comes from a
- * fixed reflection section), so the 6-category classification is a direct
+ * fixed reflection section), so the category classification is a direct
  * lookup rather than a text-sniffing heuristic. This map is the SINGLE
  * source of the reflection heading→taxonomy mapping: metadata stamps, the
  * stored row category, and admission scoring all read it. "decision" and

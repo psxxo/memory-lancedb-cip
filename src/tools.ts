@@ -1526,9 +1526,9 @@ export function registerMemoryStoreTool(
           // (bypasses importance/recency weighting).
           // Fail-open by design: dedup must never block a legitimate memory write.
           // excludeInactive: superseded historical records must not block new writes.
-          // Align with TEMPORAL_VERSIONED_CATEGORIES at the smart-category
-          // layer so legacy storage categories like "fact" don't cross-match
-          // unrelated profile/case memories.
+          // Align with TEMPORAL_VERSIONED_CATEGORIES at the canonical-category
+          // layer so only temporal-versioned categories (preferences/entities/
+          // fact) cross-match for supersede discovery.
           const manualSupersede = runtimeContext.manualStoreSupersede === true;
           const newFactKey = deriveFactKey(memoryCategory, stripped);
 

@@ -1,6 +1,6 @@
 /**
  * Smart Memory Extractor — LLM-powered extraction pipeline
- * Replaces regex-triggered capture with intelligent 6-category extraction.
+ * Replaces regex-triggered capture with intelligent 10-category extraction.
  *
  * Pipeline: conversation → LLM extract → candidates → dedup → persist
  *

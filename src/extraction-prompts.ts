@@ -1,6 +1,6 @@
 /**
  * Prompt templates for intelligent memory extraction.
- * - buildExtractionPrompt: 6-category L0/L1/L2 extraction with conversational grounding
+ * - buildExtractionPrompt: 10-category L0/L1/L2 extraction with conversational grounding
  * - buildGroundingRejudgePrompt: scoped second pass reconciling register vs per-item tags
  * - buildDedupPrompt: CREATE/MERGE/SKIP dedup decision
  * - buildMergePrompt: Memory merge with three-level structure

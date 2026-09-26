@@ -283,9 +283,9 @@ export function parseSmartMetadata(
 
   const memoryCategory = reverseMapLegacyCategory(entry.category, text, parsed.type);
   // A row that carries a valid stamped memory_category is authoritative over
-  // the column-derived value for layer purposes: mapped rows written with the
-  // six-category vocabulary in the legacy column (pre-contract-fix builds)
-  // must derive the same default layer as an equivalent legacy-backed row.
+  // the column-derived value for layer purposes: rows written by older builds
+  // could put either vocabulary in the column, and they must derive the same
+  // default layer as an equivalent canonically-backed row.
   const stampedMemoryCategory =
     typeof parsed.memory_category === "string"
       ? normalizeCategory(parsed.memory_category)

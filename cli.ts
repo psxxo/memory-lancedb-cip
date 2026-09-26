@@ -2204,7 +2204,7 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
   // Upgrade legacy memories to new smart memory format
   memory
     .command("upgrade")
-    .description("Upgrade legacy memories to new 6-category L0/L1/L2 smart memory format")
+    .description("Upgrade legacy memories to the new 10-category L0/L1/L2 smart memory format")
     .option("--dry-run", "Show upgrade statistics without modifying data")
     .option("--batch-size <n>", "Number of memories per batch", "10")
     .option("--no-llm", "Skip LLM calls; use simple text truncation for L0/L1")

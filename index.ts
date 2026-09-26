@@ -4742,7 +4742,7 @@ const memoryLanceDBCipPlugin = {
           };
 
           // ----------------------------------------------------------------
-          // Smart Extraction (Phase 1: LLM-powered 6-category extraction)
+          // Smart Extraction (Phase 1: LLM-powered 10-category extraction)
           // Rate limiter charged AFTER successful extraction, not before,
           // so no-op sessions don't consume the hourly quota.
           // ----------------------------------------------------------------
