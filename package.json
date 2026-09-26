@@ -1,6 +1,6 @@
 {
   "name": "@psxxo/lancedb-cip",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "OpenClaw enhanced LanceDB memory plugin with hybrid retrieval (Vector + BM25), cross-encoder rerank, multi-scope isolation, long-context chunking, and management CLI (OpenClaw 2026.9.5 port)",
   "type": "module",
   "main": "dist/index.js",

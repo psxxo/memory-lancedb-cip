@@ -1,3 +1,30 @@
+## 1.2.7
+
+**Category taxonomy alignment — one vocabulary, no silent coercion.** The store no longer
+keeps a two-layer category model. Ten canonical categories are the only vocabulary, the
+storage column carries the canonical name verbatim, and an unrecognized name is rejected
+instead of being silently rewritten.
+
+- **Ten canonical categories:** `profile`, `preferences`, `entities`, `events`, `cases`,
+  `patterns`, `decision`, `fact`, `reflection`, `other`. `decision`, `fact`, `reflection`
+  and `other` were previously folded into other categories (fact→cases, decision→events,
+  reflection/other→patterns) and are now first-class peers.
+- **Identity storage mapping.** `getStorageCategoryForMemoryCategory` is the identity
+  function, so `profile` and `cases` are no longer both stored as `fact` (a lossy
+  collision that survived only in metadata).
+- **Singular aliases stay accepted:** `preference→preferences`, `entity→entities`,
+  `event→events`, `case→cases`, `pattern→patterns`.
+- **Unknown names are rejected, never coerced.** `memory_store` / `memory_update` raise
+  `InvalidMemoryCategoryError` naming the canonical categories and accepted aliases.
+- **`import` gains an operator-controlled policy:** `--unknown reject|other|<canonical>`
+  (default `reject`) and `--category-map <file>` for batch mapping; `--dry-run` prints a
+  per-row resolution plan (requested → canonical / aliased / mapped / other / rejected).
+- **Behavior matrix:** `profile` always merges; `preferences`, `entities`, `fact` merge and
+  are temporal-versioned (fact key); `patterns`, `reflection` merge without a timeline;
+  `events`, `cases`, `decision` are append-only; `other` is the non-durable catch-all.
+- Docs: README (EN/CN plus the 9 translations), `docs/` and `skills/` updated to the
+  single vocabulary.
+
 ## 1.2.6
 
 **Behavior change — load-time safety.** A plugin installed into a host must never be
