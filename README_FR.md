@@ -52,7 +52,7 @@ Voilà la différence que fait un **Assistant Mémoire IA** — il apprend votre
 | | Ce que vous obtenez |
 |---|---|
 | **Capture automatique** | Votre agent apprend de chaque conversation — pas besoin de `memory_store` manuel |
-| **Extraction intelligente** | Classification LLM en 6 catégories : profils, préférences, entités, événements, cas, patterns |
+| **Extraction intelligente** | Classification LLM en 10 catégories : `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` |
 | **Oubli intelligent** | Modèle de décroissance Weibull — les souvenirs importants restent, le bruit s'estompe |
 | **Recherche hybride** | Recherche vectorielle + BM25 plein texte, fusionnée avec un reranking cross-encoder |
 | **Injection de contexte** | Les souvenirs pertinents remontent automatiquement avant chaque réponse |
@@ -235,7 +235,7 @@ Requirements:
 | `src/noise-filter.ts` | Filtre les refus d'agent, les méta-questions, les salutations et le contenu de faible qualité |
 | `src/adaptive-retrieval.ts` | Détermine si une requête nécessite une recherche en mémoire |
 | `src/migrate.ts` | Migration depuis `memory-lancedb` intégré vers Pro |
-| `src/smart-extractor.ts` | Extraction LLM en 6 catégories avec stockage L0/L1/L2 et déduplication en deux étapes |
+| `src/smart-extractor.ts` | Extraction LLM en 10 catégories avec stockage L0/L1/L2 et déduplication en deux étapes |
 | `src/decay-engine.ts` | Modèle de décroissance exponentielle étirée Weibull |
 | `src/tier-manager.ts` | Promotion/rétrogradation à trois niveaux : Périphérique ↔ Travail ↔ Noyau |
 
@@ -280,10 +280,10 @@ Requête → BM25 FTS ─────┘
 
 ### Extraction mémoire intelligente (v1.1.0)
 
-- **Extraction LLM en 6 catégories** : profil, préférences, entités, événements, cas, patterns
+- **Extraction LLM en 10 catégories** : `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` — un vocabulaire unique ; le nom canonique est ce qui est stocké dans la colonne `category`. Les alias au singulier (`preference`, `entity`, `event`, `case`, `pattern`) sont acceptés en entrée, et les noms inconnus sont rejetés. Pour les imports JSON, l'opérateur peut définir une politique explicite pour les noms inconnus (`--unknown reject|other|<canonical>`, par défaut `reject`) et mapper des noms d'entrée arbitraires vers des catégories canoniques (`--category-map`).
 - **Stockage par couches L0/L1/L2** : L0 (index en une phrase) → L1 (résumé structuré) → L2 (récit complet)
 - **Déduplication en deux étapes** : pré-filtre de similarité vectorielle (≥0.7) → décision sémantique LLM (CREATE/MERGE/SKIP)
-- **Fusion sensible aux catégories** : `profile` fusionne toujours, `events`/`cases` en ajout uniquement
+- **Fusion sensible aux catégories** : `profile` fusionne toujours ; `preferences` / `entities` / `patterns` / `fact` / `reflection` fusionnent lorsque des doublons sont détectés ; `events` / `cases` / `decision` sont en ajout uniquement (jamais fusionnés)
 
 ### Gestion du cycle de vie mémoire (v1.1.0)
 
@@ -330,7 +330,7 @@ Requête → BM25 FTS ─────┘
 | CLI de gestion | - | Oui |
 | Mémoire de session | - | Oui |
 | Embeddings sensibles aux tâches | - | Oui |
-| **Extraction intelligente LLM (6 catégories)** | - | Oui (v1.1.0) |
+| **Extraction intelligente LLM (10 catégories)** | - | Oui (v1.1.0) |
 | **Décroissance Weibull + Promotion par niveaux** | - | Oui (v1.1.0) |
 | Tout embedding compatible OpenAI | Limité | Oui |
 
@@ -443,7 +443,7 @@ Quand `smartExtraction` est activé (par défaut : `true`), le plugin utilise un
 
 | Champ | Type | Défaut | Description |
 |-------|------|---------|-------------|
-| `smartExtraction` | boolean | `true` | Activer/désactiver l'extraction LLM en 6 catégories |
+| `smartExtraction` | boolean | `true` | Activer/désactiver l'extraction LLM en 10 catégories |
 | `llm.auth` | string | `api-key` | `api-key` utilise `llm.apiKey` / `embedding.apiKey` ; `oauth` utilise un fichier token OAuth au niveau plugin |
 | `llm.apiKey` | string | *(repli sur `embedding.apiKey`)* | Clé API pour le fournisseur LLM |
 | `llm.model` | string | `openai/gpt-oss-120b` | Nom du modèle LLM |
@@ -525,6 +525,31 @@ openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
+`--category` accepte les 10 catégories canoniques (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`) ainsi que les alias d'entrée (`preference` / `entity` / `event` / `case` / `pattern`). Les valeurs inconnues sont rejetées avec une erreur de validation plutôt que de retomber silencieusement sur `patterns` ou `other`.
+
+**Politique de catégories de `import` (rien n'est jamais coercé en silence).** Pour chaque ligne, la catégorie est résolue dans cet ordre :
+
+1. **nom canonique exact** — stocké tel quel ;
+2. **alias intégré** (`preference` → `preferences`, `entity` → `entities`, `event` → `events`, `case` → `cases`, `pattern` → `patterns`) ;
+3. **`--category-map <file>`** — un objet JSON mappant des noms d'entrée arbitraires vers des catégories canoniques, par ex. `{"lemmas":"cases"}` ;
+4. **`--unknown <policy>`** — décide des noms restants, non reconnus :
+   - `reject` (**par défaut**) : ignore la ligne et affiche un avertissement par ligne listant les noms canoniques ;
+   - `other` : stocke la ligne comme `other`, uniquement parce que l'opérateur l'a explicitement demandé ;
+   - n'importe quel nom de catégorie canonique : stocke la ligne comme cette catégorie.
+
+Chaque décision est signalée par ligne, et `--dry-run` affiche le plan de résolution complet (valeur `requested` → `canonical` / `aliased` / `mapped` / `other` / `rejected` → catégorie résultante) avant toute écriture, de sorte que la politique peut être itérée en toute sécurité. Une valeur `--unknown` non reconnue ou une valeur `--category-map` qui n'est pas une catégorie/un alias canonique fait échouer la commande au lieu d'importer quoi que ce soit.
+
+```bash
+# Prévisualise la résolution de la catégorie de chaque ligne ; ne stocke rien.
+openclaw memory-cip import memories.json --dry-run
+
+# Route explicitement les deux noms non canoniques connus, rejette tout le reste.
+openclaw memory-cip import memories.json --category-map map.json --unknown reject
+
+# Idem, mais place tout autre nom non reconnu dans « other » (explicitement).
+openclaw memory-cip import memories.json --unknown other
+```
+
 Flux de connexion OAuth :
 
 1. Exécutez `openclaw memory-cip auth login`
@@ -589,8 +614,8 @@ When the user sends `/remember <content>`:
 > Copiez le bloc ci-dessous dans votre `AGENTS.md` pour que votre agent applique automatiquement ces règles.
 
 ```markdown
-## Rule 1 — Dual-layer memory storage
-Every pitfall/lesson learned → IMMEDIATELY store TWO memories:
+## Rule 1 — Two-memory lesson storage
+Every pitfall/lesson learned → IMMEDIATELY store TWO memories (both are canonical categories in the single 10-category vocabulary):
 - Technical layer: Pitfall: [symptom]. Cause: [root cause]. Fix: [solution]. Prevention: [how to avoid]
   (category: fact, importance >= 0.8)
 - Principle layer: Decision principle ([tag]): [behavioral rule]. Trigger: [when]. Action: [what to do]
@@ -621,7 +646,7 @@ Table LanceDB `memories` :
 | `id` | string (UUID) | Clé primaire |
 | `text` | string | Texte du souvenir (indexé FTS) |
 | `vector` | float[] | Vecteur d'embedding |
-| `category` | string | Catégorie de stockage : `preference` / `fact` / `decision` / `entity` / `reflection` / `other` |
+| `category` | string | Catégorie de stockage (canonique) : `profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other` |
 | `scope` | string | Identifiant de scope (ex. `global`, `agent:main`) |
 | `importance` | float | Score d'importance 0-1 |
 | `timestamp` | int64 | Horodatage de création (ms) |
@@ -629,7 +654,9 @@ Table LanceDB `memories` :
 
 Clés `metadata` courantes en v1.1.0 : `l0_abstract`, `l1_overview`, `l2_content`, `memory_category`, `tier`, `access_count`, `confidence`, `last_accessed_at`
 
-> **Note sur les catégories :** Le champ `category` de niveau supérieur utilise 6 catégories de stockage. Les 6 labels sémantiques de l'Extraction Intelligente (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns`) sont stockés dans `metadata.memory_category`.
+> **Note sur les catégories :** Il existe un **vocabulaire unique de 10 catégories** — `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other`. Le nom canonique *est* ce que stocke le champ `category` de niveau supérieur (mappage identitaire ; il n'y a pas de double couche sémantique/stockage distincte). En entrée, les alias au singulier `preference` → `preferences`, `entity` → `entities`, `event` → `events`, `case` → `cases` et `pattern` → `patterns` sont acceptés ; `decision`, `fact`, `reflection` et `other` sont eux-mêmes canoniques. Les noms de catégorie inconnus sont **rejetés** avec une erreur de validation — ils ne sont jamais mappés silencieusement vers `patterns` ou `other`.
+>
+> Comportement de fusion / chronologie / durabilité : `profile` fusionne toujours (pas de chronologie, durable) ; `preferences`, `entities` et `fact` fusionnent et sont versionnés dans le temps via `fact_key` (durables) ; `patterns` et `reflection` fusionnent sans chronologie (durables) ; `events` est en ajout uniquement (pas de chronologie, durable, jugé sur la fiction) ; `cases` et `decision` sont en ajout uniquement (pas de chronologie, durables) ; `other` ne fusionne pas et n'utilise pas de chronologie, et n'est pas durable.
 
 </details>
 
@@ -661,7 +688,7 @@ Avec LanceDB 0.26+, certaines colonnes numériques peuvent être retournées en 
 
 | Fonctionnalité | Description |
 |---------|-------------|
-| **Extraction intelligente** | Extraction LLM en 6 catégories avec métadonnées L0/L1/L2. Repli sur regex si désactivé. |
+| **Extraction intelligente** | Extraction LLM en 10 catégories avec métadonnées L0/L1/L2. Repli sur regex si désactivé. |
 | **Scoring du cycle de vie** | Décroissance Weibull intégrée à la recherche — les souvenirs fréquents et importants sont mieux classés. |
 | **Gestion des niveaux** | Système à trois niveaux (Noyau → Travail → Périphérique) avec promotion/rétrogradation automatique. |
 
