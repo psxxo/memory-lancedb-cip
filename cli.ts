@@ -28,7 +28,14 @@ import {
   MEMORY_CATEGORIES,
   MEMORY_CATEGORY_ALIAS_NAMES,
   normalizeCategory,
+  parseUnknownCategoryPolicy,
+  resolveImportCategory,
+  describeImportCategoryResolution,
+  validateImportCategoryMap,
+  isUnknownCategoryPolicyError,
+  isImportCategoryMapError,
   type MemoryCategory,
+  type UnknownCategoryPolicy,
 } from "./src/memory-categories.js";
 
 /** Human-readable list of the canonical categories + accepted aliases. */
@@ -1822,9 +1829,55 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
     .description('Import memories from a JSON file ({"version": number, "memories": [{"text": string}]})')
     .option("--scope <scope>", "Import into specific scope")
     .option("--dry-run", "Show what would be imported without actually importing")
+    .option(
+      "--unknown <policy>",
+      'Where an unrecognized category name lands: "reject" (default; skip the row), "other", or a canonical category name',
+      "reject",
+    )
+    .option(
+      "--category-map <file>",
+      'JSON object mapping arbitrary input category names to canonical categories, e.g. {\"lemmas\":\"cases\"}',
+    )
     .action(async (file, options) => {
       try {
         const fs = await import("node:fs/promises");
+
+        // Operator-controlled category policy. Both inputs are validated up
+        // front so a policy/file error is reported once, not per row.
+        const unknownParse = parseUnknownCategoryPolicy(options.unknown ?? "reject");
+        if (isUnknownCategoryPolicyError(unknownParse)) {
+          console.error(unknownParse.message);
+          process.exitCode = 1;
+          return;
+        }
+        const unknownPolicy: UnknownCategoryPolicy = unknownParse.policy;
+
+        let categoryMap: Record<string, MemoryCategory> = {};
+        if (options.categoryMap !== undefined) {
+          let mapContent: string;
+          try {
+            mapContent = await fs.readFile(options.categoryMap, "utf-8");
+          } catch (mapReadError) {
+            throw new ImportFileError(
+              `Unable to read category map "${options.categoryMap}" (${(mapReadError as Error).message}).`,
+            );
+          }
+          let mapParsed: unknown;
+          try {
+            mapParsed = JSON.parse(mapContent);
+          } catch (mapParseError) {
+            throw new ImportFileError(
+              `Found invalid JSON in category map "${options.categoryMap}" (${(mapParseError as Error).message}).`,
+            );
+          }
+          const mapValidation = validateImportCategoryMap(mapParsed);
+          if (isImportCategoryMapError(mapValidation)) {
+            console.error(`Invalid --category-map: ${mapValidation.message}`);
+            process.exitCode = 1;
+            return;
+          }
+          categoryMap = mapValidation.map;
+        }
 
         let content: string;
         try {
@@ -1861,6 +1914,34 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
           if (options.scope) {
             console.log(`Target scope: ${options.scope}`);
           }
+          console.log(
+            `Category resolution order: canonical name -> alias -> --category-map -> --unknown=${unknownPolicy}`,
+          );
+          console.log("Category resolution plan:");
+          importMemories.forEach((rawMemory, index) => {
+            if (
+              rawMemory === null ||
+              typeof rawMemory !== "object" ||
+              Array.isArray(rawMemory)
+            ) {
+              console.log(
+                `  memories[${index}]: requested <none> (entry is ${describeImportValue(rawMemory)}) -> would skip`,
+              );
+              return;
+            }
+            const entryCategory = (rawMemory as Record<string, unknown>).category;
+            const resolution = resolveImportCategory(entryCategory, {
+              categoryMap,
+              unknownPolicy,
+            });
+            const requested =
+              resolution.requested === null
+                ? "<none>"
+                : JSON.stringify(resolution.requested);
+            console.log(
+              `  memories[${index}]: requested ${requested} -> ${describeImportCategoryResolution(resolution)}`,
+            );
+          });
           return;
         }
 
@@ -1907,25 +1988,27 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
               continue;
             }
 
-            // Category: accept the 10 canonical names plus the 5 singular/plural
-            // aliases, and persist the canonical name. An unrecognized NAME skips
-            // the row with an explicit warning — it must never silently become
-            // "other". An absent field keeps the documented "other" default.
-            const categoryRaw = memory.category;
-            let category: MemoryEntry["category"];
-            if (categoryRaw === undefined || categoryRaw === null || categoryRaw === "") {
-              category = "other";
-            } else {
-              const normalizedCategory = normalizeCategory(String(categoryRaw));
-              if (!normalizedCategory) {
-                invalidEntries++;
-                skipped++;
-                console.warn(
-                  `  memories[${index}]: unknown category ${JSON.stringify(categoryRaw)}; row skipped (allowed: ${CATEGORY_HELP}).`,
-                );
-                continue;
-              }
-              category = normalizedCategory;
+            // Category resolution is operator-controlled: exact canonical name
+            // -> built-in alias -> --category-map entry -> --unknown policy.
+            // `reject` (the default) skips the row with an explicit warning; any
+            // other policy is logged per row so the coercion is never silent.
+            const categoryResolution = resolveImportCategory(memory.category, {
+              categoryMap,
+              unknownPolicy,
+            });
+            if (!categoryResolution.stored || !categoryResolution.category) {
+              invalidEntries++;
+              skipped++;
+              console.warn(
+                `  memories[${index}]: unknown category ${JSON.stringify(categoryResolution.requested)}; row skipped (--unknown=reject; allowed: ${CATEGORY_HELP}).`,
+              );
+              continue;
+            }
+            const category: MemoryEntry["category"] = categoryResolution.category;
+            if (categoryResolution.via === "unknown-policy") {
+              console.warn(
+                `  memories[${index}]: unknown category ${JSON.stringify(categoryResolution.requested)} stored as "${category}" (--unknown=${unknownPolicy}).`,
+              );
             }
 
             // Pass raw importance to importEntry — it applies clampImportance

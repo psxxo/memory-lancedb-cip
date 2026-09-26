@@ -88,13 +88,42 @@ export type SmartStorageCategory = MemoryCategory;
  * nor an accepted alias. Callers must reject the write rather than silently
  * landing the row in a fallback category.
  */
+/**
+ * Compose the "what may I send instead" half of a rejection message. The
+ * canonical names and the accepted aliases are labelled separately so a caller
+ * can re-issue with a valid value on the first retry: aliases are shown next to
+ * the canonical name they fold onto.
+ */
+function describeAllowedCategories(allowed: readonly string[]): string {
+  const aliasByToken = MEMORY_CATEGORY_ALIASES as Record<string, MemoryCategory>;
+  const canonical = allowed.filter((token) =>
+    (MEMORY_CATEGORIES as readonly string[]).includes(token),
+  );
+  const aliases = allowed.filter((token) => token in aliasByToken);
+  const parts: string[] = [];
+  if (canonical.length > 0) {
+    parts.push(`Canonical categories: ${canonical.join(", ")}`);
+  }
+  if (aliases.length > 0) {
+    parts.push(
+      `accepted aliases: ${aliases
+        .map((token) => `${token} -> ${aliasByToken[token]}`)
+        .join(", ")}`,
+    );
+  }
+  return parts.join("; ");
+}
+
 export class InvalidMemoryCategoryError extends Error {
   readonly code = "invalid_memory_category";
   readonly rawCategory: string;
   readonly allowed: readonly string[];
 
   constructor(rawCategory: string, allowed: readonly string[] = TOOL_MEMORY_CATEGORIES) {
-    super(`Invalid memory category "${rawCategory}". Allowed: ${allowed.join(", ")}`);
+    super(
+      `Invalid memory category "${rawCategory}". ${describeAllowedCategories(allowed)}. ` +
+        "Unknown names are rejected; they are never silently coerced.",
+    );
     this.name = "InvalidMemoryCategoryError";
     this.rawCategory = rawCategory;
     this.allowed = allowed;
@@ -359,6 +388,261 @@ export function isToolMemoryCategoryError(
   resolution: ToolMemoryCategoryResolution,
 ): resolution is ToolMemoryCategoryError {
   return !resolution.ok;
+}
+
+// ============================================================================
+// Import category policy (operator-controlled, CLI)
+// ============================================================================
+//
+// The tool path (`memory_store` / `memory_update`) always REJECTS an unknown
+// category. The CLI `import` command is the one place where an operator may
+// explicitly decide where a name that resolves to nothing should land, via
+// `--unknown` and `--category-map`. Every decision is surfaced per row in
+// dry-run and in the import log, so a category is never silently coerced.
+
+/**
+ * Operator policy for an import category name that is neither a canonical name,
+ * an accepted alias, nor present in `--category-map`.
+ *
+ * - `"reject"` (default): skip the row with an explicit per-row warning.
+ * - `"other"`: store the row as `other`, because the operator asked for it.
+ * - any canonical category: store the row as that category.
+ */
+export type UnknownCategoryPolicy = "reject" | MemoryCategory;
+
+/** Every value `--unknown` accepts, for help and error text. */
+export const UNKNOWN_CATEGORY_POLICIES: readonly string[] = [
+  "reject",
+  ...MEMORY_CATEGORIES,
+];
+
+export type UnknownCategoryPolicyParse =
+  | { ok: true; policy: UnknownCategoryPolicy }
+  | { ok: false; message: string };
+
+/**
+ * Narrowing helper (boolean-literal discriminating narrowing is disabled under
+ * this repo's `strictNullChecks: false`).
+ */
+export function isUnknownCategoryPolicyError(
+  parsed: UnknownCategoryPolicyParse,
+): parsed is Extract<UnknownCategoryPolicyParse, { ok: false }> {
+  return !parsed.ok;
+}
+
+/** Validate an `--unknown` option value. Unknown policies are rejected loudly. */
+export function parseUnknownCategoryPolicy(raw: string): UnknownCategoryPolicyParse {
+  const lower = String(raw ?? "").toLowerCase().trim();
+  if (lower === "reject") {
+    return { ok: true, policy: "reject" };
+  }
+  if ((MEMORY_CATEGORIES as readonly string[]).includes(lower)) {
+    return { ok: true, policy: lower as MemoryCategory };
+  }
+  return {
+    ok: false,
+    message:
+      `Unknown --unknown policy ${JSON.stringify(String(raw ?? ""))}. ` +
+      `Use "reject" (skip the row; the default), "other", or a canonical category: ${MEMORY_CATEGORIES.join(", ")}.`,
+  };
+}
+
+/**
+ * Which layer decided the category for one import row. Mirrors the documented
+ * resolution order: canonical name -> built-in alias -> `--category-map` ->
+ * `--unknown` policy.
+ */
+export type ImportCategoryResolutionKind =
+  | "canonical"
+  | "aliased"
+  | "mapped"
+  | "other"
+  | "default"
+  | "rejected";
+
+export type ImportCategoryResolution = {
+  /** The raw requested value, or null when the row carried no category. */
+  requested: string | null;
+  resolution: ImportCategoryResolutionKind;
+  /** Canonical category to store, or null when the row is rejected. */
+  category: MemoryCategory | null;
+  /** Which layer decided: exact name, alias, `--category-map`, `--unknown`, default. */
+  via: "name" | "alias" | "category-map" | "unknown-policy" | "default";
+  /** False only for a rejected row (nothing is stored). */
+  stored: boolean;
+};
+
+export type ImportCategoryResolverOptions = {
+  /** `--category-map`: arbitrary input name (lowercased key) -> canonical category. */
+  categoryMap?: Record<string, string>;
+  /** `--unknown`: policy for a name that resolves to nothing (default `reject`). */
+  unknownPolicy?: UnknownCategoryPolicy;
+};
+
+/**
+ * Resolve one import row's category under the operator's policy. Returns the
+ * decision AND the layer that made it, so the caller can report the plan
+ * instead of applying an invisible coercion.
+ */
+export function resolveImportCategory(
+  raw: unknown,
+  options: ImportCategoryResolverOptions = {},
+): ImportCategoryResolution {
+  const unknownPolicy = options.unknownPolicy ?? "reject";
+  const categoryMap = options.categoryMap ?? {};
+
+  const requested =
+    raw === undefined || raw === null || String(raw).trim() === "" ? null : String(raw);
+  const lower = requested === null ? "" : requested.toLowerCase().trim();
+
+  // 1. No category supplied: keep the documented "other" default.
+  if (!lower) {
+    return {
+      requested,
+      resolution: "default",
+      category: "other",
+      via: "default",
+      stored: true,
+    };
+  }
+
+  // 2. Exact canonical name.
+  if ((MEMORY_CATEGORIES as readonly string[]).includes(lower)) {
+    return {
+      requested,
+      resolution: "canonical",
+      category: lower as MemoryCategory,
+      via: "name",
+      stored: true,
+    };
+  }
+
+  // 3. Built-in singular/plural alias.
+  const alias = (MEMORY_CATEGORY_ALIASES as Record<string, MemoryCategory>)[lower];
+  if (alias) {
+    return {
+      requested,
+      resolution: "aliased",
+      category: alias,
+      via: "alias",
+      stored: true,
+    };
+  }
+
+  // 4. Operator-supplied `--category-map` entry.
+  const mapped = categoryMap[lower];
+  if (mapped !== undefined) {
+    const normalized = normalizeCategory(String(mapped));
+    if (normalized) {
+      return {
+        requested,
+        resolution: "mapped",
+        category: normalized,
+        via: "category-map",
+        stored: true,
+      };
+    }
+  }
+
+  // 5. Still unresolved: only the operator's explicit `--unknown` policy decides.
+  if (unknownPolicy === "reject") {
+    return {
+      requested,
+      resolution: "rejected",
+      category: null,
+      via: "unknown-policy",
+      stored: false,
+    };
+  }
+  if (unknownPolicy === "other") {
+    return {
+      requested,
+      resolution: "other",
+      category: "other",
+      via: "unknown-policy",
+      stored: true,
+    };
+  }
+  return {
+    requested,
+    resolution: "mapped",
+    category: unknownPolicy,
+    via: "unknown-policy",
+    stored: true,
+  };
+}
+
+/** Human-readable one-line description of an import category resolution. */
+export function describeImportCategoryResolution(
+  resolution: ImportCategoryResolution,
+): string {
+  switch (resolution.resolution) {
+    case "canonical":
+      return `canonical -> ${resolution.category}`;
+    case "aliased":
+      return `aliased -> ${resolution.category}`;
+    case "mapped":
+      return resolution.via === "unknown-policy"
+        ? `mapped by --unknown -> ${resolution.category}`
+        : `mapped by --category-map -> ${resolution.category}`;
+    case "other":
+      return "other (explicit --unknown=other) -> other";
+    case "default":
+      return "default (no category field) -> other";
+    case "rejected":
+      return "rejected (--unknown=reject) -> row skipped";
+  }
+}
+
+export type ImportCategoryMapValidation =
+  | { ok: true; map: Record<string, MemoryCategory> }
+  | { ok: false; message: string };
+
+/** Narrowing helper (see `isUnknownCategoryPolicyError`). */
+export function isImportCategoryMapError(
+  validation: ImportCategoryMapValidation,
+): validation is Extract<ImportCategoryMapValidation, { ok: false }> {
+  return !validation.ok;
+}
+
+/**
+ * Validate a parsed `--category-map` document: a JSON object whose keys are
+ * arbitrary input names and whose values are canonical categories (aliases are
+ * accepted and folded). Any invalid entry fails the whole file, loudly.
+ */
+export function validateImportCategoryMap(value: unknown): ImportCategoryMapValidation {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      ok: false,
+      message:
+        'Category map must be a JSON object mapping input names to canonical categories, e.g. {"lemmas":"cases"}.',
+    };
+  }
+
+  const map: Record<string, MemoryCategory> = {};
+  const invalid: string[] = [];
+  for (const [key, rawValue] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedKey = String(key).toLowerCase().trim();
+    const normalizedValue = normalizeCategory(String(rawValue ?? ""));
+    if (!normalizedKey || !normalizedValue) {
+      invalid.push(`${JSON.stringify(key)} -> ${JSON.stringify(rawValue)}`);
+      continue;
+    }
+    map[normalizedKey] = normalizedValue;
+  }
+
+  if (invalid.length > 0) {
+    return {
+      ok: false,
+      message:
+        `Category map has ${invalid.length} invalid entr${invalid.length === 1 ? "y" : "ies"} ` +
+        `(values must be a canonical category or an accepted alias): ${invalid.join(", ")}. ` +
+        `Canonical categories: ${MEMORY_CATEGORIES.join(", ")}. ` +
+        `Accepted aliases: ${MEMORY_CATEGORY_ALIAS_NAMES.join(", ")}.`,
+    };
+  }
+
+  return { ok: true, map };
 }
 
 function extractMetadataMemoryCategory(rawMetadata?: string): MemoryCategory | null {
