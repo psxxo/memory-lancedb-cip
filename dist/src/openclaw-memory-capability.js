@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
-import { join, relative, resolve } from "node:path";
-import { readdir, stat } from "node:fs/promises";
+import { isAbsolute, join, posix, relative, resolve, sep, win32 } from "node:path";
+import { readdir, realpath, stat } from "node:fs/promises";
 import { parseCanonicalCorpusMetadata, } from "./corpus-indexer.js";
 const DEFAULT_FLUSH_SOFT_THRESHOLD_TOKENS = 4000;
 const DEFAULT_FLUSH_TRANSCRIPT_BYTES = 2 * 1024 * 1024;
@@ -148,6 +148,105 @@ function classifyArtifactKind(relativePath) {
     if (relativePath.startsWith("memory/"))
         return "daily-note";
     return "memory-artifact";
+}
+// Provenance mapping for `classifyWorkspaceMemoryPaths`, aligned with the
+// builtin memory-core classifier's intent and reusing `classifyArtifactKind`:
+//
+//   relativePath shape                        classifyArtifactKind   originClass
+//   ---------------------------------------   --------------------   -----------
+//   USER.md                                   (override)             owner
+//   MEMORY.md | memory.md                     memory-root (override) agent
+//   memory/**  (daily notes, dreaming/**,     daily-note /           agent
+//               short-term-promotion/**, .dreams/) dream-report
+//   any other root file (SOUL.md, DREAMS.md,  memory-artifact        untrusted
+//   unknown.md, ...)
+//   unreadable / outside workspace / invalid  (n/a)                  untrusted
+//
+// `readSources` canonical paths, when supplied, are validated with the same
+// strictness as the builtin and classified in place of the requested path.
+function classifyArtifactOrigin(relativePath) {
+    if (relativePath === "USER.md")
+        return "owner";
+    if (relativePath === "MEMORY.md" || relativePath === "memory.md")
+        return "agent";
+    const kind = classifyArtifactKind(relativePath);
+    if (kind === "memory-root" ||
+        kind === "daily-note" ||
+        kind === "dream-report" ||
+        kind === "short-term-promotion") {
+        return "agent";
+    }
+    return "untrusted";
+}
+// Mirrors the host's strict canonical-relative-path guard (memory-core
+// memory-path-provenance): empty, '.', '..', '../'-prefixed, absolute posix or
+// win32 paths, backslashes, NUL bytes, and non-normalized paths are invalid.
+function isStrictCanonicalRelativePath(value) {
+    if (typeof value !== "string")
+        return false;
+    if (!value || value === "." || value === ".." || value.startsWith("../"))
+        return false;
+    if (posix.isAbsolute(value) || win32.isAbsolute(value))
+        return false;
+    if (value.includes("\\") || value.includes("\0"))
+        return false;
+    return posix.normalize(value) === value;
+}
+// Strictly-inside check: the resolved child must live below the workspace root
+// (an equal path is not inside).
+function isStrictlyInside(parentDir, childPath) {
+    const rel = relative(parentDir, childPath);
+    return rel.length > 0 && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+async function classifyWorkspaceMemoryPath(params) {
+    const { relativePath } = params;
+    // When the host supplies readSources, classification is driven exclusively by
+    // the canonical path of the matching entry: an invalid or missing entry is
+    // untrusted and never falls back to the filesystem.
+    if (params.readSourcesProvided) {
+        const canonical = params.readSource?.canonicalRelativePath;
+        if (!isStrictCanonicalRelativePath(canonical)) {
+            return { relativePath, originClass: "untrusted" };
+        }
+        return { relativePath, originClass: classifyArtifactOrigin(canonical) };
+    }
+    if (!isStrictCanonicalRelativePath(relativePath)) {
+        return { relativePath, originClass: "untrusted" };
+    }
+    try {
+        const [workspacePath, filePath] = await Promise.all([
+            realpath(params.workspaceDir),
+            realpath(resolve(params.workspaceDir, relativePath)),
+        ]);
+        if (!isStrictlyInside(workspacePath, filePath)) {
+            return { relativePath, originClass: "untrusted" };
+        }
+        const canonical = relative(workspacePath, filePath).split(sep).join("/");
+        return { relativePath, originClass: classifyArtifactOrigin(canonical) };
+    }
+    catch {
+        return { relativePath, originClass: "untrusted" };
+    }
+}
+async function classifyWorkspaceMemoryPaths(params) {
+    return Promise.all(params.relativePaths.map(async (relativePath) => {
+        try {
+            return await classifyWorkspaceMemoryPath({
+                workspaceDir: params.workspaceDir,
+                relativePath,
+                ...(params.readSources !== undefined
+                    ? {
+                        readSourcesProvided: true,
+                        readSource: params.readSources.find((source) => source?.relativePath === relativePath),
+                    }
+                    : {}),
+            });
+        }
+        catch {
+            // A failure for one path degrades to untrusted for that path only.
+            return { relativePath, originClass: "untrusted" };
+        }
+    }));
 }
 async function collectPublicArtifactsForWorkspace(params) {
     const artifacts = [];
@@ -490,6 +589,18 @@ export function createOpenClawMemoryCapability(params) {
         promptBuilder: buildMemoryLancePromptSection,
         flushPlanResolver: buildMemoryLanceFlushPlan,
         runtime: {
+            // Host memory-runtime contract: advertise that we can honor
+            // `readSources` canonical relative paths, then classify workspace memory
+            // paths so the host can stop excluding MEMORY.md / USER.md from the
+            // automatic memory context (eligible origin classes: owner | agent).
+            supportsWorkspaceMemoryReadSources: true,
+            async classifyWorkspaceMemoryPaths(runtimeParams) {
+                return await classifyWorkspaceMemoryPaths({
+                    workspaceDir: runtimeParams.workspaceDir ?? params.workspaceDir,
+                    relativePaths: runtimeParams.relativePaths ?? [],
+                    ...(runtimeParams.readSources !== undefined ? { readSources: runtimeParams.readSources } : {}),
+                });
+            },
             async getMemorySearchManager(runtimeParams) {
                 const manager = await createMemoryLanceSearchManager(params, runtimeParams.agentId ?? "main");
                 managers.add(manager);
