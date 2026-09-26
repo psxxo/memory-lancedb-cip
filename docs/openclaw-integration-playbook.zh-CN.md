@@ -98,7 +98,7 @@
 - 插件 `sessionStrategy: "systemSessionMemory"`
 - OpenClaw `hooks.internal.entries.session-memory.enabled = false`
 
-此模式将会话摘要直接写入 LanceDB，存为 `fact` / `peripheral` 层级条目，不经过 LLM 去重或 lifecycle 评分。
+此模式将会话摘要直接写入 LanceDB，存为 `fact` / `peripheral` 层级条目，不经过 LLM 去重或 lifecycle 评分。其中 `fact` 是单一 10 类词表（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`）中的规范类别，规范名会原样写入 `category` 列；输入时接受别名 `preference` / `entity` / `event` / `case` / `pattern`，未知类别名会被拒绝。
 
 ### 方案 4：双写
 

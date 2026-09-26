@@ -4,6 +4,8 @@
 > **作者**: CJY  
 > **概述**: 基于对 AI Agent 记忆系统的深入理解，对记忆的写入质量、生命周期管理和去重能力进行了全面改进与完善
 
+> ⚠️ **历史文档说明（后加注）**：本文档记录的是 v1.1.0 当时的“6 类语义分类 + 5 类旧存储分类”双层模型，其中包含有损映射（`profile→fact`、`preferences→preference`、`entities→entity`、`events→decision`、`cases→fact`、`patterns→other`）。当前版本已移除该双层结构，改为**单一 10 类词表**（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`），规范类别名会直接写入存储的 `category` 列（恒等映射）。为保留历史记录，下文原样保留；分类体系的当前描述请以 [memory_architecture_analysis.md](memory_architecture_analysis.md) 为准。
+
 ---
 
 ## 一、改进动机

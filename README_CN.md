@@ -52,7 +52,7 @@
 | | 你能得到的 |
 |---|---|
 | **自动捕捉** | 智能体从每次对话中学习——不需要手动调用 `memory_store` |
-| **智能提取** | LLM 驱动的 6 类分类：用户画像、偏好、实体、事件、案例、模式 |
+| **智能提取** | LLM 驱动的 10 类分类：`profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other` |
 | **智能遗忘** | Weibull 衰减模型——重要记忆留存，噪音自然消退 |
 | **混合检索** | 向量 + BM25 全文搜索，融合交叉编码器重排序 |
 | **上下文注入** | 相关记忆在每次回复前自动浮现 |
@@ -289,7 +289,7 @@ Requirements:
 | `src/noise-filter.ts` | 过滤智能体拒绝回复、元问题、打招呼等低质量内容 |
 | `src/adaptive-retrieval.ts` | 判断查询是否需要记忆检索 |
 | `src/migrate.ts` | 从内置 `memory-lancedb` 迁移到 Pro |
-| `src/smart-extractor.ts` | LLM 驱动的 6 类提取，支持 L0/L1/L2 分层存储和两阶段去重 |
+| `src/smart-extractor.ts` | LLM 驱动的 10 类提取，支持 L0/L1/L2 分层存储和两阶段去重 |
 | `src/decay-engine.ts` | Weibull 拉伸指数衰减模型 |
 | `src/tier-manager.ts` | 三级晋升/降级：外围 ↔ 工作 ↔ 核心 |
 
@@ -334,10 +334,10 @@ Requirements:
 
 ### 智能记忆提取（v1.1.0）
 
-- **LLM 驱动的 6 类提取**：用户画像、偏好、实体、事件、案例、模式
+- **LLM 驱动的 10 类提取**：`profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other` —— 单一词表，规范名即写入 `category` 列的值；输入时接受单数别名（`preference`、`entity`、`event`、`case`、`pattern`），未知名称会被拒绝。
 - **L0/L1/L2 分层存储**：L0（一句话索引）→ L1（结构化摘要）→ L2（完整叙述）
 - **两阶段去重**：向量相似度预过滤（≥0.7）→ LLM 语义决策（CREATE/MERGE/SKIP）
-- **类别感知合并**：`profile` 始终合并，`events`/`cases` 仅追加
+- **类别感知合并**：`profile` 始终合并；`preferences` / `entities` / `patterns` / `fact` / `reflection` 检测到重复时合并；`events` / `cases` / `decision` 仅追加（从不合并）
 
 ### 记忆生命周期管理（v1.1.0）
 
@@ -384,7 +384,7 @@ Requirements:
 | 管理 CLI | - | 有 |
 | 会话记忆 | - | 有 |
 | 任务感知 Embedding | - | 有 |
-| **LLM 智能提取（6 类）** | - | 有（v1.1.0） |
+| **LLM 智能提取（10 类）** | - | 有（v1.1.0） |
 | **Weibull 衰减 + 层级晋升** | - | 有（v1.1.0） |
 | 任意 OpenAI 兼容 Embedding | 有限 | 有 |
 
@@ -498,7 +498,7 @@ Requirements:
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `smartExtraction` | boolean | `true` | 是否启用 LLM 智能 6 类别提取 |
+| `smartExtraction` | boolean | `true` | 是否启用 LLM 智能 10 类别提取 |
 | `llm.auth` | string | `api-key` | `api-key` 使用 `llm.apiKey` / `embedding.apiKey`；`oauth` 默认使用 plugin 级 OAuth token 文件 |
 | `llm.apiKey` | string | *（复用 `embedding.apiKey`）* | LLM 提供商 API Key |
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM 模型名称 |
@@ -580,6 +580,8 @@ openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
+`--category` 接受规范 10 类（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`）以及输入别名（`preference` / `entity` / `event` / `case` / `pattern`）。未知取值会被拒绝并返回校验错误，不会静默回退到 `patterns` 或 `other`。
+
 OAuth 登录流程：
 
 1. 运行 `openclaw memory-cip auth login`
@@ -644,8 +646,8 @@ OAuth 登录流程：
 > 将以下内容复制到你的 `AGENTS.md`，让智能体自动遵守这些规则。
 
 ```markdown
-## 规则 1 — 双层记忆存储
-每个踩坑/经验教训 → 立即存储两条记忆：
+## 规则 1 — 两条式经验存储
+每个踩坑/经验教训 → 立即存储两条记忆（两者都是单一 10 类词表中的规范类别）：
 - 技术层：踩坑：[现象]。原因：[根因]。修复：[方案]。预防：[如何避免]
   (category: fact, importance >= 0.8)
 - 原则层：决策原则 ([标签])：[行为规则]。触发：[何时]。动作：[做什么]
@@ -676,7 +678,7 @@ LanceDB 表 `memories`：
 | `id` | string (UUID) | 主键 |
 | `text` | string | 记忆文本（全文索引） |
 | `vector` | float[] | Embedding 向量 |
-| `category` | string | 存储类别：`preference` / `fact` / `decision` / `entity` / `reflection` / `other` |
+| `category` | string | 存储类别（规范名）：`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other` |
 | `scope` | string | 作用域标识（如 `global`、`agent:main`） |
 | `importance` | float | 重要性分数 0-1 |
 | `timestamp` | int64 | 创建时间戳（毫秒） |
@@ -684,7 +686,9 @@ LanceDB 表 `memories`：
 
 v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`、`memory_category`、`tier`、`access_count`、`confidence`、`last_accessed_at`
 
-> **关于分类的说明：** 顶层 `category` 字段使用 6 个存储类别。智能提取的 6 类语义标签（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns`）存储在 `metadata.memory_category` 中。
+> **关于分类的说明：** 当前只有**一套 10 类词表** —— `profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other`。规范名本身就是顶层 `category` 字段存储的值（恒等映射，不再存在“语义分类 + 存储分类”的双层结构）。输入时接受单数别名 `preference` → `preferences`、`entity` → `entities`、`event` → `events`、`case` → `cases`、`pattern` → `patterns`；`decision`、`fact`、`reflection`、`other` 本身就是规范名。未知类别名会被**拒绝**并返回校验错误，绝不会静默回退到 `patterns` 或 `other`。
+>
+> 合并 / 时间线 / 持久性：`profile` 始终合并（无时间线，持久）；`preferences`、`entities`、`fact` 支持合并并通过 `fact_key` 做时间版本化（持久）；`patterns`、`reflection` 支持合并但无时间线（持久）；`events` 仅追加（无时间线，持久，做虚构判定）；`cases`、`decision` 仅追加（无时间线，持久）；`other` 不合并、无时间线、非持久。
 
 </details>
 
@@ -716,7 +720,7 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 
 | 功能 | 说明 |
 |------|------|
-| **智能提取** | LLM 驱动的 6 类提取，支持 L0/L1/L2 元数据。禁用时回退到正则模式。 |
+| **智能提取** | LLM 驱动的 10 类提取，支持 L0/L1/L2 元数据。禁用时回退到正则模式。 |
 | **生命周期评分** | Weibull 衰减集成到检索中——高频和高重要性记忆排名更高。 |
 | **层级管理** | 三级系统（核心 → 工作 → 外围），自动晋升/降级。 |
 

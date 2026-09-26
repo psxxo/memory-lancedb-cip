@@ -11,11 +11,11 @@ When triggered, extract and store lessons from the **recent conversation context
 ## Steps
 
 1. **Scan recent context** — identify the pitfall, bug fix, or key insight just discussed
-2. **Store technical layer** (category: fact, importance ≥ 0.8):
+2. **Store technical layer** (canonical `category: fact`, importance ≥ 0.8):
    ```
    Pitfall: [symptom]. Cause: [root cause]. Fix: [solution]. Prevention: [how to avoid].
    ```
-3. **Store principle layer** (category: decision, importance ≥ 0.85):
+3. **Store principle layer** (canonical `category: decision`, importance ≥ 0.85):
    ```
    Decision principle ([tag]): [behavioral rule]. Trigger: [when]. Action: [what to do].
    ```
@@ -24,6 +24,7 @@ When triggered, extract and store lessons from the **recent conversation context
 
 ## Rules
 
+- Use canonical category names: `fact` and `decision` are canonical in the single 10-category vocabulary (`profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other`). Aliases `preference`/`entity`/`event`/`case`/`pattern` are accepted on input; unknown names are rejected.
 - Keep entries short and atomic (< 500 chars each)
 - If the lesson also affects a checklist or SKILL.md, update those files too
 - If no clear lesson is found in recent context, ask Master what to store

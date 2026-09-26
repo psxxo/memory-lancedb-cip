@@ -61,7 +61,7 @@ That's the difference an **AI Memory Assistant** makes — it learns your style,
 | | What you get |
 |---|---|
 | **Auto-Capture** | Your agent learns from every conversation — no manual `memory_store` needed |
-| **Smart Extraction** | LLM-powered 6-category classification: profiles, preferences, entities, events, cases, patterns |
+| **Smart Extraction** | LLM-powered 10-category classification: `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` |
 | **Intelligent Forgetting** | Weibull decay model — important memories stay, noise naturally fades away |
 | **Hybrid Retrieval** | Vector + BM25 full-text search, fused with cross-encoder reranking |
 | **Context Injection** | Relevant memories automatically surface before each reply |
@@ -337,7 +337,7 @@ Requirements:
 | `src/noise-filter.ts` | Filters out agent refusals, meta-questions, greetings, and low-quality content |
 | `src/adaptive-retrieval.ts` | Determines whether a query needs memory retrieval |
 | `src/migrate.ts` | Migration from built-in `memory-lancedb` to Pro |
-| `src/smart-extractor.ts` | LLM-powered 6-category extraction with L0/L1/L2 layered storage and two-stage dedup |
+| `src/smart-extractor.ts` | LLM-powered 10-category extraction with L0/L1/L2 layered storage and two-stage dedup |
 | `src/decay-engine.ts` | Weibull stretched-exponential decay model |
 | `src/tier-manager.ts` | Three-tier promotion/demotion: Peripheral ↔ Working ↔ Core |
 
@@ -382,10 +382,10 @@ Query → BM25 FTS ─────┘
 
 ### Smart Memory Extraction (v1.1.0)
 
-- **LLM-Powered 6-Category Extraction**: profile, preferences, entities, events, cases, patterns
+- **LLM-Powered 10-Category Extraction**: `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` — one single vocabulary; the canonical name is what gets stored in the `category` column. Singular aliases (`preference`, `entity`, `event`, `case`, `pattern`) are accepted on input, and unknown names are rejected.
 - **L0/L1/L2 Layered Storage**: L0 (one-sentence index) → L1 (structured summary) → L2 (full narrative)
 - **Two-Stage Dedup**: vector similarity pre-filter (≥0.7) → LLM semantic decision (CREATE/MERGE/SKIP)
-- **Category-Aware Merge**: `profile` always merges, `events`/`cases` are append-only
+- **Category-Aware Merge**: `profile` always merges; `preferences` / `entities` / `patterns` / `fact` / `reflection` merge when duplicates are detected; `events` / `cases` / `decision` are append-only (never merged)
 
 ### Memory Lifecycle Management (v1.1.0)
 
@@ -403,7 +403,7 @@ Query → BM25 FTS ─────┘
 
 ### Auto-Capture & Auto-Recall
 
-- **Auto-Capture** (`agent_end`): extracts preference/fact/decision/entity from conversations, deduplicates, stores up to 3 per turn
+- **Auto-Capture** (`agent_end`): extracts memories under a canonical category (`preferences` / `entities` / `events` / `cases` / `patterns` / `fact` / `decision` / `reflection` / `profile` / `other`) from conversations, deduplicates, stores up to 3 per turn
 - **Auto-Recall** (`before_prompt_build`): injects `<relevant-memories>` context (up to 3 entries)
 
 > **Note (v1.1.0-beta.9+):** Auto-recall now uses the `before_prompt_build` hook instead of the deprecated `before_agent_start`. See [Hook Adaptation](#hook-adaptation-openclaw-20263) below for details.
@@ -435,7 +435,7 @@ Query → BM25 FTS ─────┘
 | Management CLI | - | Yes |
 | Session memory | - | Yes |
 | Task-aware embeddings | - | Yes |
-| **LLM Smart Extraction (6-category)** | - | Yes (v1.1.0) |
+| **LLM Smart Extraction (10-category)** | - | Yes (v1.1.0) |
 | **Weibull Decay + Tier Promotion** | - | Yes (v1.1.0) |
 | Any OpenAI-compatible embedding | Limited | Yes |
 
@@ -591,7 +591,7 @@ When `smartExtraction` is enabled (default: `true`), the plugin uses an LLM to i
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `smartExtraction` | boolean | `true` | Enable/disable LLM-powered 6-category extraction |
+| `smartExtraction` | boolean | `true` | Enable/disable LLM-powered 10-category extraction |
 | `llm.auth` | string | `api-key` | `api-key` uses `llm.apiKey` / `embedding.apiKey`; `oauth` uses a plugin-scoped OAuth token file by default |
 | `llm.apiKey` | string | *(falls back to `embedding.apiKey`)* | API key for the LLM provider |
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM model name |
@@ -689,6 +689,8 @@ openclaw memory-cip reembed --source-db /path/to/old-db [--batch-size 32] [--ski
 openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N] [--scope SCOPE]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
+
+`--category` accepts the canonical 10 categories (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`) plus the input aliases (`preference` / `entity` / `event` / `case` / `pattern`). Unknown values are rejected with a validation error rather than silently falling back to `patterns` or `other`.
 
 OAuth login flow:
 
@@ -811,8 +813,8 @@ When the user sends `/remember <content>`:
 > Copy the block below into your `AGENTS.md` so your agent enforces these rules automatically.
 
 ```markdown
-## Rule 1 — Dual-layer memory storage
-Every pitfall/lesson learned → IMMEDIATELY store TWO memories:
+## Rule 1 — Two-memory lesson storage
+Every pitfall/lesson learned → IMMEDIATELY store TWO memories (both are canonical categories in the single 10-category vocabulary):
 - Technical layer: Pitfall: [symptom]. Cause: [root cause]. Fix: [solution]. Prevention: [how to avoid]
   (category: fact, importance >= 0.8)
 - Principle layer: Decision principle ([tag]): [behavioral rule]. Trigger: [when]. Action: [what to do]
@@ -843,7 +845,7 @@ LanceDB table `memories`:
 | `id` | string (UUID) | Primary key |
 | `text` | string | Memory text (FTS indexed) |
 | `vector` | float[] | Embedding vector |
-| `category` | string | Storage category: `preference` / `fact` / `decision` / `entity` / `reflection` / `other` |
+| `category` | string | Storage category (canonical): `profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other` |
 | `scope` | string | Scope identifier (e.g., `global`, `agent:main`) |
 | `importance` | float | Importance score 0-1 |
 | `timestamp` | int64 | Creation timestamp (ms) |
@@ -851,7 +853,9 @@ LanceDB table `memories`:
 
 Common `metadata` keys in v1.1.0: `l0_abstract`, `l1_overview`, `l2_content`, `memory_category`, `tier`, `access_count`, `confidence`, `last_accessed_at`
 
-> **Note on categories:** The top-level `category` field uses 6 storage categories. The 6-category semantic labels from Smart Extraction (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns`) are stored in `metadata.memory_category`.
+> **Note on categories:** There is a **single 10-category vocabulary** — `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other`. The canonical name *is* what the top-level `category` field stores (identity mapping; there is no separate semantic/storage double layer). On input, the singular aliases `preference` → `preferences`, `entity` → `entities`, `event` → `events`, `case` → `cases`, and `pattern` → `patterns` are accepted; `decision`, `fact`, `reflection`, and `other` are canonical themselves. Unknown category names are **rejected** with a validation error — they are never silently mapped to `patterns` or `other`.
+>
+> Merge / timeline / durability behavior: `profile` always merges (no timeline, durable); `preferences`, `entities`, and `fact` merge and are temporal-versioned via `fact_key` (durable); `patterns` and `reflection` merge with no timeline (durable); `events` is append-only (no timeline, durable, fiction-judged); `cases` and `decision` are append-only (no timeline, durable); `other` neither merges nor uses a timeline and is not durable.
 
 </details>
 
@@ -959,7 +963,7 @@ openclaw doctor --fix # resolve any stale config after upgrade
 
 | Feature | Description |
 |---------|-------------|
-| **Smart Extraction** | LLM-powered 6-category extraction with L0/L1/L2 metadata. Falls back to regex when disabled. |
+| **Smart Extraction** | LLM-powered 10-category extraction with L0/L1/L2 metadata. Falls back to regex when disabled. |
 | **Lifecycle Scoring** | Weibull decay integrated into retrieval — high-frequency and high-importance memories rank higher. |
 | **Tier Management** | Three-tier system (Core → Working → Peripheral) with automatic promotion/demotion. |
 

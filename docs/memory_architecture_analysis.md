@@ -26,7 +26,7 @@
 - 智能提取已经进入默认写入主路径，regex 仅作为兜底
 - 生命周期衰减已经进入默认检索主路径，不再是“代码里有对象但没接上”
 - smart metadata 已成为全系统的统一中间层
-- 旧 5 类 store category 与新 6 类 memory category 处于“双层兼容模型”
+- 分类词表已统一：单一 10 类词表（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`），旧的“5 类 store category + 6 类 memory category”双层兼容模型已移除
 - auto-recall、tool recall、CLI、迁移、升级、session memory 都共享同一份 LanceDB 数据平面
 
 ### 1.3 仍保留的兼容层
@@ -61,7 +61,7 @@ graph TD
     subgraph WritePath["写入链路"]
         W1["agent_end"]
         W0["NoisePrototypeBank<br/>嵌入噪声预过滤"]
-        W2["SmartExtractor<br/>LLM 6 类提取"]
+        W2["SmartExtractor<br/>LLM 10 类提取"]
         W3["Regex Fallback"]
         W4["buildSmartMetadata()"]
         W5["store.store / store.update / importEntry"]
@@ -262,15 +262,17 @@ texts
 - 第一阶段去重使用 `vectorSearch(..., threshold=0.7)`
 - 第二阶段去重交给 LLM 做语义决策
 - `profile` 类记忆永远优先走 merge
-- `events` / `cases` 更偏 append-only
+- `preferences` / `entities` / `patterns` / `fact` / `reflection` 支持合并
+- `events` / `cases` / `decision` 仅追加（append-only，从不合并）
 
-### 4.4 6 类智能分类与 5 类存储分类并存
+### 4.4 单一 10 类词表
 
-这是当前架构最重要的兼容设计之一。
+分类体系已统一为**单一词表**：不再区分“智能语义分类”与“存储粗分类”两层，
+规范类别名本身就是写入 LanceDB 主字段 `category` 的值（恒等映射）。
 
-### 智能分类
+### 规范类别
 
-定义在 `src/memory-categories.ts`：
+定义在 `src/memory-categories.ts`，共 10 个：
 
 - `profile`
 - `preferences`
@@ -278,36 +280,46 @@ texts
 - `events`
 - `cases`
 - `patterns`
-
-### 存储分类
-
-底层 LanceDB 主字段 `category` 仍保留旧 5 类：
-
-- `preference`
-- `fact`
 - `decision`
-- `entity`
+- `fact`
+- `reflection`
 - `other`
 
-### 映射关系
+### 输入别名
 
-`SmartExtractor` 写入时会做兼容映射：
+`normalizeCategory()` 只接受单数/复数别名，且未知名称一律返回 `null`：
 
-| 智能分类 | 存储分类 |
+| 输入别名 | 规范类别 |
 | --- | --- |
-| `profile` | `fact` |
-| `preferences` | `preference` |
-| `entities` | `entity` |
-| `events` | `decision` |
-| `cases` | `fact` |
-| `patterns` | `other` |
+| `preference` | `preferences` |
+| `entity` | `entities` |
+| `event` | `events` |
+| `case` | `cases` |
+| `pattern` | `patterns` |
+
+`decision` / `fact` / `reflection` / `other` 本身就是规范名。未知名称会被
+**拒绝**（Tool / CLI 返回校验错误），绝不会静默回退到 `patterns` 或 `other`。
+
+### 行为矩阵
+
+| 规范类别 | 合并策略 | 时间线 | 持久性 | 备注 |
+| --- | --- | --- | --- | --- |
+| `profile` | 始终合并 | 无 | 持久 | — |
+| `preferences` | 支持合并 | 有（`fact_key` 版本化） | 持久 | — |
+| `entities` | 支持合并 | 有（`fact_key` 版本化） | 持久 | — |
+| `events` | 仅追加 | 无 | 持久 | 做虚构判定 |
+| `cases` | 仅追加 | 无 | 持久 | — |
+| `patterns` | 支持合并 | 无 | 持久 | — |
+| `decision` | 仅追加 | 无 | 持久 | 独立规范类别 |
+| `fact` | 支持合并 | 有（`fact_key` 版本化） | 持久 | 独立规范类别 |
+| `reflection` | 支持合并 | 无 | 持久 | 一级规范类别 |
+| `other` | 不合并 | 无 | 非持久 | — |
 
 因此：
 
-- 结构化语义分类保存在 `metadata.memory_category`
-- 向后兼容的粗粒度分类保存在 `entry.category`
-
-也正因为如此，CLI / Tool 里的 `category` 过滤目前仍以旧 5 类为准。
+- 规范类别名直接存入 `entry.category`（不再做 `profile→fact` 之类的有损映射）
+- 不再存在独立的 `metadata.memory_category` 语义词表
+- CLI / Tool 里的 `category` 过滤与校验以这 10 个规范名（加输入别名）为准
 
 ### 4.5 `memory_update` 的定位
 
@@ -363,7 +375,7 @@ texts
 
 | 字段 | 含义 |
 | --- | --- |
-| `memory_category` | 新 6 类语义分类 |
+| `memory_category` | 记忆分类（与顶层 `category` 同一套 10 类规范词表，不再是独立的语义层） |
 | `tier` | `core` / `working` / `peripheral` |
 | `l0_abstract` | 短句索引，默认也是主搜索文本 |
 | `l1_overview` | 结构化摘要 |

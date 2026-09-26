@@ -16,9 +16,11 @@ The reflection distiller output is persisted by two independent writers:
    no admission gate and no gating knob; `reflectionStoreToLanceDB` gates
    only writer 2. Mapped rows now route through the same AdmissionController
    as extraction candidates when admission control is enabled (passthrough
-   when disabled, fail-open on infra errors). Scoring category mapping:
-   `preference` (user/agent model deltas) scores as `preferences`, `fact`
-   (lessons) as `cases`, `decision` as `events`.
+   when disabled, fail-open on infra errors). Scoring category mapping (all
+   four targets are canonical categories in the single 10-category
+   vocabulary, and the row's stored `category` column holds the canonical
+   name itself): user-model deltas → `preferences`, agent-model deltas →
+   `patterns`, lessons & pitfalls → `cases`, decisions → `cases`.
 
 2. **Writer 2 (reflection documents).** `storeReflectionToLanceDB` persists
    sliced reflection documents under category `reflection`, gated by the

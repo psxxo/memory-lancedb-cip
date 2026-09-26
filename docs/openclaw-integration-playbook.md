@@ -261,7 +261,7 @@ Before calling `memory_store`, review the source result and keep only durable re
 - query or monitor that found the source
 - capture date
 
-Store the reviewed summary as `category: "fact"` for source evidence or `category: "decision"` when the team has made a decision from that evidence. Include the public source URL and capture date in the memory text or metadata so later recall can cite where the information came from.
+Store the reviewed summary as `category: "fact"` for source evidence or `category: "decision"` when the team has made a decision from that evidence. Both are canonical categories in the single 10-category vocabulary (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`); the canonical name is stored verbatim in the `category` column. Input aliases `preference` / `entity` / `event` / `case` / `pattern` are accepted, and unknown category names are rejected. Include the public source URL and capture date in the memory text or metadata so later recall can cite where the information came from.
 
 Never store secrets or private account material from this flow:
 
