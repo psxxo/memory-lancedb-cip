@@ -115,6 +115,7 @@ export const CI_TEST_MANIFEST = [
   { group: "core-regression", runner: "node", file: "test/autocapture-internal-session-guard.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/memory-categories-storage-map.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/category-alignment-roundtrip.test.mjs", args: ["--test"] },
+  { group: "storage-and-schema", runner: "node", file: "test/import-category-policy.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/reverse-map-legacy-category.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/reflection-mapped-category-stamping.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/memory-upgrader-category-normalization.test.mjs", args: ["--test"] },
