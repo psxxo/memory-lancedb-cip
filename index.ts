@@ -74,6 +74,7 @@ import {
 } from "./src/reflection-slices.js";
 import { createReflectionEventId } from "./src/reflection-event-store.js";
 import { buildReflectionMappedMetadata, getReflectionMappedMemoryCategory, getReflectionMappedStorageCategory } from "./src/reflection-mapped-metadata.js";
+import type { StoredMemoryCategory } from "./src/memory-categories.js";
 import { buildFallbackCandidate, gateRegexFallbackCapture } from "./src/autocapture-fallback-admission.js";
 import { gateMappedReflectionEntries, resolveMappedRowAdmissionController } from "./src/reflection-mapped-admission.js";
 import { createMemoryCLI } from "./cli.js";
@@ -1989,14 +1990,14 @@ export function shouldCapture(text: string): boolean {
 
 export function detectCategory(
   text: string,
-): "preference" | "fact" | "decision" | "entity" | "other" {
+): "preferences" | "fact" | "decision" | "entities" | "other" {
   const lower = text.toLowerCase();
   if (
     /prefer|radši|like|love|hate|want|bevorzuge|mag|hasse|will|brauche|偏好|喜歡|喜欢|討厭|讨厌|不喜歡|不喜欢|愛用|爱用|習慣|习惯/i.test(
       lower,
     )
   ) {
-    return "preference";
+    return "preferences";
   }
   if (
     /rozhodli|decided|we decided|will use|we will use|we'?ll use|switch(ed)? to|migrate(d)? to|going forward|from now on|budeme|haben entschieden|ab jetzt|ab sofort|in zukunft|決定|决定|選擇了|选择了|改用|換成|换成|以後用|以后用|規則|流程|SOP/i.test(
@@ -2010,7 +2011,7 @@ export function detectCategory(
       lower,
     )
   ) {
-    return "entity";
+    return "entities";
   }
   if (
     /\b(is|are|has|have|je|má|jsou|ist|sind|hat|habe|wohne|arbeite)\b|immer|niemals|wichtig|總是|总是|從不|从不|一直|每次都|老是/i.test(
@@ -3172,7 +3173,7 @@ const memoryLanceDBCipPlugin = {
     }
 
     async function runRecallLifecycle(
-      results: Array<{ entry: { id: string; text: string; category: "preference" | "fact" | "decision" | "entity" | "other"; scope: string; importance: number; timestamp: number; metadata?: string } }>,
+      results: Array<{ entry: { id: string; text: string; category: StoredMemoryCategory; scope: string; importance: number; timestamp: number; metadata?: string } }>,
       scopeFilter?: string[],
     ): Promise<Map<string, string>> {
       const now = Date.now();

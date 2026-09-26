@@ -1,8 +1,16 @@
 /**
- * Memory Categories — 6-category classification system
+ * Memory Categories — 10-category taxonomy (plan B: a single vocabulary)
  *
- * UserMemory: profile, preferences, entities, events
- * AgentMemory: cases, patterns
+ * Canonical categories (one-to-one): profile, preferences, entities, events,
+ * cases, patterns, decision, fact, reflection, other.
+ *
+ * The canonical name IS what gets persisted in the storage `category` column.
+ * The old double layer (a 6-category semantic vocabulary kept in metadata plus
+ * a separate legacy storage vocabulary in the column, joined by a lossy map)
+ * is gone: the smart→storage map is the identity. Rows written by older builds
+ * still carry the singular aliases ("preference", "entity") or the canonical
+ * values; reads fold the aliases onto their canonical plural form, and every
+ * new write persists the canonical name.
  */
 
 export const MEMORY_CATEGORIES = [
@@ -12,48 +20,86 @@ export const MEMORY_CATEGORIES = [
   "events",
   "cases",
   "patterns",
-] as const;
-
-export const LEGACY_MEMORY_CATEGORIES = [
-  "preference",
-  "fact",
   "decision",
-  "entity",
+  "fact",
   "reflection",
   "other",
 ] as const;
 
-export const TOOL_MEMORY_CATEGORIES = [
-  ...MEMORY_CATEGORIES,
-  ...LEGACY_MEMORY_CATEGORIES,
+export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
+
+/**
+ * Accepted input aliases (singular/plural only). Every alias normalizes to its
+ * canonical category before anything is written, so the alias token itself is
+ * never persisted.
+ */
+export const MEMORY_CATEGORY_ALIASES = {
+  preference: "preferences",
+  entity: "entities",
+  event: "events",
+  case: "cases",
+  pattern: "patterns",
+} as const satisfies Record<string, MemoryCategory>;
+
+export type MemoryCategoryAlias = keyof typeof MEMORY_CATEGORY_ALIASES;
+
+/**
+ * Alias tokens as an explicit tuple (not `Object.keys`) so the TypeBox tool
+ * schema keeps a literal union instead of degrading to `string`.
+ */
+export const MEMORY_CATEGORY_ALIAS_NAMES = [
+  "preference",
+  "entity",
+  "event",
+  "case",
+  "pattern",
 ] as const;
 
-export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
+/** Every accepted input token: the 10 canonical names plus the 5 aliases. */
+export const TOOL_MEMORY_CATEGORIES = [
+  ...MEMORY_CATEGORIES,
+  ...MEMORY_CATEGORY_ALIAS_NAMES,
+] as const;
+
+/**
+ * Pre-migration column/input values that are no longer canonical names. They
+ * survive only as read-side tolerance for rows written by older builds; new
+ * writes never use them. ("fact"/"decision"/"reflection"/"other" used to live
+ * here too and are canonical categories now.)
+ */
+export const LEGACY_MEMORY_CATEGORIES = MEMORY_CATEGORY_ALIAS_NAMES;
 export type LegacyMemoryCategory = (typeof LEGACY_MEMORY_CATEGORIES)[number];
 
 /**
- * Storage categories that smart registers map onto. "reflection" is minted
- * only by the reflection writer and is deliberately absent from this map.
+ * Any value the storage `category` column may legitimately contain: the 10
+ * canonical names, plus the singular aliases still present on rows written by
+ * older builds (which the read path folds onto the canonical name).
  */
-export type SmartStorageCategory = Exclude<LegacyMemoryCategory, "reflection">;
+export type StoredMemoryCategory = MemoryCategory | LegacyMemoryCategory;
 
-const SMART_TO_STORAGE_CATEGORY: Record<MemoryCategory, SmartStorageCategory> = {
-  profile: "fact",
-  preferences: "preference",
-  entities: "entity",
-  events: "decision",
-  cases: "fact",
-  patterns: "other",
-};
+/**
+ * The storage column speaks the canonical vocabulary, so the storage category
+ * type is exactly the canonical category type (identity map).
+ */
+export type SmartStorageCategory = MemoryCategory;
 
-const LEGACY_TO_SMART_CATEGORY: Record<LegacyMemoryCategory, MemoryCategory> = {
-  preference: "preferences",
-  fact: "cases",
-  decision: "events",
-  entity: "entities",
-  reflection: "patterns",
-  other: "patterns",
-};
+/**
+ * Thrown/returned when a write asks for a category that is neither canonical
+ * nor an accepted alias. Callers must reject the write rather than silently
+ * landing the row in a fallback category.
+ */
+export class InvalidMemoryCategoryError extends Error {
+  readonly code = "invalid_memory_category";
+  readonly rawCategory: string;
+  readonly allowed: readonly string[];
+
+  constructor(rawCategory: string, allowed: readonly string[] = TOOL_MEMORY_CATEGORIES) {
+    super(`Invalid memory category "${rawCategory}". Allowed: ${allowed.join(", ")}`);
+    this.name = "InvalidMemoryCategoryError";
+    this.rawCategory = rawCategory;
+    this.allowed = allowed;
+  }
+}
 
 /** Categories that always merge (skip dedup entirely). */
 export const ALWAYS_MERGE_CATEGORIES = new Set<MemoryCategory>(["profile"]);
@@ -63,18 +109,22 @@ export const MERGE_SUPPORTED_CATEGORIES = new Set<MemoryCategory>([
   "preferences",
   "entities",
   "patterns",
+  "fact",
+  "reflection",
 ]);
 
 /** Categories whose facts can be replaced over time without deleting history. */
 export const TEMPORAL_VERSIONED_CATEGORIES = new Set<MemoryCategory>([
   "preferences",
   "entities",
+  "fact",
 ]);
 
 /** Categories that are append-only (CREATE or SKIP only, no MERGE). */
 export const APPEND_ONLY_CATEGORIES = new Set<MemoryCategory>([
   "events",
   "cases",
+  "decision",
 ]);
 
 /** Memory tier levels for lifecycle management. */
@@ -96,13 +146,20 @@ export type ConversationRegister = "real" | "mixed" | "fiction";
  * in-fiction batch can never produce durable memories) and the batch
  * contradiction check. Per-item grounding "constructed" is dropped
  * unconditionally in every category, so this set does not gate that rule.
+ *
+ * Every canonical category is durable except "other", the non-durable
+ * catch-all.
  */
 export const DURABLE_CATEGORIES = new Set<MemoryCategory>([
   "profile",
   "preferences",
   "entities",
+  "events",
   "cases",
   "patterns",
+  "decision",
+  "fact",
+  "reflection",
 ]);
 
 /**
@@ -181,19 +238,14 @@ export type ExtractionStats = {
   skippedNoInput?: boolean; // nothing extractable survived stripping/bounding: no LLM call was made
 };
 
-/** Validate and normalize a category string. */
+/** Validate and normalize a category string. Returns null for unknown input. */
 export function normalizeCategory(raw: string): MemoryCategory | null {
-  const lower = raw.toLowerCase().trim();
-  const aliases: Record<string, MemoryCategory> = {
-    preference: "preferences",
-    entity: "entities",
-    event: "events",
-    case: "cases",
-    pattern: "patterns",
-  };
-  const normalized = aliases[lower] ?? lower;
-  if ((MEMORY_CATEGORIES as readonly string[]).includes(normalized)) {
-    return normalized as MemoryCategory;
+  const lower = String(raw ?? "").toLowerCase().trim();
+  if (!lower) return null;
+  const aliased =
+    (MEMORY_CATEGORY_ALIASES as Record<string, MemoryCategory>)[lower] ?? lower;
+  if ((MEMORY_CATEGORIES as readonly string[]).includes(aliased)) {
+    return aliased as MemoryCategory;
   }
   return null;
 }
@@ -203,35 +255,31 @@ export function matchesMemoryCategoryFilter(
   requestedCategory: string,
   entryMetadata?: string,
 ): boolean {
-  const rawEntryCategory = entryCategory.toLowerCase().trim();
-  const rawRequestedCategory = requestedCategory.toLowerCase().trim();
+  const rawEntryCategory = String(entryCategory ?? "").toLowerCase().trim();
+  const rawRequestedCategory = String(requestedCategory ?? "").toLowerCase().trim();
   if (rawEntryCategory === rawRequestedCategory) return true;
 
-  const metadataCategory = extractMetadataMemoryCategory(entryMetadata);
-  const normalizedEntryCategory = normalizeCategory(rawEntryCategory);
   const normalizedRequestedCategory = normalizeCategory(rawRequestedCategory);
-  if (metadataCategory && normalizedRequestedCategory) {
+  if (!normalizedRequestedCategory) return false;
+
+  // A valid stamped memory_category is authoritative over the column value for
+  // historical rows (old builds could write either vocabulary into the column).
+  const metadataCategory = extractMetadataMemoryCategory(entryMetadata);
+  if (metadataCategory) {
     return metadataCategory === normalizedRequestedCategory;
   }
-  if (normalizedEntryCategory && normalizedRequestedCategory) {
-    return normalizedEntryCategory === normalizedRequestedCategory;
-  }
 
-  if (normalizedRequestedCategory && isLegacyMemoryCategory(rawEntryCategory)) {
-    return LEGACY_TO_SMART_CATEGORY[rawEntryCategory] === normalizedRequestedCategory;
-  }
-
-  return false;
+  const normalizedEntryCategory = normalizeCategory(rawEntryCategory);
+  return normalizedEntryCategory === normalizedRequestedCategory;
 }
 
 export function resolveCategoryFilterCandidates(requestedCategory: string): string[] {
-  const rawRequestedCategory = requestedCategory.toLowerCase().trim();
+  const rawRequestedCategory = String(requestedCategory ?? "").toLowerCase().trim();
   const normalizedRequestedCategory = normalizeCategory(rawRequestedCategory);
   const candidates = new Set<string>([rawRequestedCategory]);
 
   if (normalizedRequestedCategory) {
     candidates.add(normalizedRequestedCategory);
-    candidates.add(SMART_TO_STORAGE_CATEGORY[normalizedRequestedCategory]);
     for (const category of TOOL_MEMORY_CATEGORIES) {
       if (normalizeCategory(category) === normalizedRequestedCategory) {
         candidates.add(category);
@@ -245,37 +293,55 @@ export function resolveCategoryFilterCandidates(requestedCategory: string): stri
 export function getStorageCategoryForMemoryCategory(
   category: MemoryCategory,
 ): SmartStorageCategory {
-  return SMART_TO_STORAGE_CATEGORY[category];
+  // Identity: the canonical category name is what the storage column holds.
+  return category;
 }
 
-export function resolveToolMemoryCategory(rawCategory: string): {
-  memoryCategory: MemoryCategory;
-  storageCategory: LegacyMemoryCategory;
-} {
-  const raw = rawCategory.toLowerCase().trim();
+/**
+ * Resolve a tool/CLI category token into its canonical category.
+ *
+ * An unrecognized token is NOT silently mapped to a fallback (the old code
+ * returned patterns/other): it yields a typed validation error so callers
+ * must reject the write.
+ */
+export type ToolMemoryCategoryResolution =
+  | {
+      ok: true;
+      /** Canonical category name, exactly what is persisted in the column. */
+      memoryCategory: MemoryCategory;
+      /** Storage column value: identical to the canonical name. */
+      storageCategory: SmartStorageCategory;
+    }
+  | {
+      ok: false;
+      error: InvalidMemoryCategoryError;
+    };
+
+export function resolveToolMemoryCategory(rawCategory: string): ToolMemoryCategoryResolution {
+  const raw = String(rawCategory ?? "").toLowerCase().trim();
   const normalized = normalizeCategory(raw);
-  if (normalized) {
-    return {
-      memoryCategory: normalized,
-      storageCategory: SMART_TO_STORAGE_CATEGORY[normalized],
-    };
+  if (!normalized) {
+    return { ok: false, error: new InvalidMemoryCategoryError(String(rawCategory ?? "")) };
   }
-
-  if (isLegacyMemoryCategory(raw)) {
-    return {
-      memoryCategory: LEGACY_TO_SMART_CATEGORY[raw],
-      storageCategory: raw,
-    };
-  }
-
   return {
-    memoryCategory: "patterns",
-    storageCategory: "other",
+    ok: true,
+    memoryCategory: normalized,
+    storageCategory: getStorageCategoryForMemoryCategory(normalized),
   };
 }
 
-function isLegacyMemoryCategory(value: string): value is LegacyMemoryCategory {
-  return (LEGACY_MEMORY_CATEGORIES as readonly string[]).includes(value);
+/**
+ * Narrowing helper for the resolution union. A user-defined type predicate is
+ * used instead of `if (!resolution.ok)` because boolean-literal discriminant
+ * narrowing is disabled under this repo's `strictNullChecks: false`.
+ */
+export type ToolMemoryCategoryError = Extract<ToolMemoryCategoryResolution, { ok: false }>;
+export type ToolMemoryCategoryResolutionOk = Extract<ToolMemoryCategoryResolution, { ok: true }>;
+
+export function isToolMemoryCategoryError(
+  resolution: ToolMemoryCategoryResolution,
+): resolution is ToolMemoryCategoryError {
+  return !resolution.ok;
 }
 
 function extractMetadataMemoryCategory(rawMetadata?: string): MemoryCategory | null {

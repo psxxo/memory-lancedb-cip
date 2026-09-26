@@ -32,7 +32,7 @@ import {
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { matchesMemoryCategoryFilter, resolveCategoryFilterCandidates } from "./memory-categories.js";
+import { matchesMemoryCategoryFilter, resolveCategoryFilterCandidates, type StoredMemoryCategory } from "./memory-categories.js";
 import {
   drainManualRecallMetadata,
   ManualRecallMetadataBatchSettledError,
@@ -54,7 +54,7 @@ export interface MemoryEntry extends Record<string, unknown> {
   id: string;
   text: string;
   vector: number[];
-  category: "preference" | "fact" | "decision" | "entity" | "other" | "reflection";
+  category: StoredMemoryCategory;
   scope: string;
   importance: number;
   timestamp: number;

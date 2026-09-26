@@ -8,6 +8,7 @@ import { join } from "node:path";
 import fs from "node:fs/promises";
 import type { MemoryStore, MemoryEntry } from "./store.js";
 import { loadLanceDB } from "./store.js";
+import type { StoredMemoryCategory } from "./memory-categories.js";
 
 // ============================================================================
 // Types
@@ -18,7 +19,7 @@ interface LegacyMemoryEntry {
   text: string;
   vector: number[];
   importance: number;
-  category: "preference" | "fact" | "decision" | "entity" | "other";
+  category: StoredMemoryCategory;
   createdAt: number;
   scope?: string;
 }

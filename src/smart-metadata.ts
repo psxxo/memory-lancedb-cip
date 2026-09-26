@@ -2,22 +2,21 @@ import {
   MEMORY_CATEGORIES,
   TEMPORAL_VERSIONED_CATEGORIES,
   normalizeCategory,
+  type LegacyMemoryCategory,
   type MemoryCategory,
   type MemoryTier,
 } from "./memory-categories.js";
 import type { DecayableMemory } from "./decay-engine.js";
 
-type LegacyStoreCategory =
-  | "preference"
-  | "fact"
-  | "decision"
-  | "entity"
-  | "other"
-  | "reflection";
+/**
+ * Values the storage `category` column can carry: the 10 canonical names plus
+ * the singular aliases still present on rows written by older builds.
+ */
+type StoreCategoryValue = MemoryCategory | LegacyMemoryCategory;
 
 type EntryLike = {
   text?: string;
-  category?: LegacyStoreCategory;
+  category?: StoreCategoryValue;
   importance?: number;
   timestamp?: number;
   metadata?: string;
@@ -176,59 +175,17 @@ function deriveDefaultLayer(
   return "working";
 }
 
-function looksLikePersonalProfileText(text: string): boolean {
-  return (
-    /\b(my |i am |i'm |name is |叫我|我的|我是)\b/i.test(text) &&
-    text.length < 200
-  );
-}
-
 export function reverseMapLegacyCategory(
   oldCategory: string | undefined,
-  text = "",
-  rowType?: unknown,
+  _text = "",
+  _rowType?: unknown,
 ): MemoryCategory {
-  // Rows written by builds that put the six-category vocabulary straight into
-  // the legacy-typed column read back as themselves instead of falling to the
-  // "patterns" default. This is a read-side tolerance for historical data;
-  // the write path and the --categories-only backfill keep the column in the
-  // legacy storage vocabulary.
-  if (
-    typeof oldCategory === "string" &&
-    (MEMORY_CATEGORIES as readonly string[]).includes(oldCategory)
-  ) {
-    return oldCategory as MemoryCategory;
-  }
-  switch (oldCategory) {
-    case "preference":
-      return "preferences";
-    case "entity":
-      return "entities";
-    case "other":
-      return "patterns";
-    case "fact":
-      if (looksLikePersonalProfileText(text)) {
-        return "profile";
-      }
-      return "cases";
-    case "decision":
-      // Reflection-mapped "Decisions (durable)" rows written before write-time
-      // stamping landed are durable operational facts, not one-off occurrences —
-      // read those through the same branch as "fact". The redirect is gated on
-      // the row's own mapped-row identity: an ordinary legacy "decision" row
-      // with no reflection provenance keeps the canonical decision→events
-      // mapping (LEGACY_TO_SMART_CATEGORY and the upgrader's reverseMapCategory
-      // both agree on "events").
-      if (rowType === "memory-reflection-mapped") {
-        if (looksLikePersonalProfileText(text)) {
-          return "profile";
-        }
-        return "cases";
-      }
-      return "events";
-    default:
-      return "patterns";
-  }
+  // Single vocabulary: the column holds the canonical category name, so a
+  // canonical value reads back as itself and a pre-migration alias
+  // ("preference", "entity") folds onto its canonical plural form. A genuinely
+  // unknown or absent value falls to the non-durable "other" catch-all — never
+  // to a durable category — so junk columns cannot be promoted by the read path.
+  return normalizeCategory(oldCategory ?? "") ?? "other";
 }
 
 function defaultOverview(text: string): string {

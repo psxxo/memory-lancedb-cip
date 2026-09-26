@@ -11,7 +11,7 @@
  */
 
 import type { AdmissionAuditRecord, AdmissionEvaluation } from "./admission-control.js";
-import { resolveToolMemoryCategory } from "./memory-categories.js";
+import { resolveToolMemoryCategory, isToolMemoryCategoryError, InvalidMemoryCategoryError } from "./memory-categories.js";
 
 export interface FallbackAdmissionGate {
   evaluate(params: {
@@ -40,9 +40,15 @@ export function buildFallbackCandidate(
   text: string,
   storeCategory: string,
 ): import("./memory-categories.js").CandidateMemory {
-  const { memoryCategory } = resolveToolMemoryCategory(storeCategory);
+  const resolved = resolveToolMemoryCategory(storeCategory);
+  if (isToolMemoryCategoryError(resolved)) {
+    // Never silently score a row under a fallback register: an unrecognized
+    // category means the caller produced something the taxonomy does not
+    // define. Surface the typed validation error and let the gate fail closed.
+    throw resolved.error;
+  }
   return {
-    category: memoryCategory,
+    category: resolved.memoryCategory,
     abstract: text,
     overview: `- ${text}`,
     content: text,
@@ -101,6 +107,14 @@ export async function gateRegexFallbackCapture(params: {
       scopeFilter: params.scopeFilter,
     });
   } catch (err) {
+    // An unrecognized store category is a hard input error, not a transient
+    // infra failure: fail closed so the row is never persisted under a
+    // silently-substituted fallback category.
+    if (err instanceof InvalidMemoryCategoryError) {
+      const reason = `unrecognized category "${params.storeCategory}": ${err.message}`;
+      params.warnLog?.(`memory-lancedb-cip: regex-fallback capture rejected: ${reason}`);
+      return { admit: false, reason };
+    }
     const reason = "admission evaluation failed open";
     params.warnLog?.(
       `memory-lancedb-cip: regex-fallback admission evaluation failed, admitting without audit: ${String(err)}`,

@@ -3947,21 +3947,13 @@ export class SmartExtractor {
   }
 
   /**
-   * Map 6-category to existing 5-category store type for backward compatibility.
+   * Map a smart register onto its stored category. The storage column speaks the
+   * canonical 10-category vocabulary (single vocabulary, identity storage map),
+   * so this delegates to the shared getStorageCategoryForMemoryCategory helper
+   * (memory-categories) and has a single source of truth.
    */
-  /**
-   * Map a smart register onto its legacy storage category, delegating to the
-   * shared SMART_TO_STORAGE_CATEGORY constant (memory-categories) so the
-   * mapping has a single source of truth. Note: "reflection" is a legacy
-   * storage category minted only by the reflection writer and is deliberately
-   * absent from this map; smart extraction never produces reflection rows.
-   * The "other" fallback covers non-union values arriving from untyped
-   * callers at runtime, matching the old switch's default arm.
-   */
-  private mapToStoreCategory(
-    category: MemoryCategory,
-  ): "preference" | "fact" | "decision" | "entity" | "other" {
-    return getStorageCategoryForMemoryCategory(category) ?? "other";
+  private mapToStoreCategory(category: MemoryCategory): MemoryCategory {
+    return getStorageCategoryForMemoryCategory(category);
   }
 
   /**
@@ -3981,6 +3973,13 @@ export class SmartExtractor {
         return 0.8; // Problem-solution pairs are high value
       case "patterns":
         return 0.85; // Reusable processes are high value
+      case "decision":
+        return 0.8; // Actionable durable takeaways
+      case "fact":
+        return 0.7; // Durable knowledge
+      case "reflection":
+        return 0.75; // Distilled self-model output
+      case "other":
       default:
         return 0.5;
     }

@@ -2,6 +2,7 @@ import {
   classifyIdentityAndAddressingMemory,
 } from "./identity-addressing.js";
 import { parseSmartMetadata } from "./smart-metadata.js";
+import type { StoredMemoryCategory } from "./memory-categories.js";
 
 export interface UserMdExclusiveConfig {
   enabled?: boolean;
@@ -28,7 +29,7 @@ type UserMdExclusiveSlot = "profile" | "name" | "addressing";
 type BoundaryEntryLike = {
   text: string;
   metadata?: string;
-  category?: "preference" | "fact" | "decision" | "entity" | "other" | "reflection";
+  category?: StoredMemoryCategory;
   importance?: number;
   timestamp?: number;
 };

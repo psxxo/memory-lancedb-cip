@@ -85,12 +85,13 @@ export function getReflectionMappedMemoryCategory(kind: ReflectionMappedKind): M
 }
 
 /**
- * The stored row's `category` column speaks the legacy storage vocabulary
- * (MemoryEntry["category"]); the six-category taxonomy value lives only in
- * `metadata.memory_category`. Deriving the column through the central
- * smart-to-storage mapping keeps every direct consumer of the column
+ * The stored row's `category` column speaks the canonical 10-category taxonomy
+ * (single vocabulary): the mapped row persists the canonical name directly via
+ * the central smart-to-storage mapping (now the identity), and
+ * `metadata.memory_category` carries the same canonical value. Deriving the
+ * column through the central helper keeps every direct consumer of the column
  * (compaction's plurality vote, read-time reverse mapping, category filters)
- * on values it actually understands.
+ * on names it actually understands.
  */
 export function getReflectionMappedStorageCategory(
   kind: ReflectionMappedKind,
