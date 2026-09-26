@@ -52,7 +52,7 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 | | 得られるもの |
 |---|---|
 | **自動キャプチャ** | エージェントが毎回の会話から学習——手動で `memory_store` を呼ぶ必要なし |
-| **スマート抽出** | LLM 駆動の6カテゴリ分類：プロフィール、好み、エンティティ、イベント、ケース、パターン |
+| **スマート抽出** | LLM 駆動の10カテゴリ分類：`profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` |
 | **インテリジェント忘却** | Weibull 減衰モデル——重要な記憶は残り、ノイズは自然に消える |
 | **ハイブリッド検索** | ベクトル + BM25 全文検索、クロスエンコーダーリランキングで融合 |
 | **コンテキスト注入** | 関連する記憶が各応答前に自動的に浮上 |
@@ -235,7 +235,7 @@ Requirements:
 | `src/noise-filter.ts` | エージェントの拒否応答、メタ質問、挨拶などの低品質コンテンツをフィルタリング |
 | `src/adaptive-retrieval.ts` | クエリがメモリ検索を必要とするかどうかを判定 |
 | `src/migrate.ts` | 内蔵 `memory-lancedb` から Pro へのマイグレーション |
-| `src/smart-extractor.ts` | LLM 駆動の6カテゴリ抽出、L0/L1/L2 階層ストレージと2段階重複排除対応 |
+| `src/smart-extractor.ts` | LLM 駆動の10カテゴリ抽出、L0/L1/L2 階層ストレージと2段階重複排除対応 |
 | `src/decay-engine.ts` | Weibull 伸長指数関数減衰モデル |
 | `src/tier-manager.ts` | 3段階昇格/降格：周辺 ↔ ワーキング ↔ コア |
 
@@ -280,10 +280,10 @@ Requirements:
 
 ### スマートメモリ抽出（v1.1.0）
 
-- **LLM 駆動の6カテゴリ抽出**：プロフィール、好み、エンティティ、イベント、ケース、パターン
+- **LLM 駆動の10カテゴリ抽出**：`profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other` —— 単一の語彙であり、カノニカル名が `category` 列に保存される値です。入力時に単数エイリアス（`preference`、`entity`、`event`、`case`、`pattern`）を受け付け、未知の名前は拒否されます。JSON インポートでは、オペレーターが未知の名前に対する明示的なポリシー（`--unknown reject|other|<canonical>`、デフォルト `reject`）を設定し、任意の入力名を正規カテゴリへマッピングできます（`--category-map`）。
 - **L0/L1/L2 階層ストレージ**：L0（一文の索引）→ L1（構造化サマリー）→ L2（完全な記述）
 - **2段階重複排除**：ベクトル類似度プレフィルタ（≥0.7）→ LLM セマンティック判定（CREATE/MERGE/SKIP）
-- **カテゴリ対応マージ**：`profile` は常にマージ、`events`/`cases` は追記のみ
+- **カテゴリ対応マージ**：`profile` は常にマージ、`preferences` / `entities` / `patterns` / `fact` / `reflection` は重複が検出されたときにマージ、`events` / `cases` / `decision` は追記のみ（マージされない）
 
 ### メモリライフサイクル管理（v1.1.0）
 
@@ -330,7 +330,7 @@ Requirements:
 | 管理 CLI | - | あり |
 | セッションメモリ | - | あり |
 | タスク対応 Embedding | - | あり |
-| **LLM スマート抽出（6カテゴリ）** | - | あり（v1.1.0） |
+| **LLM スマート抽出（10カテゴリ）** | - | あり（v1.1.0） |
 | **Weibull 減衰 + 階層昇格** | - | あり（v1.1.0） |
 | 任意の OpenAI 互換 Embedding | 限定的 | あり |
 
@@ -443,7 +443,7 @@ Requirements:
 
 | フィールド | 型 | デフォルト | 説明 |
 |-------|------|---------|-------------|
-| `smartExtraction` | boolean | `true` | LLM 駆動の6カテゴリ抽出の有効化/無効化 |
+| `smartExtraction` | boolean | `true` | LLM 駆動の10カテゴリ抽出の有効化/無効化 |
 | `llm.auth` | string | `api-key` | `api-key` は `llm.apiKey` / `embedding.apiKey` を使用；`oauth` はデフォルトでプラグインスコープの OAuth トークンファイルを使用 |
 | `llm.apiKey` | string | *（`embedding.apiKey` にフォールバック）* | LLM プロバイダーの API キー |
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM モデル名 |
@@ -525,6 +525,31 @@ openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
+`--category` は正規の10カテゴリ（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`）と入力エイリアス（`preference` / `entity` / `event` / `case` / `pattern`）を受け付けます。未知の値は検証エラーで拒否され、`patterns` や `other` へ暗黙にフォールバックすることはありません。
+
+**`import` のカテゴリポリシー（決して暗黙に変換されません）。** 行ごとに、カテゴリは次の順序で解決されます：
+
+1. **正規名の完全一致** — そのまま保存；
+2. **組み込みエイリアス**（`preference` → `preferences`、`entity` → `entities`、`event` → `events`、`case` → `cases`、`pattern` → `patterns`）；
+3. **`--category-map <file>`** — 任意の入力名を正規カテゴリへ対応付ける JSON オブジェクト（例：`{"lemmas":"cases"}`）；
+4. **`--unknown <policy>`** — 残った未認識名を処理します：
+   - `reject`（**デフォルト**）：その行をスキップし、正規名を列挙した行ごとの警告を出力；
+   - `other`：その行を `other` として保存（オペレーターが明示的に要求した場合のみ）；
+   - 任意の正規カテゴリ名：その行をそのカテゴリとして保存。
+
+すべての決定は行ごとに報告され、`--dry-run` は何も書き込む前に完全な解決プラン（要求値 → `canonical` / `aliased` / `mapped` / `other` / `rejected` → 最終カテゴリ）を出力するため、ポリシーを安全に反復できます。認識されない `--unknown` 値、または正規カテゴリ/エイリアスでない `--category-map` 値があると、何もインポートせずにコマンドが失敗します。
+
+```bash
+# 各行のカテゴリがどう解決されるかをプレビュー（何も保存しません）。
+openclaw memory-cip import memories.json --dry-run
+
+# 既知の非正規名2つを明示的にルーティングし、それ以外はすべて拒否。
+openclaw memory-cip import memories.json --category-map map.json --unknown reject
+
+# 同様だが、他の未認識名は明示的に "other" へ。
+openclaw memory-cip import memories.json --unknown other
+```
+
 OAuth ログインフロー：
 
 1. `openclaw memory-cip auth login` を実行
@@ -589,8 +614,8 @@ OAuth ログインフロー：
 > 以下のブロックを `AGENTS.md` にコピーして、エージェントがこれらのルールを自動的に適用するようにしてください。
 
 ```markdown
-## ルール 1 — 二層メモリ保存
-すべての落とし穴/学んだ教訓 → 直ちに2つのメモリを保存：
+## ルール 1 — 2 つの記憶による教訓の保存
+すべての落とし穴/学んだ教訓 → 直ちに2つのメモリを保存（どちらも単一の10カテゴリ語彙におけるカノニカルカテゴリ）：
 - 技術レイヤー：落とし穴：[症状]。原因：[根本原因]。修正：[解決策]。予防：[回避方法]
   (category: fact, importance >= 0.8)
 - 原則レイヤー：意思決定原則 ([タグ])：[行動ルール]。トリガー：[いつ]。アクション：[何をする]
@@ -621,7 +646,7 @@ LanceDB テーブル `memories`：
 | `id` | string (UUID) | 主キー |
 | `text` | string | メモリテキスト（FTS インデックス付き） |
 | `vector` | float[] | Embedding ベクトル |
-| `category` | string | ストレージカテゴリ：`preference` / `fact` / `decision` / `entity` / `reflection` / `other` |
+| `category` | string | ストレージカテゴリ（カノニカル）：`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other` |
 | `scope` | string | スコープ識別子（例：`global`、`agent:main`） |
 | `importance` | float | 重要度スコア 0-1 |
 | `timestamp` | int64 | 作成タイムスタンプ（ミリ秒） |
@@ -629,7 +654,9 @@ LanceDB テーブル `memories`：
 
 v1.1.0 の一般的な `metadata` キー：`l0_abstract`、`l1_overview`、`l2_content`、`memory_category`、`tier`、`access_count`、`confidence`、`last_accessed_at`
 
-> **カテゴリに関する注意：** トップレベルの `category` フィールドは6つのストレージカテゴリを使用します。スマート抽出の6カテゴリセマンティックラベル（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns`）は `metadata.memory_category` に保存されます。
+> **カテゴリに関する注意：** **単一の10カテゴリ語彙**があります —— `profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other`。カノニカル名がそのままトップレベルの `category` フィールドに保存される値です（恒等マッピングであり、セマンティック/ストレージの二重層は存在しません）。入力時には単数エイリアス `preference` → `preferences`、`entity` → `entities`、`event` → `events`、`case` → `cases`、`pattern` → `patterns` を受け付けます。`decision`、`fact`、`reflection`、`other` はそれ自体がカノニカルです。未知のカテゴリ名は検証エラーで**拒否**され、`patterns` や `other` へ暗黙にマッピングされることは決してありません。
+>
+> マージ / タイムライン / 永続性の挙動：`profile` は常にマージ（タイムラインなし、永続）。`preferences`、`entities`、`fact` はマージされ、`fact_key` を通じて時間バージョン管理されます（永続）。`patterns` と `reflection` はタイムラインなしでマージ（永続）。`events` は追記のみ（タイムラインなし、永続、フィクション判定あり）。`cases` と `decision` は追記のみ（タイムラインなし、永続）。`other` はマージもタイムラインも使用せず、永続ではありません。
 
 </details>
 
@@ -661,7 +688,7 @@ LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返され�
 
 | 機能 | 説明 |
 |---------|-------------|
-| **スマート抽出** | LLM 駆動の6カテゴリ抽出、L0/L1/L2 メタデータ対応。無効時は正規表現にフォールバック。 |
+| **スマート抽出** | LLM 駆動の10カテゴリ抽出、L0/L1/L2 メタデータ対応。無効時は正規表現にフォールバック。 |
 | **ライフサイクルスコアリング** | Weibull 減衰を検索に統合——高頻度・高重要度のメモリが上位にランク。 |
 | **階層管理** | 3段階システム（コア → ワーキング → 周辺）、自動昇格/降格。 |
 
