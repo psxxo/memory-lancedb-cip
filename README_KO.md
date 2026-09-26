@@ -52,7 +52,7 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 | | 제공 기능 |
 |---|---|
 | **Auto-Capture** | 에이전트가 모든 대화에서 학습 — 수동 `memory_store` 불필요 |
-| **Smart Extraction** | LLM 기반 6개 카테고리 분류: profile, preferences, entities, events, cases, patterns |
+| **Smart Extraction** | LLM 기반 10개 카테고리 분류: `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` |
 | **Intelligent Forgetting** | Weibull 감쇠 모델 — 중요한 기억은 유지, 노이즈는 자연스럽게 사라짐 |
 | **Hybrid Retrieval** | 벡터 + BM25 전문 검색, Cross-Encoder 리랭킹으로 융합 |
 | **Context Injection** | 관련 기억이 매 응답 전에 자동으로 불러와짐 |
@@ -235,7 +235,7 @@ Requirements:
 | `src/noise-filter.ts` | 에이전트 거절, 메타 질문, 인사, 저품질 콘텐츠 필터링 |
 | `src/adaptive-retrieval.ts` | 쿼리에 메모리 검색이 필요한지 판단 |
 | `src/migrate.ts` | 내장 `memory-lancedb`에서 Pro로의 마이그레이션 |
-| `src/smart-extractor.ts` | LLM 기반 6개 카테고리 추출 + L0/L1/L2 계층 저장 + 2단계 중복 제거 |
+| `src/smart-extractor.ts` | LLM 기반 10개 카테고리 추출 + L0/L1/L2 계층 저장 + 2단계 중복 제거 |
 | `src/decay-engine.ts` | Weibull 확장 지수 감쇠 모델 |
 | `src/tier-manager.ts` | 3단계 승격/강등: Peripheral ↔ Working ↔ Core |
 
@@ -280,10 +280,10 @@ Query → BM25 FTS ─────┘
 
 ### Smart Memory Extraction (v1.1.0)
 
-- **LLM 기반 6개 카테고리 추출**: profile, preferences, entities, events, cases, patterns
+- **LLM 기반 10개 카테고리 추출**: `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` — 단일 어휘이며, 정규 이름이 `category` 컬럼에 저장되는 값입니다. 입력 시 단수 별칭(`preference`, `entity`, `event`, `case`, `pattern`)을 허용하고, 알 수 없는 이름은 거부됩니다. JSON 가져오기의 경우 운영자가 알 수 없는 이름에 대한 명시적 정책(`--unknown reject|other|<canonical>`, 기본값 `reject`)을 설정하고 임의의 입력 이름을 정규 카테고리로 매핑할 수 있습니다(`--category-map`).
 - **L0/L1/L2 계층 저장**: L0 (한 줄 인덱스) → L1 (구조화된 요약) → L2 (전체 내러티브)
 - **2단계 중복 제거**: 벡터 유사도 사전 필터 (≥0.7) → LLM 의미 판단 (CREATE/MERGE/SKIP)
-- **카테고리 인식 병합**: `profile`은 항상 병합, `events`/`cases`는 추가 전용
+- **카테고리 인식 병합**: `profile`은 항상 병합; `preferences` / `entities` / `patterns` / `fact` / `reflection`은 중복이 감지되면 병합; `events` / `cases` / `decision`은 추가 전용(병합되지 않음)
 
 ### 메모리 라이프사이클 관리 (v1.1.0)
 
@@ -330,7 +330,7 @@ Query → BM25 FTS ─────┘
 | 관리 CLI | - | 예 |
 | 세션 메모리 | - | 예 |
 | 태스크 인식 임베딩 | - | 예 |
-| **LLM Smart Extraction (6개 카테고리)** | - | 예 (v1.1.0) |
+| **LLM Smart Extraction (10개 카테고리)** | - | 예 (v1.1.0) |
 | **Weibull 감쇠 + 단계 승격** | - | 예 (v1.1.0) |
 | OpenAI 호환 임베딩 | 제한적 | 예 |
 
@@ -443,7 +443,7 @@ Jina 호환 리랭크 엔드포인트도 사용 가능합니다 — `rerankProvi
 
 | 필드 | 타입 | 기본값 | 설명 |
 |-------|------|---------|-------------|
-| `smartExtraction` | boolean | `true` | LLM 기반 6개 카테고리 추출 활성화/비활성화 |
+| `smartExtraction` | boolean | `true` | LLM 기반 10개 카테고리 추출 활성화/비활성화 |
 | `llm.auth` | string | `api-key` | `api-key`는 `llm.apiKey` / `embedding.apiKey`를 사용; `oauth`는 기본적으로 플러그인 범위의 OAuth 토큰 파일을 사용 |
 | `llm.apiKey` | string | *(`embedding.apiKey`로 폴백)* | LLM 프로바이더용 API 키 |
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM 모델명 |
@@ -525,6 +525,31 @@ openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
+`--category`는 정규 10개 카테고리(`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`)와 입력 별칭(`preference` / `entity` / `event` / `case` / `pattern`)을 받습니다. 알 수 없는 값은 검증 오류로 거부되며, `patterns`나 `other`로 조용히 폴백하지 않습니다.
+
+**`import` 카테고리 정책(어느 것도 조용히 강제 변환되지 않습니다).** 각 행의 카테고리는 다음 순서로 해석됩니다:
+
+1. **정확한 정규 이름** — 그대로 저장;
+2. **내장 별칭**(`preference` → `preferences`, `entity` → `entities`, `event` → `events`, `case` → `cases`, `pattern` → `patterns`);
+3. **`--category-map <file>`** — 임의의 입력 이름을 정규 카테고리로 매핑하는 JSON 객체, 예: `{"lemmas":"cases"}`;
+4. **`--unknown <policy>`** — 남은 미인식 이름을 결정합니다:
+   - `reject`(**기본값**): 해당 행을 건너뛰고 정규 이름을 나열하는 행별 경고를 출력;
+   - `other`: 해당 행을 `other`로 저장(운영자가 명시적으로 요청한 경우에만);
+   - 임의의 정규 카테고리 이름: 해당 행을 그 카테고리로 저장.
+
+모든 결정은 행별로 보고되며, `--dry-run`은 아무것도 쓰기 전에 전체 해석 계획(요청 값 → `canonical` / `aliased` / `mapped` / `other` / `rejected` → 최종 카테고리)을 출력하므로 정책을 안전하게 반복 조정할 수 있습니다. 인식할 수 없는 `--unknown` 값이나 정규 카테고리/별칭이 아닌 `--category-map` 값이 있으면 아무것도 가져오지 않고 명령이 실패합니다.
+
+```bash
+# 각 행의 카테고리가 어떻게 해석될지 미리보기 (아무것도 저장하지 않음).
+openclaw memory-cip import memories.json --dry-run
+
+# 알려진 비정규 이름 두 개를 명시적으로 라우팅하고 나머지는 모두 거부.
+openclaw memory-cip import memories.json --category-map map.json --unknown reject
+
+# 동일하지만 다른 미인식 이름은 명시적으로 "other"에 배치.
+openclaw memory-cip import memories.json --unknown other
+```
+
 OAuth 로그인 흐름:
 
 1. `openclaw memory-cip auth login` 실행
@@ -589,8 +614,8 @@ When the user sends `/remember <content>`:
 > 아래 블록을 `AGENTS.md`에 복사하여 에이전트가 이 규칙을 자동으로 적용하도록 하세요 (에이전트가 읽는 영문 지시문이므로 그대로 사용합니다).
 
 ```markdown
-## Rule 1 — Dual-layer memory storage
-Every pitfall/lesson learned → IMMEDIATELY store TWO memories:
+## Rule 1 — Two-memory lesson storage
+Every pitfall/lesson learned → IMMEDIATELY store TWO memories (both are canonical categories in the single 10-category vocabulary):
 - Technical layer: Pitfall: [symptom]. Cause: [root cause]. Fix: [solution]. Prevention: [how to avoid]
   (category: fact, importance >= 0.8)
 - Principle layer: Decision principle ([tag]): [behavioral rule]. Trigger: [when]. Action: [what to do]
@@ -621,7 +646,7 @@ LanceDB 테이블 `memories`:
 | `id` | string (UUID) | 기본 키 |
 | `text` | string | 기억 텍스트 (FTS 인덱싱됨) |
 | `vector` | float[] | 임베딩 벡터 |
-| `category` | string | 저장 카테고리: `preference` / `fact` / `decision` / `entity` / `reflection` / `other` |
+| `category` | string | 저장 카테고리(정규): `profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other` |
 | `scope` | string | 스코프 식별자 (예: `global`, `agent:main`) |
 | `importance` | float | 중요도 점수 0-1 |
 | `timestamp` | int64 | 생성 타임스탬프 (ms) |
@@ -629,7 +654,9 @@ LanceDB 테이블 `memories`:
 
 v1.1.0의 주요 `metadata` 키: `l0_abstract`, `l1_overview`, `l2_content`, `memory_category`, `tier`, `access_count`, `confidence`, `last_accessed_at`
 
-> **카테고리 참고:** 최상위 `category` 필드는 6개 저장 카테고리를 사용합니다. Smart Extraction의 6개 카테고리 의미 라벨 (`profile` / `preferences` / `entities` / `events` / `cases` / `patterns`)은 `metadata.memory_category`에 저장됩니다.
+> **카테고리 참고:** **단일 10개 카테고리 어휘**가 있습니다 — `profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other`. 정규 이름이 곧 최상위 `category` 필드에 저장되는 값입니다(항등 매핑이며, 별도의 의미/저장 이중 계층은 없습니다). 입력 시 단수 별칭 `preference` → `preferences`, `entity` → `entities`, `event` → `events`, `case` → `cases`, `pattern` → `patterns`을 허용하며, `decision`, `fact`, `reflection`, `other`는 그 자체가 정규입니다. 알 수 없는 카테고리 이름은 검증 오류로 **거부**되며, `patterns`나 `other`로 조용히 매핑되지 않습니다.
+>
+> 병합 / 타임라인 / 지속성 동작: `profile`은 항상 병합(타임라인 없음, 지속적); `preferences`, `entities`, `fact`는 병합되며 `fact_key`를 통해 시간 버전 관리됩니다(지속적); `patterns`와 `reflection`은 타임라인 없이 병합(지속적); `events`는 추가 전용(타임라인 없음, 지속적, 픽션 판정); `cases`와 `decision`은 추가 전용(타임라인 없음, 지속적); `other`는 병합하지도, 타임라인을 사용하지도 않으며 지속적이지 않습니다.
 
 </details>
 
@@ -661,7 +688,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 
 | 기능 | 설명 |
 |---------|-------------|
-| **Smart Extraction** | LLM 기반 6개 카테고리 추출 + L0/L1/L2 메타데이터. 비활성화 시 정규식으로 폴백. |
+| **Smart Extraction** | LLM 기반 10개 카테고리 추출 + L0/L1/L2 메타데이터. 비활성화 시 정규식으로 폴백. |
 | **라이프사이클 스코어링** | 검색에 Weibull 감쇠 통합 — 높은 빈도와 높은 중요도의 기억이 상위에 랭크. |
 | **단계 관리** | 3단계 시스템 (Core → Working → Peripheral), 자동 승격/강등. |
 
