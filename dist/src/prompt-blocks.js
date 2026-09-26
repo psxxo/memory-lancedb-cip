@@ -7,8 +7,8 @@
  * specific wording (singular/plural framing, output contracts, batch-only
  * guidance) stays local to each builder by design.
  */
-/** One-paragraph six-category definition, shared by every prompt that scores or classifies a candidate but doesn't already carry the full extraction classification. */
-export const CATEGORY_TAXONOMY = "The memory system stores six categories: profile (user identity), preferences (user tendencies), entities (long-lived project/entity state), events (things that happened), cases (problem + solution pairs), and patterns (reusable procedures).";
+/** One-paragraph taxonomy definition, shared by every prompt that scores or classifies a candidate but doesn't already carry the full extraction classification. */
+export const CATEGORY_TAXONOMY = "The memory system stores ten categories: profile (user identity), preferences (user tendencies), entities (long-lived project/entity state), events (one-off things that happened), cases (problem + solution pairs), patterns (reusable procedures), decision (durable decisions and commitments), fact (durable factual knowledge), reflection (the assistant's distilled self-model notes), and other (the non-durable catch-all for anything that fits nothing else).";
 /**
  * Higher/moderate/lower scoring guidance, one wording shared by both
  * admission prompt variants (standalone and batch).

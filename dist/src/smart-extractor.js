@@ -1,13 +1,13 @@
 /**
  * Smart Memory Extractor — LLM-powered extraction pipeline
- * Replaces regex-triggered capture with intelligent 6-category extraction.
+ * Replaces regex-triggered capture with intelligent 10-category extraction.
  *
  * Pipeline: conversation → LLM extract → candidates → dedup → persist
  *
  */
 import { buildExtractionPrompt, buildDedupPrompt, buildGroundingRejudgePrompt, buildMergePrompt, buildBatchDedupPrompt, buildBatchMergePrompt, } from "./extraction-prompts.js";
 import { formatExistingMemoryEntry } from "./prompt-blocks.js";
-import { ALWAYS_MERGE_CATEGORIES, DURABLE_CATEGORIES, FICTION_JUDGED_CATEGORIES, REGISTER_STRICTNESS, getStorageCategoryForMemoryCategory, MERGE_SUPPORTED_CATEGORIES, TEMPORAL_VERSIONED_CATEGORIES, normalizeCategory, } from "./memory-categories.js";
+import { ALWAYS_MERGE_CATEGORIES, FICTION_JUDGED_CATEGORIES, FICTION_UNCONDITIONAL_DROP_CATEGORIES, REGISTER_STRICTNESS, getStorageCategoryForMemoryCategory, MERGE_SUPPORTED_CATEGORIES, TEMPORAL_VERSIONED_CATEGORIES, normalizeCategory, } from "./memory-categories.js";
 import { isMetaFrustrationNoise, isNoise } from "./noise-filter.js";
 import { appendRelation, buildSmartMetadata, deriveFactKey, parseSmartMetadata, stringifySmartMetadata, parseSupportInfo, updateSupportStats, } from "./smart-metadata.js";
 import { isUserMdExclusiveMemory, } from "./workspace-boundary.js";
@@ -1385,13 +1385,14 @@ export class SmartExtractor {
             if (isRawConstructed(m))
                 return false;
             const cat = normalizeCategory(m.category ?? "");
-            return !!cat && DURABLE_CATEGORIES.has(cat);
+            return !!cat && FICTION_UNCONDITIONAL_DROP_CATEGORIES.has(cat);
         });
-        // Judge-gated categories are not durable, so a contradiction cell keyed on
-        // durables alone never fired for them: a constructed sibling beside a
-        // real-tagged in-story event persisted the event with no adjudication at
-        // all. They now arm the contradiction cells too, and the persistence gate
-        // below requires a positive verdict for them wherever such a cell fired.
+        // Judge-gated categories are durable but not dropped by the register rule,
+        // so a contradiction cell keyed on the unconditional-drop durables alone
+        // never fired for them: a constructed sibling beside a real-tagged in-story
+        // event persisted the event with no adjudication at all. They arm the
+        // contradiction cells too, and the persistence gate below requires a
+        // positive verdict for them wherever such a cell fired.
         const hasRealTaggedJudgeGated = rawItems.some((m) => {
             if (isRawConstructed(m))
                 return false;
@@ -1555,7 +1556,7 @@ export class SmartExtractor {
                         if (isRawConstructed(item))
                             continue;
                         const cat = normalizeCategory(item.category ?? "");
-                        if (!cat || !DURABLE_CATEGORIES.has(cat))
+                        if (!cat || !FICTION_UNCONDITIONAL_DROP_CATEGORIES.has(cat))
                             continue;
                         judgedGrounding[i] = "constructed";
                         uncoveredDemoted++;
@@ -1633,7 +1634,11 @@ export class SmartExtractor {
             // Register enforcement: an in-fiction batch can never produce durable
             // memories, whatever the per-item self-tags claim (the per-item tags
             // are exactly the wobble the batch register exists to override).
-            if (conversationRegister === "fiction" && DURABLE_CATEGORIES.has(category)) {
+            // Judge-gated durables (events) are the exception: they are not dropped
+            // here but must pass the grounding-judge gate below, so a true
+            // about-the-fiction note survives while an in-story event cannot.
+            if (conversationRegister === "fiction" &&
+                FICTION_UNCONDITIONAL_DROP_CATEGORIES.has(category)) {
                 fictionRegisterDroppedCount++;
                 this.debugLog(`memory-lancedb-cip: smart-extractor: dropping durable candidate from fiction-register batch category=${category} grounding=${grounding} abstract=${JSON.stringify(abstract.slice(0, 120))}`);
                 continue;
@@ -1682,7 +1687,7 @@ export class SmartExtractor {
         if (rejudgeFailedClosed || legacyContradiction) {
             for (let i = candidates.length - 1; i >= 0; i--) {
                 const candidate = candidates[i];
-                if (DURABLE_CATEGORIES.has(candidate.category)) {
+                if (FICTION_UNCONDITIONAL_DROP_CATEGORIES.has(candidate.category)) {
                     contradictionDemotedCount++;
                     this.debugLog(`memory-lancedb-cip: smart-extractor: grounding-rejudge failure fallback — demoting real-tagged durable from ${conversationRegister}-register batch category=${candidate.category} abstract=${JSON.stringify(candidate.abstract.slice(0, 120))}`);
                     candidates.splice(i, 1);
@@ -2848,19 +2853,13 @@ export class SmartExtractor {
         this.log(`memory-cip: smart-extractor: created [${candidate.category}] ${candidate.abstract.slice(0, 60)}`);
     }
     /**
-     * Map 6-category to existing 5-category store type for backward compatibility.
-     */
-    /**
-     * Map a smart register onto its legacy storage category, delegating to the
-     * shared SMART_TO_STORAGE_CATEGORY constant (memory-categories) so the
-     * mapping has a single source of truth. Note: "reflection" is a legacy
-     * storage category minted only by the reflection writer and is deliberately
-     * absent from this map; smart extraction never produces reflection rows.
-     * The "other" fallback covers non-union values arriving from untyped
-     * callers at runtime, matching the old switch's default arm.
+     * Map a smart register onto its stored category. The storage column speaks the
+     * canonical 10-category vocabulary (single vocabulary, identity storage map),
+     * so this delegates to the shared getStorageCategoryForMemoryCategory helper
+     * (memory-categories) and has a single source of truth.
      */
     mapToStoreCategory(category) {
-        return getStorageCategoryForMemoryCategory(category) ?? "other";
+        return getStorageCategoryForMemoryCategory(category);
     }
     /**
      * Get default importance score by category.
@@ -2879,6 +2878,13 @@ export class SmartExtractor {
                 return 0.8; // Problem-solution pairs are high value
             case "patterns":
                 return 0.85; // Reusable processes are high value
+            case "decision":
+                return 0.8; // Actionable durable takeaways
+            case "fact":
+                return 0.7; // Durable knowledge
+            case "reflection":
+                return 0.75; // Distilled self-model output
+            case "other":
             default:
                 return 0.5;
         }

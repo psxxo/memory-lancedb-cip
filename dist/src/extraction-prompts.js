@@ -1,6 +1,6 @@
 /**
  * Prompt templates for intelligent memory extraction.
- * - buildExtractionPrompt: 6-category L0/L1/L2 extraction with conversational grounding
+ * - buildExtractionPrompt: 10-category L0/L1/L2 extraction with conversational grounding
  * - buildGroundingRejudgePrompt: scoped second pass reconciling register vs per-item tags
  * - buildDedupPrompt: CREATE/MERGE/SKIP dedup decision
  * - buildMergePrompt: Memory merge with three-level structure
@@ -77,25 +77,36 @@ The conversation is a sequence of tagged blocks in chronological order:
 | Who is the user? | Identity, attributes | profile |
 | What does the user prefer? | Preferences, habits | preferences |
 | What is this thing? | Person, project, organization | entities |
-| What happened? | Decision, milestone | events |
+| What happened? | One-off occurrence, milestone | events |
 | How was it solved? | Problem + solution | cases |
 | What is the process? | Reusable steps | patterns |
+| What was decided? | Durable decision or commitment | decision |
+| What is simply true? | Durable factual knowledge | fact |
+| What did the assistant learn about itself? | Distilled self-model note | reflection |
+| Nothing else fits? | Unclassifiable residue (non-durable) | other |
 
 ## Precise Definition
 
 **profile** - User identity (static attributes). Test: "User is..."
 **preferences** - User preferences (tendencies). Test: "User prefers/likes..."
 **entities** - Continuously existing nouns. Test: "XXX's state is..."
-**events** - Things that happened. Test: "XXX did/completed..."
+**events** - Things that happened once. Test: "XXX did/completed..."
 **cases** - Problem + solution pairs. Test: Contains "problem -> solution"
 **patterns** - Reusable processes. Test: Can be used in "similar situations"
+**decision** - A durable decision or commitment that will govern future action. Test: "We decided / from now on we will..."
+**fact** - Durable factual knowledge about the world, project, or system. Test: "X is Y" with lasting truth
+**reflection** - A distilled note about the assistant's own behavior or the system. Test: "I should / the assistant should..."
+**other** - Anything that fits no other category; the non-durable catch-all. Use it sparingly and never as a substitute for a category you are unsure about.
 
 ## Common Confusion
-- "Plan to do X" -> events (action, not entity)
+- "Plan to do X" -> decision (commitment) or events (a one-off action), never entities
 - "Project X status: Y" -> entities (describes entity)
 - "User prefers X" -> preferences (not profile)
 - "Encountered problem A, used solution B" -> cases (not events)
 - "General process for handling certain problems" -> patterns (not cases)
+- "We will use Qdrant instead of LanceDB going forward" -> decision (not events, not fact)
+- "The staging box runs on port 8080" -> fact (not cases, not events)
+- "I should default to terse summaries" -> reflection (not preferences: it is about the assistant, not the user)
 - "Switched my commute to the M4" / "Spanish lesson before breakfast" -> preferences or patterns, not events: a change that creates a new routine or a lasting state is the user's new normal, not a one-off occurrence. Reserve events for genuinely one-off happenings.
 
 # Conversational Grounding
@@ -241,7 +252,7 @@ ${jsonShape(`{
   "conversation_register": "real|mixed|fiction",
   "memories": [
     {
-      "category": "profile|preferences|entities|events|cases|patterns",
+      "category": "profile|preferences|entities|events|cases|patterns|decision|fact|reflection|other",
       "abstract": "One-line index",
       "overview": "Structured Markdown summary",
       "content": "Full narrative",

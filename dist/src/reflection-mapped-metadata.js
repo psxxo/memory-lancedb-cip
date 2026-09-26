@@ -10,7 +10,7 @@ export function getReflectionMappedDecayDefaults(kind) {
 }
 /**
  * mappedKind is known structurally at write time (each kind comes from a
- * fixed reflection section), so the 6-category classification is a direct
+ * fixed reflection section), so the category classification is a direct
  * lookup rather than a text-sniffing heuristic. This map is the SINGLE
  * source of the reflection heading→taxonomy mapping: metadata stamps, the
  * stored row category, and admission scoring all read it. "decision" and
@@ -31,12 +31,13 @@ export function getReflectionMappedMemoryCategory(kind) {
     return REFLECTION_MAPPED_MEMORY_CATEGORY[kind];
 }
 /**
- * The stored row's `category` column speaks the legacy storage vocabulary
- * (MemoryEntry["category"]); the six-category taxonomy value lives only in
- * `metadata.memory_category`. Deriving the column through the central
- * smart-to-storage mapping keeps every direct consumer of the column
+ * The stored row's `category` column speaks the canonical 10-category taxonomy
+ * (single vocabulary): the mapped row persists the canonical name directly via
+ * the central smart-to-storage mapping (now the identity), and
+ * `metadata.memory_category` carries the same canonical value. Deriving the
+ * column through the central helper keeps every direct consumer of the column
  * (compaction's plurality vote, read-time reverse mapping, category filters)
- * on values it actually understands.
+ * on names it actually understands.
  */
 export function getReflectionMappedStorageCategory(kind) {
     return getStorageCategoryForMemoryCategory(REFLECTION_MAPPED_MEMORY_CATEGORY[kind]);

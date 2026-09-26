@@ -1443,13 +1443,13 @@ export function shouldCapture(text) {
 export function detectCategory(text) {
     const lower = text.toLowerCase();
     if (/prefer|radši|like|love|hate|want|bevorzuge|mag|hasse|will|brauche|偏好|喜歡|喜欢|討厭|讨厌|不喜歡|不喜欢|愛用|爱用|習慣|习惯/i.test(lower)) {
-        return "preference";
+        return "preferences";
     }
     if (/rozhodli|decided|we decided|will use|we will use|we'?ll use|switch(ed)? to|migrate(d)? to|going forward|from now on|budeme|haben entschieden|ab jetzt|ab sofort|in zukunft|決定|决定|選擇了|选择了|改用|換成|换成|以後用|以后用|規則|流程|SOP/i.test(lower)) {
         return "decision";
     }
     if (/\+\d{10,}|@[\w.-]+\.\w+|is called|jmenuje se|mein\s+\w+\s+ist|heißt|我的\S+是|叫我|稱呼|称呼/i.test(lower)) {
-        return "entity";
+        return "entities";
     }
     if (/\b(is|are|has|have|je|má|jsou|ist|sind|hat|habe|wohne|arbeite)\b|immer|niemals|wichtig|總是|总是|從不|从不|一直|每次都|老是/i.test(lower)) {
         return "fact";
@@ -3650,7 +3650,7 @@ const memoryLanceDBCipPlugin = {
                             restoreConsumedCaptureState();
                         };
                         // ----------------------------------------------------------------
-                        // Smart Extraction (Phase 1: LLM-powered 6-category extraction)
+                        // Smart Extraction (Phase 1: LLM-powered 10-category extraction)
                         // Rate limiter charged AFTER successful extraction, not before,
                         // so no-op sessions don't consume the hourly quota.
                         // ----------------------------------------------------------------

@@ -12,6 +12,9 @@ import { createRetriever } from "./src/retriever.js";
 import { createMemoryUpgrader, isCurrentReflectionMemory } from "./src/memory-upgrader.js";
 import { resolveGenerationModel, evaluateGenerationModelAvailability, formatLoadSafetyLines, } from "./src/load-safety.js";
 import { runConsolidate, formatConsolidateCostPreview, formatConsolidatePlanForDisplay, pluralCount, DEFAULT_SCAN_LIMIT, loadConsolidateSettledLedger, saveConsolidateSettledLedger } from "./src/consolidate.js";
+import { MEMORY_CATEGORIES, MEMORY_CATEGORY_ALIAS_NAMES, normalizeCategory, parseUnknownCategoryPolicy, resolveImportCategory, describeImportCategoryResolution, validateImportCategoryMap, isUnknownCategoryPolicyError, isImportCategoryMapError, } from "./src/memory-categories.js";
+/** Human-readable list of the canonical categories + accepted aliases. */
+const CATEGORY_HELP = `${MEMORY_CATEGORIES.join("|")} (aliases accepted: ${MEMORY_CATEGORY_ALIAS_NAMES.join("|")})`;
 import { getDefaultOauthModelForProvider, getOAuthProviderLabel, isOauthModelSupported, listOAuthProviders, normalizeOauthModel, normalizeOAuthProviderId, performOAuthLogin, } from "./src/llm-oauth.js";
 // ============================================================================
 // Utility Functions
@@ -314,10 +317,14 @@ function formatMemory(memory, index) {
     return `${prefix}[${id}] [${memory.category}:${memory.scope}] ${text} (${date})`;
 }
 const OBSIDIAN_CATEGORY_DIRS = {
-    preference: "00-Preferences",
-    fact: "01-Facts",
+    profile: "00-Profiles",
+    preferences: "00-Preferences",
+    entities: "03-People",
+    events: "06-Events",
+    cases: "07-Cases",
+    patterns: "08-Patterns",
     decision: "02-Decisions",
-    entity: "03-People",
+    fact: "01-Facts",
     reflection: "04-Reflections",
     other: "05-Other",
 };
@@ -1448,7 +1455,7 @@ export function registerMemoryCLI(program, context) {
             let updated = 0;
             let skipped = 0;
             for (const memory of memories) {
-                const category = String(memory.category || "other");
+                const category = normalizeCategory(String(memory.category || "other")) ?? "other";
                 const dirName = OBSIDIAN_CATEGORY_DIRS[category] || OBSIDIAN_CATEGORY_DIRS.other;
                 const title = memoryTitle(memory);
                 const shortId = safeObsidianSlug(String(memory.id || "memory")).slice(0, 12);
@@ -1494,9 +1501,44 @@ export function registerMemoryCLI(program, context) {
         .description('Import memories from a JSON file ({"version": number, "memories": [{"text": string}]})')
         .option("--scope <scope>", "Import into specific scope")
         .option("--dry-run", "Show what would be imported without actually importing")
+        .option("--unknown <policy>", 'Where an unrecognized category name lands: "reject" (default; skip the row), "other", or a canonical category name', "reject")
+        .option("--category-map <file>", 'JSON object mapping arbitrary input category names to canonical categories, e.g. {\"lemmas\":\"cases\"}')
         .action(async (file, options) => {
         try {
             const fs = await import("node:fs/promises");
+            // Operator-controlled category policy. Both inputs are validated up
+            // front so a policy/file error is reported once, not per row.
+            const unknownParse = parseUnknownCategoryPolicy(options.unknown ?? "reject");
+            if (isUnknownCategoryPolicyError(unknownParse)) {
+                console.error(unknownParse.message);
+                process.exitCode = 1;
+                return;
+            }
+            const unknownPolicy = unknownParse.policy;
+            let categoryMap = {};
+            if (options.categoryMap !== undefined) {
+                let mapContent;
+                try {
+                    mapContent = await fs.readFile(options.categoryMap, "utf-8");
+                }
+                catch (mapReadError) {
+                    throw new ImportFileError(`Unable to read category map "${options.categoryMap}" (${mapReadError.message}).`);
+                }
+                let mapParsed;
+                try {
+                    mapParsed = JSON.parse(mapContent);
+                }
+                catch (mapParseError) {
+                    throw new ImportFileError(`Found invalid JSON in category map "${options.categoryMap}" (${mapParseError.message}).`);
+                }
+                const mapValidation = validateImportCategoryMap(mapParsed);
+                if (isImportCategoryMapError(mapValidation)) {
+                    console.error(`Invalid --category-map: ${mapValidation.message}`);
+                    process.exitCode = 1;
+                    return;
+                }
+                categoryMap = mapValidation.map;
+            }
             let content;
             try {
                 content = await fs.readFile(file, "utf-8");
@@ -1528,6 +1570,25 @@ export function registerMemoryCLI(program, context) {
                 if (options.scope) {
                     console.log(`Target scope: ${options.scope}`);
                 }
+                console.log(`Category resolution order: canonical name -> alias -> --category-map -> --unknown=${unknownPolicy}`);
+                console.log("Category resolution plan:");
+                importMemories.forEach((rawMemory, index) => {
+                    if (rawMemory === null ||
+                        typeof rawMemory !== "object" ||
+                        Array.isArray(rawMemory)) {
+                        console.log(`  memories[${index}]: requested <none> (entry is ${describeImportValue(rawMemory)}) -> would skip`);
+                        return;
+                    }
+                    const entryCategory = rawMemory.category;
+                    const resolution = resolveImportCategory(entryCategory, {
+                        categoryMap,
+                        unknownPolicy,
+                    });
+                    const requested = resolution.requested === null
+                        ? "<none>"
+                        : JSON.stringify(resolution.requested);
+                    console.log(`  memories[${index}]: requested ${requested} -> ${describeImportCategoryResolution(resolution)}`);
+                });
                 return;
             }
             console.log(`Importing ${importMemories.length} memories...`);
@@ -1563,14 +1624,24 @@ export function registerMemoryCLI(program, context) {
                         skipped++;
                         continue;
                     }
-                    const categoryRaw = memory.category;
-                    const category = categoryRaw === "preference" ||
-                        categoryRaw === "fact" ||
-                        categoryRaw === "decision" ||
-                        categoryRaw === "entity" ||
-                        categoryRaw === "other"
-                        ? categoryRaw
-                        : "other";
+                    // Category resolution is operator-controlled: exact canonical name
+                    // -> built-in alias -> --category-map entry -> --unknown policy.
+                    // `reject` (the default) skips the row with an explicit warning; any
+                    // other policy is logged per row so the coercion is never silent.
+                    const categoryResolution = resolveImportCategory(memory.category, {
+                        categoryMap,
+                        unknownPolicy,
+                    });
+                    if (!categoryResolution.stored || !categoryResolution.category) {
+                        invalidEntries++;
+                        skipped++;
+                        console.warn(`  memories[${index}]: unknown category ${JSON.stringify(categoryResolution.requested)}; row skipped (--unknown=reject; allowed: ${CATEGORY_HELP}).`);
+                        continue;
+                    }
+                    const category = categoryResolution.category;
+                    if (categoryResolution.via === "unknown-policy") {
+                        console.warn(`  memories[${index}]: unknown category ${JSON.stringify(categoryResolution.requested)} stored as "${category}" (--unknown=${unknownPolicy}).`);
+                    }
                     // Pass raw importance to importEntry — it applies clampImportance
                     // (v2+ 0~1) inside, which is idempotent and preserves 0, 1, and
                     // decimal values. The previous pre-clamp here could silently turn
@@ -1801,7 +1872,7 @@ export function registerMemoryCLI(program, context) {
     // Upgrade legacy memories to new smart memory format
     memory
         .command("upgrade")
-        .description("Upgrade legacy memories to new 6-category L0/L1/L2 smart memory format")
+        .description("Upgrade legacy memories to the new 10-category L0/L1/L2 smart memory format")
         .option("--dry-run", "Show upgrade statistics without modifying data")
         .option("--batch-size <n>", "Number of memories per batch", "10")
         .option("--no-llm", "Skip LLM calls; use simple text truncation for L0/L1")
@@ -2318,7 +2389,7 @@ function registerConsolidateCommand(memory, context) {
         .command("consolidate")
         .description("Reconcile duplicate or contradictory memories already in the store across write lanes (dry-run by default)")
         .requiredOption("--agent <agentId>", "Agent whose memory to consolidate (scope agent:<agentId>; journal-mirror writes route to this agent's workspace)")
-        .option("--category <category>", "Limit to one smart category (profile|preferences|entities|events|cases|patterns)")
+        .option("--category <category>", `Limit to one smart category (${CATEGORY_HELP})`)
         .option("--since <iso>", "Only consider rows stored at or after this ISO timestamp")
         .option("--apply", "Apply the consolidation plan immediately and record settled clusters (default is a dry-run preview with an interactive apply prompt; a dry-run never writes the store or the settled ledger); exits with status 1 when any cluster failed or was only partially applied", false)
         .option("--yes", "Skip the LLM-cost confirmation prompt. Automation needs BOTH --yes and --apply: without --apply a non-interactive run pays for a plan it can never apply", false)
@@ -2352,6 +2423,17 @@ function registerConsolidateCommand(memory, context) {
                     console.error(`consolidate: invalid --scan-limit "${options.scanLimit}" (positive integer required)`);
                     process.exit(1);
                 }
+            }
+            // An unrecognized category is rejected outright: silently translating it
+            // to a fallback would consolidate a completely different category's rows.
+            let categoryFilter;
+            if (options.category !== undefined) {
+                const normalized = normalizeCategory(options.category);
+                if (!normalized) {
+                    console.error(`consolidate: unknown --category "${options.category}". Allowed: ${CATEGORY_HELP}`);
+                    process.exit(1);
+                }
+                categoryFilter = normalized;
             }
             const mdMirror = context.mdMirror;
             const confirm = createConsolidateConfirm();
@@ -2387,7 +2469,7 @@ function registerConsolidateCommand(memory, context) {
                     : undefined,
             }, {
                 scope,
-                category: options.category,
+                category: categoryFilter,
                 sinceMs,
                 includeReflectionSlices: options.includeReflectionSlices,
                 apply: options.apply === true,
