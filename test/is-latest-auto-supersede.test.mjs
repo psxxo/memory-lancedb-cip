@@ -298,9 +298,10 @@ async function runTests() {
     console.log("  ✅ cross-category similarities do not trigger supersede");
   }
 
-  // Test 9: fact category is NOT eligible (aligns with TEMPORAL_VERSIONED only)
+  // Test 9: fact category IS eligible (fact is temporal-versioned under the
+  // plan-B behavior matrix, alongside preferences and entities)
   {
-    console.log("Test 9: fact category is NOT eligible for auto-supersede...");
+    console.log("Test 9: fact category is eligible for auto-supersede...");
     const store = makeMockStore();
     const oldId = "old-fact-1";
     const oldEntry = makeOldEntry(oldId, "The API endpoint is /v1/users", "fact");
@@ -310,8 +311,8 @@ async function runTests() {
     const tool = createTool(registerMemoryStoreTool, makeContext(store));
     const res = await tool.execute(null, { text: "The API endpoint is /v2/users", category: "fact" });
 
-    assert.equal(res.details.action, "created", "facts should not be auto-superseded");
-    console.log("  ✅ facts are not auto-superseded (only preference/entity)");
+    assert.equal(res.details.action, "superseded", "facts should be auto-superseded (temporal-versioned)");
+    console.log("  ✅ facts are auto-superseded (preference/entity/fact)");
   }
 
   // Test 10: exact duplicate is skipped unless force=true
