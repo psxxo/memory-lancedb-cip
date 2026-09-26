@@ -30,11 +30,13 @@ import {
 } from "./smart-metadata.js";
 import { classifyTemporal, inferExpiry } from "./temporal-classifier.js";
 import {
+  isToolMemoryCategoryError,
   matchesMemoryCategoryFilter,
   resolveToolMemoryCategory,
   TEMPORAL_VERSIONED_CATEGORIES,
   TOOL_MEMORY_CATEGORIES,
   type MemoryCategory,
+  type ToolMemoryCategoryResolutionOk,
 } from "./memory-categories.js";
 import {
   appendSelfImprovementEntry,
@@ -57,12 +59,24 @@ import { enqueueManualRecallMetadata } from "./manual-recall-metadata-queue.js";
 // Types
 // ============================================================================
 
+/**
+ * Category tokens accepted by the agent/CLI tools: the 10 canonical categories
+ * plus the 5 singular/plural aliases. Aliases are normalized to their canonical
+ * form before the row is written; an unknown value is rejected.
+ */
 export const MEMORY_CATEGORIES = TOOL_MEMORY_CATEGORIES;
 
-function stringEnum<T extends readonly [string, ...string[]]>(values: T) {
+const MEMORY_CATEGORY_DESCRIPTION =
+  "Memory category. Canonical: profile, preferences, entities, events, cases, patterns, decision, fact, reflection, other. Singular aliases (preference/entity/event/case/pattern) are accepted and stored as their canonical plural form. An unknown value is rejected.";
+
+function stringEnum<T extends readonly [string, ...string[]]>(
+  values: T,
+  description?: string,
+) {
   return Type.Unsafe<T[number]>({
     type: "string",
     enum: [...values],
+    ...(description ? { description } : {}),
   });
 }
 export type MdMirrorWriter = (
@@ -943,7 +957,7 @@ const MEMORY_RECALL_PARAMETERS = Type.Object({
       description: "Specific memory scope to search in (optional)",
     }),
   ),
-  category: Type.Optional(stringEnum(MEMORY_CATEGORIES)),
+  category: Type.Optional(stringEnum(MEMORY_CATEGORIES, MEMORY_CATEGORY_DESCRIPTION)),
 });
 
 function createMemoryRecallTool(
@@ -1419,7 +1433,7 @@ export function registerMemoryStoreTool(
         importance: Type.Optional(
           Type.Number({ description: "Importance score 0-1 (default: 0.7)" }),
         ),
-        category: Type.Optional(stringEnum(MEMORY_CATEGORIES)),
+        category: Type.Optional(stringEnum(MEMORY_CATEGORIES, MEMORY_CATEGORY_DESCRIPTION)),
         scope: Type.Optional(
           Type.String({
             description: "Memory scope (optional, defaults to agent scope)",
@@ -1492,8 +1506,17 @@ export function registerMemoryStoreTool(
           }
 
           const safeImportance = clamp01(importance, 0.7);
-          const { memoryCategory, storageCategory } =
-            resolveToolMemoryCategory(category);
+          const categoryResolution = resolveToolMemoryCategory(category);
+          if (isToolMemoryCategoryError(categoryResolution)) {
+            // Unknown category: reject the write instead of silently landing the
+            // row in a fallback category.
+            return textResult(categoryResolution.error.message, {
+              error: categoryResolution.error.code,
+              rawCategory: categoryResolution.error.rawCategory,
+              allowed: categoryResolution.error.allowed,
+            });
+          }
+          const { memoryCategory, storageCategory } = categoryResolution;
           const vector = await runtimeContext.embedder.embedPassage(stripped);
 
           // Temporal awareness: classify and infer expiry
@@ -2021,7 +2044,7 @@ export function registerMemoryUpdateTool(
         importance: Type.Optional(
           Type.Number({ description: "New importance score 0-1" }),
         ),
-        category: Type.Optional(stringEnum(MEMORY_CATEGORIES)),
+        category: Type.Optional(stringEnum(MEMORY_CATEGORIES, MEMORY_CATEGORY_DESCRIPTION)),
       }),
       async execute(_toolCallId, params, _signal, _onUpdate, runtimeCtx?: any) {
         const { memoryId, text, importance, category } = params as {
@@ -2035,9 +2058,20 @@ export function registerMemoryUpdateTool(
           if (!text && importance === undefined && !category) {
             return textResult("Nothing to update. Provide at least one of: text, importance, category.", { error: "no_updates" });
           }
-          const categoryResolution = category
-            ? resolveToolMemoryCategory(category)
-            : undefined;
+          let categoryResolution: ToolMemoryCategoryResolutionOk | undefined;
+          if (category) {
+            const resolvedCategory = resolveToolMemoryCategory(category);
+            if (isToolMemoryCategoryError(resolvedCategory)) {
+              // Unknown category: reject the update instead of silently landing
+              // the row in a fallback category.
+              return textResult(resolvedCategory.error.message, {
+                error: resolvedCategory.error.code,
+                rawCategory: resolvedCategory.error.rawCategory,
+                allowed: resolvedCategory.error.allowed,
+              });
+            }
+            categoryResolution = resolvedCategory;
+          }
 
           // Determine accessible scopes
           const agentId = resolveRuntimeAgentId(runtimeContext.agentId, runtimeCtx);
@@ -2474,7 +2508,7 @@ export function registerMemoryListTool(
         scope: Type.Optional(
           Type.String({ description: "Filter by specific scope (optional)" }),
         ),
-        category: Type.Optional(stringEnum(MEMORY_CATEGORIES)),
+        category: Type.Optional(stringEnum(MEMORY_CATEGORIES, MEMORY_CATEGORY_DESCRIPTION)),
         offset: Type.Optional(
           Type.Number({
             description: "Number of memories to skip (default: 0)",

@@ -25,6 +25,15 @@ import {
 import type { MdMirrorWriter } from "./src/tools.js";
 import { runConsolidate, formatConsolidateCostPreview, formatConsolidatePlanForDisplay, pluralCount, DEFAULT_SCAN_LIMIT, loadConsolidateSettledLedger, saveConsolidateSettledLedger } from "./src/consolidate.js";
 import {
+  MEMORY_CATEGORIES,
+  MEMORY_CATEGORY_ALIAS_NAMES,
+  normalizeCategory,
+  type MemoryCategory,
+} from "./src/memory-categories.js";
+
+/** Human-readable list of the canonical categories + accepted aliases. */
+const CATEGORY_HELP = `${MEMORY_CATEGORIES.join("|")} (aliases accepted: ${MEMORY_CATEGORY_ALIAS_NAMES.join("|")})`;
+import {
   getDefaultOauthModelForProvider,
   getOAuthProviderLabel,
   isOauthModelSupported,
@@ -446,10 +455,14 @@ function formatMemory(memory: any, index?: number): string {
 }
 
 const OBSIDIAN_CATEGORY_DIRS: Record<string, string> = {
-  preference: "00-Preferences",
-  fact: "01-Facts",
+  profile: "00-Profiles",
+  preferences: "00-Preferences",
+  entities: "03-People",
+  events: "06-Events",
+  cases: "07-Cases",
+  patterns: "08-Patterns",
   decision: "02-Decisions",
-  entity: "03-People",
+  fact: "01-Facts",
   reflection: "04-Reflections",
   other: "05-Other",
 };
@@ -1759,7 +1772,7 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
         let skipped = 0;
 
         for (const memory of memories) {
-          const category = String(memory.category || "other");
+          const category = normalizeCategory(String(memory.category || "other")) ?? "other";
           const dirName = OBSIDIAN_CATEGORY_DIRS[category] || OBSIDIAN_CATEGORY_DIRS.other;
           const title = memoryTitle(memory);
           const shortId = safeObsidianSlug(String(memory.id || "memory")).slice(0, 12);
@@ -1894,15 +1907,26 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
               continue;
             }
 
+            // Category: accept the 10 canonical names plus the 5 singular/plural
+            // aliases, and persist the canonical name. An unrecognized NAME skips
+            // the row with an explicit warning — it must never silently become
+            // "other". An absent field keeps the documented "other" default.
             const categoryRaw = memory.category;
-            const category: MemoryEntry["category"] =
-              categoryRaw === "preference" ||
-                categoryRaw === "fact" ||
-                categoryRaw === "decision" ||
-                categoryRaw === "entity" ||
-                categoryRaw === "other"
-                ? categoryRaw
-                : "other";
+            let category: MemoryEntry["category"];
+            if (categoryRaw === undefined || categoryRaw === null || categoryRaw === "") {
+              category = "other";
+            } else {
+              const normalizedCategory = normalizeCategory(String(categoryRaw));
+              if (!normalizedCategory) {
+                invalidEntries++;
+                skipped++;
+                console.warn(
+                  `  memories[${index}]: unknown category ${JSON.stringify(categoryRaw)}; row skipped (allowed: ${CATEGORY_HELP}).`,
+                );
+                continue;
+              }
+              category = normalizedCategory;
+            }
 
             // Pass raw importance to importEntry — it applies clampImportance
             // (v2+ 0~1) inside, which is idempotent and preserves 0, 1, and
@@ -2767,7 +2791,7 @@ function registerConsolidateCommand(memory: Command, context: CLIContext) {
     .command("consolidate")
     .description("Reconcile duplicate or contradictory memories already in the store across write lanes (dry-run by default)")
     .requiredOption("--agent <agentId>", "Agent whose memory to consolidate (scope agent:<agentId>; journal-mirror writes route to this agent's workspace)")
-    .option("--category <category>", "Limit to one smart category (profile|preferences|entities|events|cases|patterns)")
+    .option("--category <category>", `Limit to one smart category (${CATEGORY_HELP})`)
     .option("--since <iso>", "Only consider rows stored at or after this ISO timestamp")
     .option("--apply", "Apply the consolidation plan immediately and record settled clusters (default is a dry-run preview with an interactive apply prompt; a dry-run never writes the store or the settled ledger); exits with status 1 when any cluster failed or was only partially applied", false)
     .option("--yes", "Skip the LLM-cost confirmation prompt. Automation needs BOTH --yes and --apply: without --apply a non-interactive run pays for a plan it can never apply", false)
@@ -2813,6 +2837,20 @@ function registerConsolidateCommand(memory: Command, context: CLIContext) {
           }
         }
 
+        // An unrecognized category is rejected outright: silently translating it
+        // to a fallback would consolidate a completely different category's rows.
+        let categoryFilter: MemoryCategory | undefined;
+        if (options.category !== undefined) {
+          const normalized = normalizeCategory(options.category);
+          if (!normalized) {
+            console.error(
+              `consolidate: unknown --category "${options.category}". Allowed: ${CATEGORY_HELP}`,
+            );
+            process.exit(1);
+          }
+          categoryFilter = normalized;
+        }
+
         const mdMirror = context.mdMirror;
         const confirm = createConsolidateConfirm();
         const scope = `agent:${options.agent}`;
@@ -2854,7 +2892,7 @@ function registerConsolidateCommand(memory: Command, context: CLIContext) {
           },
           {
             scope,
-            category: options.category as import("./src/memory-categories.js").MemoryCategory | undefined,
+            category: categoryFilter,
             sinceMs,
             includeReflectionSlices: options.includeReflectionSlices,
             apply: options.apply === true,
