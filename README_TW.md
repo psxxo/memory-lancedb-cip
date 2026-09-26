@@ -52,7 +52,7 @@
 | | 你能得到的 |
 |---|---|
 | **自動擷取** | 智慧體從每次對話中學習——不需要手動呼叫 `memory_store` |
-| **智慧擷取** | LLM 驅動的 6 類分類：使用者輪廓、偏好、實體、事件、案例、模式 |
+| **智慧擷取** | LLM 驅動的 10 類分類：`profile`, `preferences`, `entities`, `events`, `cases`, `patterns`, `decision`, `fact`, `reflection`, `other` |
 | **智慧遺忘** | Weibull 衰減模型——重要記憶留存，雜訊自然消退 |
 | **混合檢索** | 向量 + BM25 全文搜尋，融合交叉編碼器重排序 |
 | **上下文注入** | 相關記憶在每次回覆前自動浮現 |
@@ -235,7 +235,7 @@ Requirements:
 | `src/noise-filter.ts` | 過濾智慧體拒絕回覆、元問題、打招呼等低品質內容 |
 | `src/adaptive-retrieval.ts` | 判斷查詢是否需要記憶檢索 |
 | `src/migrate.ts` | 從內建 `memory-lancedb` 遷移到 Pro |
-| `src/smart-extractor.ts` | LLM 驅動的 6 類擷取，支援 L0/L1/L2 分層儲存和兩階段去重 |
+| `src/smart-extractor.ts` | LLM 驅動的 10 類擷取，支援 L0/L1/L2 分層儲存和兩階段去重 |
 | `src/decay-engine.ts` | Weibull 拉伸指數衰減模型 |
 | `src/tier-manager.ts` | 三級晉升/降級：外圍 ↔ 工作 ↔ 核心 |
 
@@ -280,10 +280,10 @@ Requirements:
 
 ### 智慧記憶擷取（v1.1.0）
 
-- **LLM 驅動的 6 類擷取**：使用者輪廓、偏好、實體、事件、案例、模式
+- **LLM 驅動的 10 類擷取**：`profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other` —— 單一詞表，規範名即寫入 `category` 欄位的值；輸入時接受單數別名（`preference`、`entity`、`event`、`case`、`pattern`），未知名稱會被拒絕。對於 JSON 匯入，操作者可為未知名稱設定明確策略（`--unknown reject|other|<canonical>`，預設 `reject`），並把任意輸入名映射到規範類別（`--category-map`）。
 - **L0/L1/L2 分層儲存**：L0（一句話索引）→ L1（結構化摘要）→ L2（完整敘述）
 - **兩階段去重**：向量相似度預過濾（≥0.7）→ LLM 語意決策（CREATE/MERGE/SKIP）
-- **類別感知合併**：`profile` 始終合併，`events`/`cases` 僅追加
+- **類別感知合併**：`profile` 始終合併；`preferences` / `entities` / `patterns` / `fact` / `reflection` 偵測到重複時合併；`events` / `cases` / `decision` 僅追加（從不合併）
 
 ### 記憶生命週期管理（v1.1.0）
 
@@ -330,7 +330,7 @@ Requirements:
 | 管理 CLI | - | 有 |
 | 工作階段記憶 | - | 有 |
 | 任務感知 Embedding | - | 有 |
-| **LLM 智慧擷取（6 類）** | - | 有（v1.1.0） |
+| **LLM 智慧擷取（10 類）** | - | 有（v1.1.0） |
 | **Weibull 衰減 + 層級晉升** | - | 有（v1.1.0） |
 | 任意 OpenAI 相容 Embedding | 有限 | 有 |
 
@@ -443,7 +443,7 @@ Requirements:
 
 | 欄位 | 類型 | 預設值 | 說明 |
 |------|------|--------|------|
-| `smartExtraction` | boolean | `true` | 是否啟用 LLM 智慧 6 類別擷取 |
+| `smartExtraction` | boolean | `true` | 是否啟用 LLM 智慧 10 類別擷取 |
 | `llm.auth` | string | `api-key` | `api-key` 使用 `llm.apiKey` / `embedding.apiKey`；`oauth` 預設使用外掛級 OAuth token 檔案 |
 | `llm.apiKey` | string | *（複用 `embedding.apiKey`）* | LLM 服務商 API Key |
 | `llm.model` | string | `openai/gpt-oss-120b` | LLM 模型名稱 |
@@ -525,6 +525,31 @@ openclaw memory-cip upgrade [--dry-run] [--batch-size 10] [--no-llm] [--limit N]
 openclaw memory-cip migrate check|run|verify [--source /path]
 ```
 
+`--category` 接受規範的 10 類（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other`）以及輸入別名（`preference` / `entity` / `event` / `case` / `pattern`）。未知值會以驗證錯誤被拒絕，不會靜默回退到 `patterns` 或 `other`。
+
+**`import` 分類策略（絕不靜默強轉）。** 每一列的分類按以下順序解析：
+
+1. **規範類別名精確匹配** —— 原樣儲存；
+2. **內建別名**（`preference` → `preferences`、`entity` → `entities`、`event` → `events`、`case` → `cases`、`pattern` → `patterns`）；
+3. **`--category-map <file>`** —— 一個 JSON 物件，把任意輸入名映射到規範類別，例如 `{"lemmas":"cases"}`；
+4. **`--unknown <policy>`** —— 決定剩下未能識別的名稱：
+   - `reject`（**預設**）：跳過該列，並逐列印出包含規範類別名的警告；
+   - `other`：存為 `other`，且僅因操作者明確要求；
+   - 任意規範類別名：存為該類別。
+
+每一步決定都會逐列報告；`--dry-run` 會在寫入任何內容前印出完整的解析方案（請求值 → `canonical` / `aliased` / `mapped` / `other` / `rejected` → 最終類別），以便安全地反覆調整策略。`--unknown` 取值無法識別、或 `--category-map` 的值不是規範類別/別名時，命令直接失敗，不會匯入任何資料。
+
+```bash
+# 預覽每一列的分類解析結果（不寫入任何資料）
+openclaw memory-cip import memories.json --dry-run
+
+# 顯式路由兩個已知的非規範名，其餘一律拒絕
+openclaw memory-cip import memories.json --category-map map.json --unknown reject
+
+# 同上，但把其他未識別的名稱顯式落到 other
+openclaw memory-cip import memories.json --unknown other
+```
+
 OAuth 登入流程：
 
 1. 執行 `openclaw memory-cip auth login`
@@ -589,8 +614,8 @@ OAuth 登入流程：
 > 將以下內容複製到你的 `AGENTS.md`，讓智慧體自動遵守這些規則。
 
 ```markdown
-## 規則 1 — 雙層記憶儲存
-每個踩坑/經驗教訓 → 立即儲存兩條記憶：
+## 規則 1 — 雙記憶教訓儲存
+每個踩坑/經驗教訓 → 立即儲存兩條記憶（兩者都是單一 10 類詞表中的正規類別）：
 - 技術層：踩坑：[現象]。原因：[根因]。修復：[方案]。預防：[如何避免]
   (category: fact, importance >= 0.8)
 - 原則層：決策原則 ([標籤])：[行為規則]。觸發：[何時]。動作：[做什麼]
@@ -621,7 +646,7 @@ LanceDB 表 `memories`：
 | `id` | string (UUID) | 主鍵 |
 | `text` | string | 記憶文字（全文索引） |
 | `vector` | float[] | Embedding 向量 |
-| `category` | string | 儲存類別：`preference` / `fact` / `decision` / `entity` / `reflection` / `other` |
+| `category` | string | 儲存類別（正規）：`profile` / `preferences` / `entities` / `events` / `cases` / `patterns` / `decision` / `fact` / `reflection` / `other` |
 | `scope` | string | 作用域識別碼（如 `global`、`agent:main`） |
 | `importance` | float | 重要性分數 0-1 |
 | `timestamp` | int64 | 建立時間戳記（毫秒） |
@@ -629,7 +654,9 @@ LanceDB 表 `memories`：
 
 v1.1.0 常用 `metadata` 欄位：`l0_abstract`、`l1_overview`、`l2_content`、`memory_category`、`tier`、`access_count`、`confidence`、`last_accessed_at`
 
-> **關於分類的說明：** 頂層 `category` 欄位使用 6 個儲存類別。智慧擷取的 6 類語意標籤（`profile` / `preferences` / `entities` / `events` / `cases` / `patterns`）儲存在 `metadata.memory_category` 中。
+> **關於分類的說明：** 目前只有**一套 10 類詞表** —— `profile`、`preferences`、`entities`、`events`、`cases`、`patterns`、`decision`、`fact`、`reflection`、`other`。規範名本身就是頂層 `category` 欄位儲存的值（恆等映射，不再存在「語意分類 + 儲存分類」的雙層結構）。輸入時接受單數別名 `preference` → `preferences`、`entity` → `entities`、`event` → `events`、`case` → `cases`、`pattern` → `patterns`；`decision`、`fact`、`reflection`、`other` 本身就是規範名。未知類別名會被**拒絕**並回傳驗證錯誤，絕不會靜默回退到 `patterns` 或 `other`。
+>
+> 合併 / 時間線 / 持久性：`profile` 始終合併（無時間線，持久）；`preferences`、`entities`、`fact` 支援合併並透過 `fact_key` 做時間版本化（持久）；`patterns`、`reflection` 支援合併但無時間線（持久）；`events` 僅追加（無時間線，持久，做虛構判定）；`cases`、`decision` 僅追加（無時間線，持久）；`other` 不合併、無時間線、非持久。
 
 </details>
 
@@ -661,7 +688,7 @@ v1.1.0 常用 `metadata` 欄位：`l0_abstract`、`l1_overview`、`l2_content`�
 
 | 功能 | 說明 |
 |------|------|
-| **智慧擷取** | LLM 驅動的 6 類擷取，支援 L0/L1/L2 中繼資料。停用時回退到正則模式。 |
+| **智慧擷取** | LLM 驅動的 10 類擷取，支援 L0/L1/L2 中繼資料。停用時回退到正則模式。 |
 | **生命週期評分** | Weibull 衰減整合到檢索中——高頻和高重要性記憶排名更高。 |
 | **層級管理** | 三級系統（核心 → 工作 → 外圍），自動晉升/降級。 |
 
