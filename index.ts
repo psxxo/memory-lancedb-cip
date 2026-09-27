@@ -645,7 +645,7 @@ export function buildAutoRecallRerankCostWarning(
 }
 
 function resolveLlmTimeoutMs(config: PluginConfig): number {
-  return parsePositiveInt(config.llm?.timeoutMs) ?? 30000;
+  return parsePositiveInt(config.llm?.timeoutMs) ?? 60000;
 }
 
 /**

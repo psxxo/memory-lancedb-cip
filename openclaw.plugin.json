@@ -2,7 +2,7 @@
   "id": "memory-lancedb-cip",
   "name": "Memory (LanceDB CIP)",
   "description": "Enhanced LanceDB-backed long-term memory with hybrid retrieval, multi-scope isolation, long-context chunking, and management CLI",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "kind": "memory",
   "skills": [
     "./skills"
@@ -2433,8 +2433,8 @@
     },
     "llm.timeoutMs": {
       "label": "LLM Timeout (ms)",
-      "placeholder": "30000",
-      "help": "Request timeout for the smart-extraction / upgrade LLM in milliseconds",
+      "placeholder": "60000",
+      "help": "Request timeout for the smart-extraction / upgrade LLM in milliseconds (default 60000; long rows need more than the old 30000)",
       "advanced": true
     },
     "memoryCompaction.enabled": {

@@ -1,3 +1,19 @@
+## 1.2.9
+
+**One-pass upgrades, longer LLM deadline.** Two changes driven by a real 892-row legacy
+import into a live store.
+
+- **`memory-cip upgrade` self-heals fallback rows.** When LLM enrichment fails for a row
+  (most often a request timeout) the upgrader wrote the simple-truncation fallback and
+  stopped there, so a second manual pass was needed. `upgrade()` now records those rows
+  and retries them inside the same run, up to `retryFallbacks` extra passes (default 2;
+  `0` disables; CLI `--retry-fallbacks <n>`). The summary reports
+  `Fallback retried successfully: N` and lists any ids still falling back, so one command
+  completes the work.
+- **`llm.timeoutMs` default 30000 → 60000.** In the observed 139-row legacy batch, 4 rows
+  exceeded the old 30 s deadline and fell back; long rows need more headroom. An explicit
+  `llm.timeoutMs` in config still wins.
+
 ## 1.2.8
 
 **Memory-runtime provenance contract.** The host excludes `MEMORY.md` / `USER.md` from the

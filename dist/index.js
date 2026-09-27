@@ -258,7 +258,7 @@ export function buildAutoRecallRerankCostWarning(config, retrievalConfig = norma
         `retrieval.rerank to "lightweight" or "none", or raise autoRecallMinLength to reduce calls.`);
 }
 function resolveLlmTimeoutMs(config) {
-    return parsePositiveInt(config.llm?.timeoutMs) ?? 30000;
+    return parsePositiveInt(config.llm?.timeoutMs) ?? 60000;
 }
 /**
  * Hook identity: an explicit agent id, else the id parsed out of the session

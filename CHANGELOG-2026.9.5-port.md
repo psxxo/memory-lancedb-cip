@@ -1,3 +1,10 @@
+## 1.2.9
+
+**One-pass upgrades, longer LLM deadline.** `upgrade()` now retries rows whose LLM
+enrichment fell back to simple truncation within the same run (default 2 extra passes,
+CLI `--retry-fallbacks <n>`), and the default `llm.timeoutMs` is 60000 instead of 30000
+(see `CHANGELOG.md` for the full entry).
+
 ## 1.2.8
 
 **Memory-runtime provenance contract.** The memory capability runtime now exposes

@@ -262,7 +262,7 @@ export class MemoryUpgrader {
                 if (entry.category !== expectedStorage) {
                     updates.category = expectedStorage;
                 }
-                prepared.push({ entry, updates });
+                prepared.push({ entry, updates, fallback: false });
             }
             const writeResult = { upgraded: 0, errors: [] };
             await this.writePreparedBatch(prepared, writeResult, scopeFilter);
@@ -280,11 +280,14 @@ export class MemoryUpgrader {
         const noLlm = options.noLlm ?? this.options.noLlm ?? false;
         const dryRun = options.dryRun ?? this.options.dryRun ?? false;
         const limit = options.limit ?? this.options.limit;
+        const fallbackEntries = [];
         const result = {
             totalLegacy: 0,
             upgraded: 0,
             skipped: 0,
             errors: [],
+            fallbackRetried: 0,
+            fallbackIds: [],
         };
         // Load all memories
         this.log("memory-upgrader: scanning memories...");
@@ -325,11 +328,52 @@ export class MemoryUpgrader {
                     this.log(`memory-upgrader: ERROR — ${errMsg}`);
                 }
             }
+            for (const preparedEntry of prepared) {
+                if (preparedEntry.fallback)
+                    fallbackEntries.push(preparedEntry.entry);
+            }
             await this.writePreparedBatch(prepared, result, options.scopeFilter ?? this.options.scopeFilter);
             // Progress report
             this.log(`memory-upgrader: progress — ${result.upgraded} upgraded, ${result.errors.length} errors`);
         }
-        this.log(`memory-upgrader: upgrade complete — ${result.upgraded} upgraded, ${result.skipped} already new, ${result.errors.length} errors`);
+        // Rows whose LLM enrichment fell back (typically a request timeout) are
+        // retried inside this run so a single `upgrade` completes without a manual
+        // second pass. Bounded by retryFallbacks to avoid endless re-runs.
+        const retryRounds = Math.max(0, options.retryFallbacks ?? this.options.retryFallbacks ?? 2);
+        let pendingFallbacks = fallbackEntries;
+        for (let round = 1; round <= retryRounds && pendingFallbacks.length > 0; round++) {
+            this.log(`memory-upgrader: fallback retry ${round}/${retryRounds} — ${pendingFallbacks.length} row(s)`);
+            const retryPrepared = [];
+            const stillFailing = [];
+            for (const entry of pendingFallbacks) {
+                try {
+                    const preparedEntry = await this.prepareUpgradeEntry(entry, noLlm);
+                    retryPrepared.push(preparedEntry);
+                    if (preparedEntry.fallback)
+                        stillFailing.push(entry);
+                }
+                catch (err) {
+                    const errMsg = `Failed to prepare upgrade ${entry.id}: ${String(err)}`;
+                    result.errors.push(errMsg);
+                    this.log(`memory-upgrader: ERROR — ${errMsg}`);
+                    stillFailing.push(entry);
+                }
+            }
+            const retryWrite = { upgraded: 0, errors: [] };
+            await this.writePreparedBatch(retryPrepared, retryWrite, options.scopeFilter ?? this.options.scopeFilter);
+            result.errors.push(...retryWrite.errors);
+            // Count only rows whose retry actually produced LLM metadata: a retry that
+            // falls back again still writes, but is not "recovered".
+            const recovered = retryPrepared.filter((p) => !p.fallback).length;
+            result.fallbackRetried += Math.min(recovered, retryWrite.upgraded);
+            pendingFallbacks = stillFailing;
+        }
+        result.fallbackIds = pendingFallbacks.map((entry) => entry.id);
+        this.log(`memory-upgrader: upgrade complete — ${result.upgraded} upgraded, ${result.skipped} already new, ${result.errors.length} errors` +
+            (result.fallbackRetried > 0 ? `, ${result.fallbackRetried} fallback row(s) recovered` : "") +
+            (result.fallbackIds.length > 0
+                ? `, ${result.fallbackIds.length} still falling back`
+                : ""));
         return result;
     }
     /**
@@ -340,6 +384,7 @@ export class MemoryUpgrader {
         let newCategory = reverseMapCategory(entry.category, entry.text);
         // Step 2: Generate L0/L1/L2
         let enriched;
+        let usedFallback = false;
         if (!noLlm && this.llm) {
             try {
                 const prompt = buildUpgradePrompt(entry.text, newCategory);
@@ -365,6 +410,7 @@ export class MemoryUpgrader {
             }
             catch (err) {
                 this.log(`memory-upgrader: LLM enrichment failed for ${entry.id}, falling back to simple — ${String(err)}`);
+                usedFallback = true;
                 enriched = simpleEnrich(entry.text, newCategory);
             }
         }
@@ -400,6 +446,7 @@ export class MemoryUpgrader {
         };
         return {
             entry,
+            fallback: usedFallback,
             updates: {
                 // Keep the full searchable layer in the primary text column. Search also
                 // scores L0/L1/L2 metadata, so replacing text with L0 would discard recall

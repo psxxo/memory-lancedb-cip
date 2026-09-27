@@ -2294,6 +2294,11 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
     .option("--limit <n>", "Maximum number of memories to upgrade")
     .option("--scope <scope>", "Only upgrade memories in this scope")
     .option(
+      "--retry-fallbacks <n>",
+      "Extra in-run passes over rows whose LLM enrichment fell back to simple truncation (default: 2; 0 disables)",
+      "2",
+    )
+    .option(
       "--categories-only",
       "Only re-stamp memory_category on reflection-mapped rows (skip the general legacy L0/L1/L2 upgrade)",
     )
@@ -2359,12 +2364,26 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
           batchSize: parseInt(options.batchSize) || 10,
           noLlm: options.llm === false,
           limit: options.limit ? parseInt(options.limit) : undefined,
+          retryFallbacks:
+            options.retryFallbacks === undefined
+              ? undefined
+              : Math.max(0, parseInt(options.retryFallbacks, 10) || 0),
           scopeFilter,
         });
 
         console.log(`\nUpgrade Results:`);
         console.log(`• Upgraded: ${result.upgraded}`);
         console.log(`• Already new format: ${result.skipped}`);
+        if (result.fallbackRetried > 0) {
+          console.log(`• Fallback retried successfully: ${result.fallbackRetried}`);
+        }
+        if (result.fallbackIds.length > 0) {
+          console.log(`• Still falling back to simple truncation: ${result.fallbackIds.length}`);
+          result.fallbackIds.slice(0, 5).forEach(id => console.log(`  - ${id}`));
+          if (result.fallbackIds.length > 5) {
+            console.log(`  ... and ${result.fallbackIds.length - 5} more`);
+          }
+        }
         if (result.errors.length > 0) {
           console.log(`• Errors: ${result.errors.length}`);
           result.errors.slice(0, 5).forEach(err => console.log(`  - ${err}`));

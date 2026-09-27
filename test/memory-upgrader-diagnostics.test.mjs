@@ -15,6 +15,7 @@ const { createMemoryUpgrader } = jiti("../src/memory-upgrader.ts");
 
 async function runTest() {
   await testLegacyUpgradeFallbackDiagnostic();
+  await testFallbackRowsAreRetriedWithinTheRun();
   await testUpgradeKeepsFullTextWhenLlmReturnsConciseL0();
   await testReflectionRowsAreNotLegacy();
   await testBatchPreparationCompletesBeforeWrites();
@@ -55,6 +56,8 @@ async function testLegacyUpgradeFallbackDiagnostic() {
 
   const upgrader = createMemoryUpgrader(store, llm, {
     log: (msg) => logs.push(msg),
+    // This case documents the diagnostic + fallback shape, not the retry loop.
+    retryFallbacks: 0,
   });
 
   const result = await upgrader.upgrade({ batchSize: 1 });
@@ -63,12 +66,96 @@ async function testLegacyUpgradeFallbackDiagnostic() {
   assert.equal(result.upgraded, 1);
   assert.equal(result.errors.length, 0);
   assert.equal(updates.length, 1);
+  assert.deepEqual(result.fallbackIds, ["legacy-1"]);
   assert.match(
     logs.join("\n"),
     /request failed for model mock: timeout/,
   );
   assert.equal(typeof updates[0].patch.text, "string");
   assert.ok(updates[0].patch.metadata.includes("upgraded_at"));
+}
+
+async function testFallbackRowsAreRetriedWithinTheRun() {
+  // First attempt times out, the retry pass succeeds: one `upgrade` run is
+  // enough and the row is reported as recovered instead of staying on the
+  // simple-truncation fallback.
+  const updates = [];
+  const legacyEntry = {
+    id: "legacy-retry-1",
+    text: "Legacy memory about retrying timed-out LLM enrichment.",
+    category: "fact",
+    scope: "test",
+    importance: 0.8,
+    timestamp: Date.now(),
+    metadata: "{}",
+  };
+
+  const store = {
+    async list() {
+      return [legacyEntry];
+    },
+    async update(id, patch) {
+      updates.push({ id, patch });
+      return true;
+    },
+  };
+
+  let calls = 0;
+  const llm = {
+    async completeJson() {
+      calls += 1;
+      if (calls === 1) return null;
+      return {
+        l0_abstract: "Retry pass produced an LLM abstract.",
+        l1_overview: "- Retry pass produced an LLM abstract",
+        l2_content: legacyEntry.text,
+        resolved_category: "cases",
+      };
+    },
+    getLastError() {
+      return "memory-lancedb-cip: llm-client [generic] request failed for model mock: timed out";
+    },
+  };
+
+  const upgrader = createMemoryUpgrader(store, llm, { log: () => {} });
+  const result = await upgrader.upgrade({ batchSize: 1 });
+
+  assert.equal(result.upgraded, 1);
+  assert.equal(result.fallbackRetried, 1);
+  assert.deepEqual(result.fallbackIds, []);
+  assert.equal(calls, 2);
+  const meta = JSON.parse(updates[updates.length - 1].patch.metadata);
+  assert.equal(meta.l0_abstract, "Retry pass produced an LLM abstract.");
+
+  // A permanently failing row is bounded by retryFallbacks and stays reported.
+  const stillFailing = [];
+  const store2 = {
+    async list() {
+      return [{ ...legacyEntry, id: "legacy-retry-2" }];
+    },
+    async update(id, patch) {
+      stillFailing.push({ id, patch });
+      return true;
+    },
+  };
+  const llm2 = {
+    async completeJson() {
+      return null;
+    },
+    getLastError() {
+      return "memory-lancedb-cip: llm-client [generic] request failed for model mock: timed out";
+    },
+  };
+  const upgrader2 = createMemoryUpgrader(store2, llm2, {
+    log: () => {},
+    retryFallbacks: 1,
+  });
+  const result2 = await upgrader2.upgrade({ batchSize: 1 });
+
+  assert.equal(result2.upgraded, 1);
+  assert.equal(result2.fallbackRetried, 0);
+  assert.deepEqual(result2.fallbackIds, ["legacy-retry-2"]);
+  assert.equal(stillFailing.length, 2); // initial pass + 1 retry
 }
 
 async function testUpgradeKeepsFullTextWhenLlmReturnsConciseL0() {

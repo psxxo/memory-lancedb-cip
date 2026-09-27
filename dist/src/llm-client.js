@@ -335,7 +335,7 @@ function createApiKeyClient(config, log, warnLog) {
     const client = new OpenAI({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
-        timeout: config.timeoutMs ?? 30000,
+        timeout: config.timeoutMs ?? 60000,
     });
     let lastError = null;
     return {
