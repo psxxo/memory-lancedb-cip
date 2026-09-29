@@ -69,6 +69,29 @@ describe("LLM host transport", () => {
     assert.equal(calls[0].purpose, "memory-lancedb-cip:extract-candidates");
   });
 
+  it("omits the model on the host transport when no model was explicitly configured", async () => {
+    const calls = [];
+    const runtimeLlmComplete = async (params) => {
+      calls.push(params);
+      return { text: "{\"memories\":[]}" };
+    };
+
+    const llm = createLlmClient({
+      transport: "host",
+      model: "openai/gpt-oss-120b",
+      modelExplicit: false,
+      runtimeLlmComplete,
+    });
+
+    await llm.completeJson("conversation text to extract from", "extract-candidates");
+
+    assert.equal(calls.length, 1);
+    assert.ok(
+      !Object.prototype.hasOwnProperty.call(calls[0], "model"),
+      "host transport must omit the model when the operator configured none, so the host's own default applies",
+    );
+  });
+
   it("routes admission-utility through the host runtime transport, capturing model and messages", async () => {
     const calls = [];
     const runtimeLlmComplete = async (params) => {

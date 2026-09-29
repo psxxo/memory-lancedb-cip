@@ -123,6 +123,20 @@ assert.ok(
   "configured). The medium default for the host transport lives in code (DEFAULT_HOST_REASONING_EFFORT " +
   "in src/llm-client.ts), not here."
 );
+assert.ok(
+  !Object.prototype.hasOwnProperty.call(manifest.configSchema.properties.llm.properties.model, "default"),
+  "llm.model schema must NOT declare a JSON-schema default -- the OpenClaw host materializes schema " +
+  "defaults into the plugin config, so a default here makes an unset model indistinguishable from an " +
+  "explicit one and the host transport would send a model override OpenClaw rejects. Leaving llm.model " +
+  "unset is how the lane follows OpenClaw's own default model (modelExplicit=false makes src/llm-client.ts " +
+  "omit the model field on the host transport); the standalone/direct fallback lives in code " +
+  "(DEFAULT_GENERATION_MODEL in src/load-safety.ts)."
+);
+assert.ok(
+  !Object.prototype.hasOwnProperty.call(manifest.configSchema.properties.llm.properties.timeoutMs, "default"),
+  "llm.timeoutMs schema must NOT declare a JSON-schema default -- the host materializes it and would " +
+  "shadow the 60000ms code default (resolveLlmTimeoutMs in index.ts)."
+);
 assert.doesNotMatch(
   manifest.configSchema.properties.llm.properties.thinkLevel.description,
   /reasoning effort requested on the host transport only/i,

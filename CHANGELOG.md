@@ -1,3 +1,23 @@
+## 1.3.1
+
+**The LLM lane can follow the host's default model.** The plugin's generation model
+(`llm.model`) was effectively always set: the manifest declared a JSON-schema default
+(`openai/gpt-oss-120b`) and the OpenClaw host **materializes schema defaults into the plugin
+config**, so an operator who left `llm.model` unset still got that value materialized — and on
+the host transport the plugin then sent it as a model override, which the host rejects.
+
+- **`llm.model` no longer declares a schema default.** Leave it unset and the host transport
+  omits the model field entirely, so OpenClaw's own default model applies — one place to
+  change when a provider renames a model. The standalone/direct fallback stays in code
+  (`DEFAULT_GENERATION_MODEL`).
+- **`llm.timeoutMs` no longer declares a schema default** either, so a materialized value can
+  no longer shadow the 60000 ms code default (`resolveLlmTimeoutMs`).
+- **The startup line reports what the lane will actually use** — an explicitly configured
+  model, or `host default` when nothing is configured on the host transport.
+- **The reflection completion fallback no longer disables itself** when `llm.model` is unset;
+  it falls back to the built-in generation model (omitted on the host transport) like the
+  other lanes.
+
 ## 1.3.0
 
 **mdMirror resolves agent workspaces on the `agents.entries` config shape.** The Markdown

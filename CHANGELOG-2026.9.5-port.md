@@ -1,3 +1,12 @@
+## 1.3.1
+
+**LLM lane follows the host default model.** `llm.model` and `llm.timeoutMs` no longer
+declare JSON-schema defaults (the OpenClaw host materializes schema defaults into the plugin
+config, so a default made "unset" behave like an explicit override and the host transport
+sent a model the host rejects), the startup line reports `host default` when no model is
+configured, and the reflection completion fallback keeps working without an explicit model
+(see `CHANGELOG.md`).
+
 ## 1.3.0
 
 **mdMirror agent-workspace resolution.** `resolveAgentWorkspaceMap()` now reads the current

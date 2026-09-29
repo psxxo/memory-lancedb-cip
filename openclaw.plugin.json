@@ -2,7 +2,7 @@
   "id": "memory-lancedb-cip",
   "name": "Memory (LanceDB CIP)",
   "description": "Enhanced LanceDB-backed long-term memory with hybrid retrieval, multi-scope isolation, long-context chunking, and management CLI",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "kind": "memory",
   "skills": [
     "./skills"
@@ -1640,7 +1640,7 @@
           },
           "model": {
             "type": "string",
-            "default": "openai/gpt-oss-120b"
+            "description": "Generation model for the plugin LLM lane. Leave unset to follow the host: on the host transport an unset model means the request carries no model override and OpenClaw's own default model applies. Deliberately no JSON-schema default -- the OpenClaw host materializes schema defaults into the plugin config (see llm.thinkLevel), which would make an unset model indistinguishable from an explicit one. The built-in fallback for the standalone/direct transport lives in code (DEFAULT_GENERATION_MODEL)."
           },
           "baseURL": {
             "type": "string"
@@ -1656,7 +1656,7 @@
           "timeoutMs": {
             "type": "integer",
             "minimum": 500,
-            "default": 30000
+            "description": "LLM request deadline in ms. Default 60000 (code). Deliberately no JSON-schema default -- the host materializes schema defaults into the plugin config, so a schema default would silently shadow the code default (same class as llm.thinkLevel)."
           },
           "thinkLevel": {
             "type": "string",

@@ -21,7 +21,7 @@ const isCliMode = () => process.env.OPENCLAW_CLI === "1";
 let dualMemoryHintLogged = false;
 // Import core components
 import { MemoryStore, normalizeStoragePath } from "./src/store.js";
-import { resolveGenerationModel, resolveHostModelInventory, evaluateGenerationModelAvailability, } from "./src/load-safety.js";
+import { DEFAULT_GENERATION_MODEL, resolveGenerationModel, resolveHostModelInventory, evaluateGenerationModelAvailability, } from "./src/load-safety.js";
 import { createEmbedder, getEffectiveVectorDimensions, } from "./src/embedder.js";
 import { createRetriever, normalizeRetrievalConfig, } from "./src/retriever.js";
 import { createScopeManager, resolveScopeFilter, isSystemBypassId, parseAgentIdFromSessionKey } from "./src/scopes.js";
@@ -1950,7 +1950,7 @@ function _initPluginState(api) {
                 : llmIsHostTransport
                     ? undefined
                     : config.embedding.baseURL;
-        const llmModel = config.llm?.model || "openai/gpt-oss-120b";
+        const llmModel = config.llm?.model || DEFAULT_GENERATION_MODEL;
         const llmModelExplicit = Boolean(asNonEmptyString(config.llm?.model));
         const llmOauthPath = llmAuth === "oauth"
             ? resolveOptionalPathWithEnv(api, config.llm?.oauthPath, ".memory-lancedb-cip/oauth.json")
@@ -2075,8 +2075,15 @@ function _initPluginState(api) {
                     debugLog: (msg) => api.logger.debug(msg),
                     noiseBank,
                 });
+                // Report what the lane will actually use: an explicitly configured model, or
+                // (on the host transport) the host's own default when no model is configured.
+                const llmModelLabel = llmModelExplicit
+                    ? llmModel
+                    : config.llm?.transport === "host"
+                        ? "host default"
+                        : llmModel;
                 (isCliMode() ? api.logger.debug : api.logger.info)("memory-lancedb-cip: smart extraction enabled (LLM model: "
-                    + llmModel
+                    + llmModelLabel
                     + ", timeoutMs: "
                     + llmTimeoutMs
                     + ", noise bank: ON)");
@@ -2743,7 +2750,7 @@ const memoryLanceDBCipPlugin = {
                     return createLlmClient({
                         auth: llmAuth,
                         apiKey: llmApiKey,
-                        model: config.llm?.model || "openai/gpt-oss-120b",
+                        model: config.llm?.model || DEFAULT_GENERATION_MODEL,
                         modelExplicit: Boolean(asNonEmptyString(config.llm?.model)),
                         baseURL: llmBaseURL,
                         oauthProvider: llmOauthProvider,
@@ -4349,7 +4356,10 @@ const memoryLanceDBCipPlugin = {
             let reflectionCompletionClient;
             const reflectionCompleteText = async (systemPrompt, userPrompt) => {
                 if (reflectionCompletionClient === undefined) {
-                    const model = reflectionModel ?? asNonEmptyString(config.llm?.model);
+                    // Fall back to the built-in generation model (code default) rather than
+                    // disabling this lane: on the host transport an unset model is omitted from
+                    // the request, so the host's own default applies.
+                    const model = reflectionModel ?? asNonEmptyString(config.llm?.model) ?? DEFAULT_GENERATION_MODEL;
                     try {
                         reflectionCompletionClient = model
                             ? makeLaneLlmClient(config.llm?.transport === "host" ? model.trim() : normalizeDirectModelRef(model), reflectionThinkLevel, reflectionModel ? true : undefined)
