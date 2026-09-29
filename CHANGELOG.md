@@ -17,6 +17,13 @@ the host transport the plugin then sent it as a model override, which the host r
 - **The reflection completion fallback no longer disables itself** when `llm.model` is unset;
   it falls back to the built-in generation model (omitted on the host transport) like the
   other lanes.
+- **The load-time availability gate understands the host-transport default.** With no
+  `llm.model` configured and `llm.transport: "host"`, the gate no longer fails closed on the
+  historical built-in default (`openai/gpt-oss-120b`) — the plugin is not choosing a model,
+  so OpenClaw's own default applies and smart extraction stays on. An explicit `llm.model` is
+  still gated exactly as before, and an unreadable catalog still fails closed.
+- **`memory-cip doctor` reports `model=host default explicit=no`** for that state, with the
+  reason spelled out.
 
 ## 1.3.0
 

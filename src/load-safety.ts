@@ -308,6 +308,13 @@ export function resolveHostModelInventory(
 export function evaluateGenerationModelAvailability(params: {
   inventory: HostModelInventory;
   model: GenerationModelResolution;
+  /**
+   * True when the plugin will NOT send a model of its own and the host resolves
+   * its default instead (no llm.model configured + host transport). There is no
+   * plugin-chosen reference to confirm, so the gate passes and the host owns the
+   * resolution; the host call still fails soft if it cannot resolve one.
+   */
+  hostResolvesModel?: boolean;
 }): GenerationModelAvailability {
   const { inventory, model } = params;
   const inventorySource = inventory.sources.length > 0 ? inventory.sources.join(", ") : "none";
@@ -315,6 +322,16 @@ export function evaluateGenerationModelAvailability(params: {
     inventorySource,
     inventorySize: inventory.refs.size,
   };
+
+  if (params.hostResolvesModel) {
+    return {
+      ...base,
+      status: "available",
+      reason:
+        "no llm.model is configured and llm.transport is \"host\": the request carries no model, "
+        + "so OpenClaw's own default model applies (nothing for the plugin to confirm)",
+    };
+  }
 
   if (!inventory.confirmed) {
     return {

@@ -45,7 +45,7 @@ const loadSafety = jiti("../src/load-safety.ts");
 // Harness
 // ---------------------------------------------------------------------------
 
-function createApi({ pluginConfig, hostConfig, root }) {
+function createApi({ pluginConfig, hostConfig, root, runtime }) {
   const logs = { debug: [], info: [], warn: [], error: [] };
   const api = {
     id: "memory-lancedb-cip",
@@ -55,6 +55,7 @@ function createApi({ pluginConfig, hostConfig, root }) {
     registrationMode: "runtime",
     pluginConfig,
     config: hostConfig,
+    runtime,
     resolvePath(target) {
       if (typeof target !== "string") return target;
       if (path.isAbsolute(target)) return target;
@@ -235,6 +236,35 @@ describe("generation-model availability gate", () => {
       assert.ok(
         [...logs.info, ...logs.debug].some((l) => l.includes("smart extraction enabled")),
         "should log that smart extraction is enabled",
+      );
+    });
+  });
+
+  it("activates smartExtraction when no model is configured and the host transport is active", () => {
+    withTempRoot((root) => {
+      const { api, logs } = createApi({
+        pluginConfig: {
+          ...BASE_PLUGIN_CONFIG(root),
+          smartExtraction: true,
+          // No llm.model on purpose: the lane must follow the host's own default.
+          llm: { transport: "host" },
+        },
+        // Host catalog does NOT contain the historical built-in default.
+        hostConfig: hostConfigWithModels(["gpt-4o-mini"]),
+        // Provide the host runtime LLM surface the host transport requires.
+        runtime: { llm: { complete: async () => ({ text: "{\"memories\":[]}" }) } },
+        root,
+      });
+      plugin.register(api);
+      const report = _getLoadSafetyReportForTest();
+      assert.equal(report.generationModelExplicit, false);
+      assert.equal(report.generationModel, "host default");
+      assert.equal(report.generationModelStatus, "available");
+      assert.equal(report.smartExtractionActive, true);
+      assert.equal(
+        logs.warn.filter((l) => l.includes("smartExtraction DISABLED at load")).length,
+        0,
+        "an unset model on the host transport must not trip the availability gate",
       );
     });
   });

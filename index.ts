@@ -2513,9 +2513,15 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
     runtime?: unknown;
     modelCatalog?: unknown;
   });
+  // The plugin gates only on a model IT will send. With no llm.model configured
+  // and the host transport active, the request omits the model and OpenClaw
+  // resolves its own default, so the host catalog is not the plugin's to check.
+  const hostResolvesGenerationModel =
+    !generationModel.explicit && config.llm?.transport === "host";
   const modelAvailability = evaluateGenerationModelAvailability({
     inventory: modelInventory,
     model: generationModel,
+    hostResolvesModel: hostResolvesGenerationModel,
   });
   const smartExtractionRequested = config.smartExtraction === true;
   const smartExtractionEnabled =
@@ -2891,7 +2897,7 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
   // v1.2.6 — load-time safety conclusion (zero network + generation-model gate).
   const loadElapsedMs = Date.now() - loadStartedAt;
   const loadSafetyReport: LoadSafetyReport = {
-    generationModel: generationModel.modelRef,
+    generationModel: hostResolvesGenerationModel ? "host default" : generationModel.modelRef,
     generationModelExplicit: generationModel.explicit,
     generationModelStatus: modelAvailability.status,
     generationModelReason: modelAvailability.reason,

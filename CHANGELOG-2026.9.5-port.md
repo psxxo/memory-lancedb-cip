@@ -5,7 +5,9 @@ declare JSON-schema defaults (the OpenClaw host materializes schema defaults int
 config, so a default made "unset" behave like an explicit override and the host transport
 sent a model the host rejects), the startup line reports `host default` when no model is
 configured, and the reflection completion fallback keeps working without an explicit model
-(see `CHANGELOG.md`).
+(see `CHANGELOG.md`). The load-time availability gate also learns the host-transport default:
+with no `llm.model` configured and `llm.transport: "host"` it no longer fails closed on the
+historical built-in model, so smart extraction stays on and follows OpenClaw's own default.
 
 ## 1.3.0
 

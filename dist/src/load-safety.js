@@ -260,6 +260,14 @@ export function evaluateGenerationModelAvailability(params) {
         inventorySource,
         inventorySize: inventory.refs.size,
     };
+    if (params.hostResolvesModel) {
+        return {
+            ...base,
+            status: "available",
+            reason: "no llm.model is configured and llm.transport is \"host\": the request carries no model, "
+                + "so OpenClaw's own default model applies (nothing for the plugin to confirm)",
+        };
+    }
     if (!inventory.confirmed) {
         return {
             ...base,
