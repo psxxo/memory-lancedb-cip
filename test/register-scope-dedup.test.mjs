@@ -151,8 +151,19 @@ function mockCreateEmbedder() {
 
 describe("register() re-registration hardening", () => {
   let workspaceDir;
+  let savedCliEnv;
 
   beforeEach(() => {
+    // Pin the Gateway logging path. In CLI mode the plugin routes its
+    // registration logs to debug (see logReg / #888), so a CLI-mode
+    // environment -- e.g. a test run started from an OpenClaw agent shell,
+    // where OPENCLAW_CLI=1 -- would move the "plugin registered" line out of
+    // the info bucket this suite asserts on. The gateway path is what is
+    // pinned here.
+    if (process.env.OPENCLAW_CLI !== undefined) {
+      savedCliEnv = process.env.OPENCLAW_CLI;
+      delete process.env.OPENCLAW_CLI;
+    }
     workspaceDir = mkdtempSync(path.join(tmpdir(), "register-scope-dedup-"));
     activeCreateRetriever = origCreateRetriever;
     activeCreateEmbedder = origCreateEmbedder;
@@ -163,6 +174,8 @@ describe("register() re-registration hardening", () => {
   });
 
   afterEach(() => {
+    if (savedCliEnv !== undefined) process.env.OPENCLAW_CLI = savedCliEnv;
+    savedCliEnv = undefined;
     activeCreateRetriever = origCreateRetriever;
     activeCreateEmbedder = origCreateEmbedder;
     retrieverModuleForMock.createRetriever = origCreateRetriever;

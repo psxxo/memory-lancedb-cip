@@ -23,8 +23,15 @@ async function runEntry(entry) {
   const printable = [cmd, ...args].join(" ");
   console.log(`==> ${printable}`);
 
+  // Run every entry with the Gateway logging path. OPENCLAW_CLI downgrades the
+  // plugin's registration logs to debug (logReg / #888), so a runner started
+  // from an OpenClaw agent shell would otherwise produce environment-only
+  // failures that never reproduce in CI.
+  const env = { ...process.env };
+  delete env.OPENCLAW_CLI;
+
   await new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: "inherit" });
+    const child = spawn(cmd, args, { stdio: "inherit", env });
     child.on("exit", (code) => {
       if (code === 0) {
         resolve();
