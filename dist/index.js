@@ -1553,17 +1553,39 @@ async function findPreviousSessionFile(sessionsDir, currentSessionFile, sessionI
     }
     catch { }
 }
-function resolveAgentWorkspaceMap(api) {
+function collectAgentWorkspaceList(list) {
     const map = {};
-    // Try api.config first (runtime config)
-    const agents = Array.isArray(api.config?.agents?.list)
-        ? api.config.agents.list
-        : [];
-    for (const agent of agents) {
+    if (!Array.isArray(list))
+        return map;
+    for (const agent of list) {
         if (agent?.id && typeof agent.workspace === "string") {
             map[String(agent.id)] = agent.workspace;
         }
     }
+    return map;
+}
+function collectAgentWorkspaceEntries(entries) {
+    const map = {};
+    if (!entries || typeof entries !== "object" || Array.isArray(entries))
+        return map;
+    for (const [id, agent] of Object.entries(entries)) {
+        if (agent && typeof agent.workspace === "string") {
+            map[String(id)] = agent.workspace;
+        }
+    }
+    return map;
+}
+function collectAgentWorkspaces(agents) {
+    const source = (agents ?? {});
+    return {
+        ...collectAgentWorkspaceList(source.list),
+        ...collectAgentWorkspaceEntries(source.entries),
+    };
+}
+export function resolveAgentWorkspaceMap(api) {
+    // Runtime config covers both shapes: `agents.list` (legacy array) and
+    // `agents.entries` (current per-agent map, e.g. agents.entries.main.workspace).
+    const map = collectAgentWorkspaces(api?.config?.agents);
     // Fallback: read from openclaw.json (respect OPENCLAW_HOME if set)
     if (Object.keys(map).length === 0) {
         try {
@@ -1571,14 +1593,7 @@ function resolveAgentWorkspaceMap(api) {
             const configPath = join(openclawHome, "openclaw.json");
             const raw = readFileSync(configPath, "utf8");
             const parsed = JSON.parse(raw);
-            const list = parsed?.agents?.list;
-            if (Array.isArray(list)) {
-                for (const agent of list) {
-                    if (agent?.id && typeof agent.workspace === "string") {
-                        map[String(agent.id)] = agent.workspace;
-                    }
-                }
-            }
+            Object.assign(map, collectAgentWorkspaces(parsed?.agents));
         }
         catch {
             /* silent */
@@ -1586,7 +1601,7 @@ function resolveAgentWorkspaceMap(api) {
     }
     return map;
 }
-function createMdMirrorWriter(api, config) {
+export function createMdMirrorWriter(api, config) {
     if (config.mdMirror?.enabled !== true)
         return null;
     const fallbackDir = api.resolvePath(config.mdMirror.dir ?? getDefaultMdMirrorDir());

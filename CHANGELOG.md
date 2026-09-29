@@ -1,3 +1,20 @@
+## 1.3.0
+
+**mdMirror resolves agent workspaces on the `agents.entries` config shape.** The Markdown
+Mirror writer builds an agentId → workspace map to place each mirror file beside the agent
+it belongs to (`<workspace>/memory/YYYY-MM-DD.md`). That map only understood the legacy
+`agents.list` array, so on hosts using the current `agents.entries` map (for example
+`agents.entries.main.workspace`) it came back empty: the plugin logged
+`mdMirror: no agent workspaces found, writes will use fallback dir: …` and every agent's
+mirror lines landed in one shared fallback directory.
+
+- **`resolveAgentWorkspaceMap()` reads both config shapes.** It merges `agents.list`
+  (legacy array) and `agents.entries` (per-agent map) from the runtime config, and applies
+  the same merged reader to the `openclaw.json` fallback.
+- **Entries win on conflict**, and entries without a usable string `workspace` are ignored.
+- Behaviour is unchanged when the mirror is disabled, or when a resolvable workspace map is
+  already present (the writer then logs `mdMirror: resolved N agent workspace(s)`).
+
 ## 1.2.9
 
 **One-pass upgrades, longer LLM deadline.** Two changes driven by a real 892-row legacy

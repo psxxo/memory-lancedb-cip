@@ -117,6 +117,8 @@ export const CI_TEST_MANIFEST = [
   { group: "storage-and-schema", runner: "node", file: "test/category-alignment-roundtrip.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/import-category-policy.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/workspace-memory-provenance.test.mjs", args: ["--test"] },
+  // mdMirror agent-workspace resolution (agents.list + agents.entries, openclaw.json fallback)
+  { group: "core-regression", runner: "node", file: "test/md-mirror-workspace-map.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/reverse-map-legacy-category.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/reflection-mapped-category-stamping.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/memory-upgrader-category-normalization.test.mjs", args: ["--test"] },

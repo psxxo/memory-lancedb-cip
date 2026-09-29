@@ -1,3 +1,10 @@
+## 1.3.0
+
+**mdMirror agent-workspace resolution.** `resolveAgentWorkspaceMap()` now reads the current
+`agents.entries` map alongside the legacy `agents.list` array (runtime config and
+`openclaw.json` fallback), so mirror writes land in each agent's own `memory/` directory
+instead of the shared fallback dir (see `CHANGELOG.md` for the full entry).
+
 ## 1.2.9
 
 **One-pass upgrades, longer LLM deadline.** `upgrade()` now retries rows whose LLM

@@ -2151,19 +2151,45 @@ async function findPreviousSessionFile(
 
 type AgentWorkspaceMap = Record<string, string>;
 
-function resolveAgentWorkspaceMap(api: OpenClawPluginApi): AgentWorkspaceMap {
+function collectAgentWorkspaceList(list: unknown): AgentWorkspaceMap {
   const map: AgentWorkspaceMap = {};
+  if (!Array.isArray(list)) return map;
 
-  // Try api.config first (runtime config)
-  const agents = Array.isArray((api as any).config?.agents?.list)
-    ? (api as any).config.agents.list
-    : [];
-
-  for (const agent of agents) {
+  for (const agent of list) {
     if (agent?.id && typeof agent.workspace === "string") {
       map[String(agent.id)] = agent.workspace;
     }
   }
+
+  return map;
+}
+
+function collectAgentWorkspaceEntries(entries: unknown): AgentWorkspaceMap {
+  const map: AgentWorkspaceMap = {};
+  if (!entries || typeof entries !== "object" || Array.isArray(entries)) return map;
+
+  for (const [id, agent] of Object.entries(entries as Record<string, any>)) {
+    if (agent && typeof agent.workspace === "string") {
+      map[String(id)] = agent.workspace;
+    }
+  }
+
+  return map;
+}
+
+function collectAgentWorkspaces(agents: unknown): AgentWorkspaceMap {
+  const source = (agents ?? {}) as { list?: unknown; entries?: unknown };
+
+  return {
+    ...collectAgentWorkspaceList(source.list),
+    ...collectAgentWorkspaceEntries(source.entries),
+  };
+}
+
+export function resolveAgentWorkspaceMap(api: OpenClawPluginApi): AgentWorkspaceMap {
+  // Runtime config covers both shapes: `agents.list` (legacy array) and
+  // `agents.entries` (current per-agent map, e.g. agents.entries.main.workspace).
+  const map = collectAgentWorkspaces((api as any)?.config?.agents);
 
   // Fallback: read from openclaw.json (respect OPENCLAW_HOME if set)
   if (Object.keys(map).length === 0) {
@@ -2172,14 +2198,7 @@ function resolveAgentWorkspaceMap(api: OpenClawPluginApi): AgentWorkspaceMap {
       const configPath = join(openclawHome, "openclaw.json");
       const raw = readFileSync(configPath, "utf8");
       const parsed = JSON.parse(raw);
-      const list = parsed?.agents?.list;
-      if (Array.isArray(list)) {
-        for (const agent of list) {
-          if (agent?.id && typeof agent.workspace === "string") {
-            map[String(agent.id)] = agent.workspace;
-          }
-        }
-      }
+      Object.assign(map, collectAgentWorkspaces(parsed?.agents));
     } catch {
       /* silent */
     }
@@ -2188,7 +2207,7 @@ function resolveAgentWorkspaceMap(api: OpenClawPluginApi): AgentWorkspaceMap {
   return map;
 }
 
-function createMdMirrorWriter(
+export function createMdMirrorWriter(
   api: OpenClawPluginApi,
   config: PluginConfig,
 ): MdMirrorWriter | null {
