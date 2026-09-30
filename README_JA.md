@@ -446,7 +446,7 @@ Requirements:
 | `smartExtraction` | boolean | `true` | LLM 駆動の10カテゴリ抽出の有効化/無効化 |
 | `llm.auth` | string | `api-key` | `api-key` は `llm.apiKey` / `embedding.apiKey` を使用；`oauth` はデフォルトでプラグインスコープの OAuth トークンファイルを使用 |
 | `llm.apiKey` | string | *（`embedding.apiKey` にフォールバック）* | LLM プロバイダーの API キー |
-| `llm.model` | string | `openai/gpt-oss-120b` | LLM モデル名 |
+| `llm.model` | string | *(unset → host default)* | LLM モデル名 |
 | `llm.baseURL` | string | *（`embedding.baseURL` にフォールバック）* | LLM API エンドポイント |
 | `llm.oauthProvider` | string | `openai-codex` | `llm.auth` が `oauth` の場合に使用する OAuth プロバイダー ID |
 | `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth` が `oauth` の場合に使用する OAuth トークンファイル |

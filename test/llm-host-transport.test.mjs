@@ -78,7 +78,7 @@ describe("LLM host transport", () => {
 
     const llm = createLlmClient({
       transport: "host",
-      model: "openai/gpt-oss-120b",
+      model: "openai/sample-model",
       modelExplicit: false,
       runtimeLlmComplete,
     });
@@ -123,7 +123,7 @@ describe("LLM host transport", () => {
 
     const llm = createLlmClient({
       transport: "host",
-      model: "openrouter/openai/gpt-oss-120b",
+      model: "openrouter/openai/sample-model",
       runtimeLlmComplete,
     });
 
@@ -146,7 +146,7 @@ describe("LLM host transport", () => {
 
     const llm = createLlmClient({
       transport: "host",
-      model: "openrouter/openai/gpt-oss-120b",
+      model: "openrouter/openai/sample-model",
       thinkLevel: "high",
       runtimeLlmComplete,
     });
@@ -166,7 +166,7 @@ describe("LLM host transport", () => {
 
     const llm = createLlmClient({
       transport: "host",
-      model: "openrouter/openai/gpt-oss-120b",
+      model: "openrouter/openai/sample-model",
       thinkLevel: "   ",
       runtimeLlmComplete,
     });
@@ -225,7 +225,7 @@ describe("LLM host transport", () => {
       transport: "host",
       auth: "api-key",
       apiKey: "test-api-key",
-      model: "openrouter/openai/gpt-oss-120b",
+      model: "openrouter/openai/sample-model",
       baseURL: `http://127.0.0.1:${port}/v1`,
       warnLog: () => {},
     });
@@ -235,7 +235,7 @@ describe("LLM host transport", () => {
     assert.deepEqual(result, { memories: [] });
     assert.equal(
       requestBody.model,
-      "openai/gpt-oss-120b",
+      "openai/sample-model",
       "the direct client sent by the host->direct fallback must receive the bare provider-stripped id",
     );
   });
@@ -255,7 +255,7 @@ describe("LLM host transport", () => {
     const llm = createLlmClient({
       auth: "api-key",
       apiKey: "test-api-key",
-      model: "openrouter/openai/gpt-oss-120b",
+      model: "openrouter/openai/sample-model",
       baseURL: `http://127.0.0.1:${port}/v1`,
     });
 
@@ -264,7 +264,7 @@ describe("LLM host transport", () => {
     assert.deepEqual(result, { memories: [] });
     assert.equal(
       requestBody.model,
-      "openrouter/openai/gpt-oss-120b",
+      "openrouter/openai/sample-model",
       "an explicitly-configured direct transport must send the model unchanged, exactly as before this change",
     );
   });

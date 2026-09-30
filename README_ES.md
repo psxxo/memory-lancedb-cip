@@ -446,7 +446,7 @@ Cuando `smartExtraction` está habilitado (predeterminado: `true`), el plugin ut
 | `smartExtraction` | boolean | `true` | Habilitar/deshabilitar la extracción de 10 categorías impulsada por LLM |
 | `llm.auth` | string | `api-key` | `api-key` usa `llm.apiKey` / `embedding.apiKey`; `oauth` usa un archivo de token OAuth con alcance de plugin por defecto |
 | `llm.apiKey` | string | *(recurre a `embedding.apiKey`)* | Clave API para el proveedor de LLM |
-| `llm.model` | string | `openai/gpt-oss-120b` | Nombre del modelo LLM |
+| `llm.model` | string | *(unset → host default)* | Nombre del modelo LLM |
 | `llm.baseURL` | string | *(recurre a `embedding.baseURL`)* | Endpoint de la API del LLM |
 | `llm.oauthProvider` | string | `openai-codex` | ID del proveedor OAuth usado cuando `llm.auth` es `oauth` |
 | `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | Archivo de token OAuth usado cuando `llm.auth` es `oauth` |

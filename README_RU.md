@@ -446,7 +446,7 @@ Query → BM25 FTS ─────┘
 | `smartExtraction` | boolean | `true` | Включить/выключить извлечение по 10 категориям на базе LLM |
 | `llm.auth` | string | `api-key` | `api-key` использует `llm.apiKey` / `embedding.apiKey`; `oauth` по умолчанию использует OAuth-файл токена в области плагина |
 | `llm.apiKey` | string | *(по умолчанию берется из `embedding.apiKey`)* | API-ключ провайдера LLM |
-| `llm.model` | string | `openai/gpt-oss-120b` | Имя модели LLM |
+| `llm.model` | string | *(unset → host default)* | Имя модели LLM |
 | `llm.baseURL` | string | *(по умолчанию берется из `embedding.baseURL`)* | URL LLM API |
 | `llm.oauthProvider` | string | `openai-codex` | Идентификатор OAuth-провайдера, используемый при `llm.auth = "oauth"` |
 | `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | Путь к OAuth-файлу токена при `llm.auth = "oauth"` |

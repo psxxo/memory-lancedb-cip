@@ -501,7 +501,7 @@ Requirements:
 | `smartExtraction` | boolean | `true` | 是否启用 LLM 智能 10 类别提取 |
 | `llm.auth` | string | `api-key` | `api-key` 使用 `llm.apiKey` / `embedding.apiKey`；`oauth` 默认使用 plugin 级 OAuth token 文件 |
 | `llm.apiKey` | string | *（复用 `embedding.apiKey`）* | LLM 提供商 API Key |
-| `llm.model` | string | `openai/gpt-oss-120b` | LLM 模型名称 |
+| `llm.model` | string | *(unset → host default)* | LLM 模型名称 |
 | `llm.baseURL` | string | *（复用 `embedding.baseURL`）* | LLM API 端点 |
 | `llm.oauthProvider` | string | `openai-codex` | `llm.auth` 为 `oauth` 时使用的 OAuth provider id |
 | `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth` 为 `oauth` 时使用的 OAuth token 文件 |

@@ -4,12 +4,12 @@
  * The plugin installed into a host must NEVER be able to wedge the host's event
  * loop at load time. Two real incident root causes are guarded here:
  *
- *   1. A generation-LLM call defaulting to a model the host does not have
- *      (`openai/gpt-oss-120b`) with a 30s timeout, repeatedly blocking the
- *      main process. -> smart extraction is now opt-in (default OFF) and, when
- *      the effective generation model cannot be confirmed available in the
- *      HOST model inventory, the feature is disabled BEFORE any client is
- *      built. It is never called.
+ *   1. A generation-LLM call defaulting to a built-in model the host did not
+ *      have, with a 30s timeout, repeatedly blocking the main process. ->
+ *      smart extraction is now opt-in (default OFF) and, when the effective
+ *      generation model cannot be confirmed available in the HOST model
+ *      inventory, the feature is disabled BEFORE any client is built. It is
+ *      never called.
  *   2. A load-time prewarm embedding network request. -> the load path issues
  *      ZERO outbound requests: this module and the code it backs are pure,
  *      synchronous, and side-effect free. Any warmup is deferred to first use.

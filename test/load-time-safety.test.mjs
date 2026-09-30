@@ -170,7 +170,7 @@ describe("load-time zero network", () => {
       try {
         const { api, logs } = createApi({
           pluginConfig: BASE_PLUGIN_CONFIG(root),
-          hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+          hostConfig: hostConfigWithModels(["sample-model"]),
           root,
         });
 
@@ -197,7 +197,7 @@ describe("load-time zero network", () => {
       try {
         const { api } = createApi({
           pluginConfig: { ...BASE_PLUGIN_CONFIG(root), smartExtraction: true },
-          hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+          hostConfig: hostConfigWithModels(["sample-model"]),
           root,
         });
         plugin.register(api);
@@ -223,9 +223,9 @@ describe("generation-model availability gate", () => {
         pluginConfig: {
           ...BASE_PLUGIN_CONFIG(root),
           smartExtraction: true,
-          llm: { model: "openai/gpt-oss-120b" },
+          llm: { model: "openai/sample-model" },
         },
-        hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+        hostConfig: hostConfigWithModels(["sample-model"]),
         root,
       });
       plugin.register(api);
@@ -275,7 +275,7 @@ describe("generation-model availability gate", () => {
         pluginConfig: {
           ...BASE_PLUGIN_CONFIG(root),
           smartExtraction: true,
-          llm: { model: "openai/gpt-oss-120b" },
+          llm: { model: "openai/sample-model" },
         },
         // Host has openai, but NOT this model.
         hostConfig: hostConfigWithModels(["gpt-4o-mini"]),
@@ -342,7 +342,7 @@ describe("smartExtraction safe default", () => {
     withTempRoot((root) => {
       const { api } = createApi({
         pluginConfig: BASE_PLUGIN_CONFIG(root),
-        hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+        hostConfig: hostConfigWithModels(["sample-model"]),
         root,
       });
       plugin.register(api);
@@ -370,7 +370,7 @@ describe("bounded + observable load", () => {
     withTempRoot((root) => {
       const { api, logs } = createApi({
         pluginConfig: BASE_PLUGIN_CONFIG(root),
-        hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+        hostConfig: hostConfigWithModels(["sample-model"]),
         root,
       });
       plugin.register(api);
@@ -389,7 +389,7 @@ describe("bounded + observable load", () => {
     withTempRoot((root) => {
       const { api, logs } = createApi({
         pluginConfig: BASE_PLUGIN_CONFIG(root),
-        hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+        hostConfig: hostConfigWithModels(["sample-model"]),
         root,
       });
       const started = Date.now();
@@ -409,7 +409,7 @@ describe("bounded + observable load", () => {
       const { api, logs } = createApi({
         // A 0ms threshold guarantees the warning fires (the check is >=).
         pluginConfig: { ...BASE_PLUGIN_CONFIG(root), storage: { loadWarnAfterMs: 0 } },
-        hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+        hostConfig: hostConfigWithModels(["sample-model"]),
         root,
       });
       plugin.register(api);
@@ -432,9 +432,9 @@ describe("memory-cip doctor load-safety section", () => {
         pluginConfig: {
           ...BASE_PLUGIN_CONFIG(root),
           smartExtraction: true,
-          llm: { model: "openai/gpt-oss-120b" },
+          llm: { model: "openai/sample-model" },
         },
-        hostConfig: hostConfigWithModels(["gpt-oss-120b"]),
+        hostConfig: hostConfigWithModels(["sample-model"]),
         root,
       });
       plugin.register(api);
@@ -451,7 +451,7 @@ describe("memory-cip doctor load-safety section", () => {
         scopeManager: { getDefaultScope: () => "global", getStats: () => ({}) },
         migrator: {},
         embedder: { embedPassage: async () => [0, 0, 0, 0] },
-        pluginConfig: { smartExtraction: true, llm: { model: "openai/gpt-oss-120b" } },
+        pluginConfig: { smartExtraction: true, llm: { model: "openai/sample-model" } },
         loadSafety: report,
       };
       createMemoryCLI(context)({ program });
@@ -460,7 +460,7 @@ describe("memory-cip doctor load-safety section", () => {
         program.parseAsync(["node", "openclaw", "memory-cip", "doctor"]),
       );
       assert.match(out, /load safety: network-at-load=none/);
-      assert.match(out, /embedding: model=text-embedding-3-small provider=openai-compatible/);      assert.match(out, /generation LLM: model=openai\/gpt-oss-120b explicit=yes available=available/);
+      assert.match(out, /embedding: model=text-embedding-3-small provider=openai-compatible/);      assert.match(out, /generation LLM: model=openai\/sample-model explicit=yes available=available/);
       assert.match(out, /smartExtraction: requested=yes effective=yes/);
     });
   });
@@ -478,13 +478,13 @@ describe("memory-cip doctor load-safety section", () => {
         scopeManager: { getDefaultScope: () => "global", getStats: () => ({}) },
         migrator: {},
         embedder: { embedPassage: async () => [0, 0, 0, 0] },
-        pluginConfig: { embedding: { model: "text-embedding-3-small" }, smartExtraction: true, llm: { model: "openai/gpt-oss-120b" } },
+        pluginConfig: { embedding: { model: "text-embedding-3-small" }, smartExtraction: true, llm: { model: "openai/sample-model" } },
       };
       createMemoryCLI(context)({ program });
       const out = await captureStdout(() =>
         program.parseAsync(["node", "openclaw", "memory-cip", "doctor"]),
       );
-      assert.match(out, /generation LLM: model=openai\/gpt-oss-120b explicit=yes available=unconfirmed/);
+      assert.match(out, /generation LLM: model=openai\/sample-model explicit=yes available=unconfirmed/);
       assert.match(out, /smartExtraction: requested=yes effective=no/);
       assert.match(out, /network-at-load=none/);
     });
@@ -497,11 +497,11 @@ describe("memory-cip doctor load-safety section", () => {
 
 describe("load-safety module units", () => {
   it("parses provider-prefixed and bare refs", () => {
-    assert.deepEqual(loadSafety.parseGenerationModelRef("openai/gpt-oss-120b"), {
-      modelId: "gpt-oss-120b",
+    assert.deepEqual(loadSafety.parseGenerationModelRef("openai/sample-model"), {
+      modelId: "sample-model",
       provider: "openai",
     });
-    assert.deepEqual(loadSafety.parseGenerationModelRef("gpt-oss-120b"), { modelId: "gpt-oss-120b" });
+    assert.deepEqual(loadSafety.parseGenerationModelRef("sample-model"), { modelId: "sample-model" });
     // With a known provider set, a non-provider prefix stays part of the id.
     const providers = new Set(["openrouter"]);
     assert.deepEqual(loadSafety.parseGenerationModelRef("meta-llama/Llama-3.1-8B", providers), {
@@ -523,12 +523,12 @@ describe("load-safety module units", () => {
   it("reads the host inventory from config.models.providers and agents", () => {
     const inventory = loadSafety.resolveHostModelInventory({
       config: {
-        models: { providers: { openai: { models: [{ id: "gpt-oss-120b" }] } } },
+        models: { providers: { openai: { models: [{ id: "sample-model" }] } } },
         agents: { list: [{ id: "main", model: "openai/gpt-4o-mini" }] },
       },
     });
     assert.equal(inventory.confirmed, true);
-    assert.ok(inventory.refs.has("openai/gpt-oss-120b"));
+    assert.ok(inventory.refs.has("openai/sample-model"));
     assert.ok(inventory.refs.has("openai/gpt-4o-mini"));
     assert.ok(inventory.providers.has("openai"));
   });

@@ -121,10 +121,10 @@ describe("resolveAdmissionModel", () => {
       admissionControl,
       lane: "reflection",
       globalModel: "global-model",
-      reflectionModel: "@preset/gpt-oss-120b-gold",
+      reflectionModel: "@preset/sample-model-gold",
     });
 
-    assert.equal(reflection, "@preset/gpt-oss-120b-gold");
+    assert.equal(reflection, "@preset/sample-model-gold");
   });
 
   it("normalizes an explicit admissionControl.model override the same way as lane-resolved models", () => {

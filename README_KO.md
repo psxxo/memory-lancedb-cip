@@ -446,7 +446,7 @@ Jina 호환 리랭크 엔드포인트도 사용 가능합니다 — `rerankProvi
 | `smartExtraction` | boolean | `true` | LLM 기반 10개 카테고리 추출 활성화/비활성화 |
 | `llm.auth` | string | `api-key` | `api-key`는 `llm.apiKey` / `embedding.apiKey`를 사용; `oauth`는 기본적으로 플러그인 범위의 OAuth 토큰 파일을 사용 |
 | `llm.apiKey` | string | *(`embedding.apiKey`로 폴백)* | LLM 프로바이더용 API 키 |
-| `llm.model` | string | `openai/gpt-oss-120b` | LLM 모델명 |
+| `llm.model` | string | *(unset → host default)* | LLM 모델명 |
 | `llm.baseURL` | string | *(`embedding.baseURL`로 폴백)* | LLM API 엔드포인트 |
 | `llm.oauthProvider` | string | `openai-codex` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 프로바이더 ID |
 | `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 토큰 파일 |
