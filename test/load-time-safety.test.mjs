@@ -513,9 +513,10 @@ describe("load-safety module units", () => {
     });
   });
 
-  it("defaults the effective generation model to the historical reference", () => {
+  it("names no model when none is configured, so the host default applies", () => {
     const resolved = loadSafety.resolveGenerationModel({});
-    assert.equal(resolved.modelRef, "openai/gpt-oss-120b");
+    assert.equal(resolved.modelRef, undefined);
+    assert.equal(resolved.modelId, undefined);
     assert.equal(resolved.explicit, false);
   });
 

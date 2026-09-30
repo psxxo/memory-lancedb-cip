@@ -21,7 +21,7 @@ const isCliMode = () => process.env.OPENCLAW_CLI === "1";
 let dualMemoryHintLogged = false;
 // Import core components
 import { MemoryStore, normalizeStoragePath } from "./src/store.js";
-import { DEFAULT_GENERATION_MODEL, resolveGenerationModel, resolveHostModelInventory, evaluateGenerationModelAvailability, } from "./src/load-safety.js";
+import { HOST_DEFAULT_MODEL_LABEL, resolveGenerationModel, resolveHostModelInventory, evaluateGenerationModelAvailability, } from "./src/load-safety.js";
 import { createEmbedder, getEffectiveVectorDimensions, } from "./src/embedder.js";
 import { createRetriever, normalizeRetrievalConfig, } from "./src/retriever.js";
 import { createScopeManager, resolveScopeFilter, isSystemBypassId, parseAgentIdFromSessionKey } from "./src/scopes.js";
@@ -1955,7 +1955,7 @@ function _initPluginState(api) {
                 : llmIsHostTransport
                     ? undefined
                     : config.embedding.baseURL;
-        const llmModel = config.llm?.model || DEFAULT_GENERATION_MODEL;
+        const llmModel = config.llm?.model || (llmIsHostTransport ? "" : undefined);
         const llmModelExplicit = Boolean(asNonEmptyString(config.llm?.model));
         const llmOauthPath = llmAuth === "oauth"
             ? resolveOptionalPathWithEnv(api, config.llm?.oauthPath, ".memory-lancedb-cip/oauth.json")
@@ -2135,7 +2135,7 @@ function _initPluginState(api) {
     // v1.2.6 — load-time safety conclusion (zero network + generation-model gate).
     const loadElapsedMs = Date.now() - loadStartedAt;
     const loadSafetyReport = {
-        generationModel: hostResolvesGenerationModel ? "host default" : generationModel.modelRef,
+        generationModel: hostResolvesGenerationModel ? HOST_DEFAULT_MODEL_LABEL : (generationModel.modelRef ?? HOST_DEFAULT_MODEL_LABEL),
         generationModelExplicit: generationModel.explicit,
         generationModelStatus: modelAvailability.status,
         generationModelReason: modelAvailability.reason,
@@ -2755,7 +2755,7 @@ const memoryLanceDBCipPlugin = {
                     return createLlmClient({
                         auth: llmAuth,
                         apiKey: llmApiKey,
-                        model: config.llm?.model || DEFAULT_GENERATION_MODEL,
+                        model: asNonEmptyString(config.llm?.model),
                         modelExplicit: Boolean(asNonEmptyString(config.llm?.model)),
                         baseURL: llmBaseURL,
                         oauthProvider: llmOauthProvider,
@@ -4361,13 +4361,14 @@ const memoryLanceDBCipPlugin = {
             let reflectionCompletionClient;
             const reflectionCompleteText = async (systemPrompt, userPrompt) => {
                 if (reflectionCompletionClient === undefined) {
-                    // Fall back to the built-in generation model (code default) rather than
-                    // disabling this lane: on the host transport an unset model is omitted from
-                    // the request, so the host's own default applies.
-                    const model = reflectionModel ?? asNonEmptyString(config.llm?.model) ?? DEFAULT_GENERATION_MODEL;
+                    // No built-in fallback any more: with no configured model the host
+                    // transport sends no model field at all, so the host's own default applies.
+                    // Without the host transport there is nothing to send, so the lane stays off.
+                    const model = reflectionModel ?? asNonEmptyString(config.llm?.model);
+                    const reflectionUsesHostDefault = !model && config.llm?.transport === "host";
                     try {
-                        reflectionCompletionClient = model
-                            ? makeLaneLlmClient(config.llm?.transport === "host" ? model.trim() : normalizeDirectModelRef(model), reflectionThinkLevel, reflectionModel ? true : undefined)
+                        reflectionCompletionClient = model || reflectionUsesHostDefault
+                            ? makeLaneLlmClient(config.llm?.transport === "host" ? (model ?? "").trim() : normalizeDirectModelRef(model ?? ""), reflectionThinkLevel, reflectionModel ? true : undefined)
                             : null;
                     }
                     catch (err) {

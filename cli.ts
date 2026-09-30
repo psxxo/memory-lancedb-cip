@@ -1170,7 +1170,7 @@ function resolveDoctorLoadSafety(context: CLIContext): LoadSafetyReport {
   const embedding = (cfg.embedding as Record<string, unknown> | undefined) ?? undefined;
   const requested = cfg.smartExtraction === true;
   return {
-    generationModel: generationModel.modelRef,
+    generationModel: generationModel.modelRef ?? "host default",
     generationModelExplicit: generationModel.explicit,
     generationModelStatus: availability.status,
     generationModelReason: availability.reason,
@@ -1398,7 +1398,7 @@ export function registerMemoryCLI(program: Command, context: CLIContext): void {
         console.log(`Plugin: ${pluginId}`);
         console.log(`llm.auth: ${typeof llm.auth === "string" ? llm.auth : "api-key"}`);
         console.log(`llm.oauthProvider: ${oauthProviderDisplay}`);
-        console.log(`llm.model: ${typeof llm.model === "string" ? llm.model : "openai/gpt-oss-120b"}`);
+        console.log(`llm.model: ${typeof llm.model === "string" ? llm.model : "host default"}`);
         console.log(`llm.oauthPath: ${oauthPath}`);
         console.log(`oauth file: ${tokenInfo}`);
       } catch (error) {

@@ -17,8 +17,13 @@
  * Everything here is deliberately synchronous and defensive: it reads already
  * materialised host config / runtime surfaces and never performs I/O.
  */
-/** Historical default model reference used by the memory generation LLM. */
-export const DEFAULT_GENERATION_MODEL = "openai/gpt-oss-120b";
+/**
+ * Label used in logs and `memory-cip doctor` when no llm.model is configured:
+ * the plugin sends no model field at all and the host applies its own default.
+ * There is deliberately no built-in model fallback any more — a hard-coded one
+ * is exactly what wedged the host.
+ */
+export const HOST_DEFAULT_MODEL_LABEL = "host default";
 const MODEL_ID_KEYS = ["id", "model", "name", "slug"];
 function asTrimmedString(value) {
     if (typeof value !== "string")
@@ -58,13 +63,18 @@ export function parseGenerationModelRef(modelRef, knownProviders) {
 /** Resolve the generation LLM the smart extractor would actually use. */
 export function resolveGenerationModel(config) {
     const explicitModel = asTrimmedString(config.llm?.model);
-    const modelRef = explicitModel ?? DEFAULT_GENERATION_MODEL;
-    const parsed = parseGenerationModelRef(modelRef);
+    // No configured model: name none at all so the host default applies. Never
+    // invent a built-in fallback — that hard-coded default is the incident this
+    // change removes.
+    if (!explicitModel) {
+        return { explicit: false };
+    }
+    const parsed = parseGenerationModelRef(explicitModel);
     return {
-        modelRef,
+        modelRef: explicitModel,
         modelId: parsed.modelId,
         provider: parsed.provider,
-        explicit: explicitModel !== undefined,
+        explicit: true,
     };
 }
 function collectModelIdFromEntry(entry) {
@@ -272,12 +282,25 @@ export function evaluateGenerationModelAvailability(params) {
         return {
             ...base,
             status: "unconfirmed",
-            reason: "the host model inventory could not be read (no models.providers / runtime model catalog surfaced), "
-                + "so availability of \"" + model.modelRef + "\" cannot be confirmed",
+            reason: model.modelRef
+                ? "the host model inventory could not be read (no models.providers / runtime model catalog surfaced), "
+                    + "so availability of \"" + model.modelRef + "\" cannot be confirmed"
+                : "the host model inventory could not be read (no models.providers / runtime model catalog surfaced), "
+                    + "and no llm.model is configured, so there is no model reference to confirm",
         };
     }
-    const lowerRef = model.modelRef.toLowerCase();
-    const lowerBare = model.modelId.toLowerCase();
+    if (!model.modelRef || !model.modelId) {
+        return {
+            ...base,
+            status: "unconfirmed",
+            reason: "no llm.model is configured and the transport does not resolve a host default, "
+                + "so there is no model reference to confirm",
+        };
+    }
+    const modelRef = model.modelRef;
+    const modelId = model.modelId;
+    const lowerRef = modelRef.toLowerCase();
+    const lowerBare = modelId.toLowerCase();
     const candidates = new Set([lowerRef, lowerBare]);
     if (model.provider) {
         candidates.add(`${model.provider}/${lowerBare}`);
@@ -308,7 +331,7 @@ export function evaluateGenerationModelAvailability(params) {
         ...base,
         status: "unavailable",
         reason: "the host model inventory (" + inventory.refs.size + " entr"
-            + (inventory.refs.size === 1 ? "y" : "ies") + ") does not contain \"" + model.modelRef + "\"",
+            + (inventory.refs.size === 1 ? "y" : "ies") + ") does not contain \"" + modelRef + "\"",
     };
 }
 export function formatLoadSafetyLines(report) {

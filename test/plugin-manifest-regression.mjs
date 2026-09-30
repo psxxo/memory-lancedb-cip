@@ -129,8 +129,8 @@ assert.ok(
   "defaults into the plugin config, so a default here makes an unset model indistinguishable from an " +
   "explicit one and the host transport would send a model override OpenClaw rejects. Leaving llm.model " +
   "unset is how the lane follows OpenClaw's own default model (modelExplicit=false makes src/llm-client.ts " +
-  "omit the model field on the host transport); the standalone/direct fallback lives in code " +
-  "(DEFAULT_GENERATION_MODEL in src/load-safety.ts)."
+  "omit the model field on the host transport); there is deliberately no built-in model fallback in code " +
+  "any more."
 );
 assert.ok(
   !Object.prototype.hasOwnProperty.call(manifest.configSchema.properties.llm.properties.timeoutMs, "default"),

@@ -61,7 +61,7 @@ function createPluginApiHarness({ pluginConfig, resolveRoot, hostConfig }) {
     // v1.2.6 — smart extraction requires a CONFIRMED host model catalog. Give
     // the harness one so the availability gate can confirm the effective model.
     config: hostConfig ?? {
-      models: { providers: { openai: { models: [{ id: "gpt-oss-120b" }] } } },
+      models: { providers: { openai: { models: [{ id: "example-model" }] } } },
     },
     resolvePath(target) {
       if (typeof target !== "string") return target;
@@ -127,6 +127,7 @@ describe("admission control availability without smart extraction", () => {
       pluginConfig: {
         dbPath: path.join(workspaceDir, "db"),
         embedding: { apiKey: "test-api-key" },
+        llm: { model: "openai/example-model" },
         smartExtraction: false,
         admissionControl: { enabled: true },
         autoCapture: false,
@@ -171,6 +172,7 @@ describe("admission control availability without smart extraction", () => {
       pluginConfig: {
         dbPath: path.join(workspaceDir, "db"),
         embedding: { apiKey: "test-api-key" },
+        llm: { model: "openai/example-model" },
         smartExtraction: true,
         admissionControl: { enabled: true },
         autoCapture: false,

@@ -1,3 +1,26 @@
+## 1.3.2
+
+**No built-in generation model any more: the LLM lane always follows the host default unless configured.**
+`DEFAULT_GENERATION_MODEL` is gone from the code. It was the plugin's implicit fallback whenever
+`llm.model` was unset, and it kept leaking into behaviour: the load-time availability gate confirmed
+it against the host catalog, `memory-cip doctor` printed it, and the reflection lane fell back to it.
+With this release an unset `llm.model` means the plugin names **no** model at all — the host
+transport omits the field and OpenClaw's own default applies — and the manifest placeholder no longer
+suggests one.
+
+- `src/load-safety.ts`: the built-in default is removed. `resolveGenerationModel()` returns no model
+  reference when nothing is configured; the availability gate passes on the host transport, reports
+  "nothing to confirm" when no model is configured and the transport cannot resolve a default, and
+  still fails closed when the host catalog is unreadable.
+- `index.ts`: the generation client, the admission lane and the reflection completion fallback no
+  longer substitute a built-in model; the load-safety report prints `host default`.
+- `cli.ts` and the manifest: `memory-cip doctor` and the `llm.model` placeholder show
+  `host default` instead of a built-in id.
+- Tests: the effective-model default test now asserts *no* reference, the admission fixtures configure
+  an explicit model, and the manifest-regression message no longer names a built-in.
+
+Behaviour is unchanged for any deployment that sets `llm.model`: that value is still used verbatim.
+
 ## 1.3.1
 
 **The LLM lane can follow the host's default model.** The plugin's generation model

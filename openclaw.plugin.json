@@ -2,7 +2,7 @@
   "id": "memory-lancedb-cip",
   "name": "Memory (LanceDB CIP)",
   "description": "Enhanced LanceDB-backed long-term memory with hybrid retrieval, multi-scope isolation, long-context chunking, and management CLI",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "kind": "memory",
   "skills": [
     "./skills"
@@ -1983,7 +1983,7 @@
     },
     "llm.model": {
       "label": "LLM Model",
-      "placeholder": "openai/gpt-oss-120b",
+      "placeholder": "<provider>/<model> (default: host default)",
       "help": "OpenAI-compatible chat model for memory extraction/summary"
     },
     "llm.baseURL": {
