@@ -15,6 +15,22 @@
  */
 
 export const EXTRACTION_TRIGGER_TOKEN = "__openclaw_memory_lancedb_cip_extract_trigger__";
+
+/**
+ * Body of the scheduled turn. The host authorizes a model completion against
+ * the live turn; a plugin completion fired from a finished turn is refused, so
+ * the deferred texts are extracted by the AGENT of this scheduled turn instead.
+ * The token stays in the message for cheap detection/short-circuit; the
+ * instruction tells the agent to drain the queue through the plugin tool, which
+ * persists extracted memories via the plugin's own pipeline.
+ */
+export const EXTRACTION_TRIGGER_INSTRUCTION =
+  "Scheduled memory extraction. Call the memory_extract_pending tool exactly once. " +
+  "It returns the conversation texts queued since the last extraction and persists the " +
+  "memories it extracts from them for this agent. Then reply with a single short line: how " +
+  "many memories were created/merged, or NO_REPLY when the tool reports nothing queued.";
+
+export const EXTRACTION_TRIGGER_MESSAGE = `${EXTRACTION_TRIGGER_TOKEN}\n\n${EXTRACTION_TRIGGER_INSTRUCTION}`;
 export const MANAGED_EXTRACTION_CRON_NAME = "LanceDB Memory Extraction";
 export const MANAGED_EXTRACTION_CRON_TAG = "[managed-by=memory-lancedb-cip]";
 export const EXTRACTION_CRON_RECONCILE_INTERVAL_MS = 60_000;
@@ -85,7 +101,7 @@ export function buildManagedExtractionCronJob(cronExpr: string, timezone?: strin
     },
     sessionTarget: "isolated",
     wakeMode: "now",
-    payload: { kind: "agentTurn", message: EXTRACTION_TRIGGER_TOKEN },
+    payload: { kind: "agentTurn", message: EXTRACTION_TRIGGER_MESSAGE },
     delivery: { mode: "none" },
   };
 }

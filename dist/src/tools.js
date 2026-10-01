@@ -2429,3 +2429,32 @@ export function registerAllMemoryTools(api, context, options = {}) {
         }
     }
 }
+export function registerMemoryExtractPendingTool(api, runPending) {
+    api.registerTool((toolCtx) => {
+        const staticAgentId = toolCtx && typeof toolCtx === "object" && typeof toolCtx.agentId === "string"
+            ? toolCtx.agentId
+            : undefined;
+        return {
+            name: "memory_extract_pending",
+            label: "Memory: Extract Pending",
+            description: "Drain the auto-capture queue for this agent: extract and persist memories from the " +
+                "conversation texts queued since the last extraction, then retire the consumed texts. " +
+                "Called by the scheduled memory-extraction turn; safe to call ad hoc.",
+            parameters: Type.Object({}),
+            async execute(_toolCallId, _params, _signal, _onUpdate, runtimeCtx) {
+                const agentId = resolveRuntimeAgentId(staticAgentId, runtimeCtx);
+                try {
+                    const summary = await runPending(agentId);
+                    const text = summary.sessions === 0
+                        ? "Nothing queued for memory extraction."
+                        : `Extracted ${summary.created} created, ${summary.merged} merged, ${summary.skipped} skipped across ${summary.sessions} queued session(s).` +
+                            (summary.failed > 0 ? ` ${summary.failed} session(s) failed and stay queued for retry.` : "");
+                    return textResult(text, summary);
+                }
+                catch (error) {
+                    return textResult(`Memory extraction failed: ${error instanceof Error ? error.message : String(error)}`, { error: "extraction_failed", message: String(error) });
+                }
+            },
+        };
+    }, { name: "memory_extract_pending" });
+}

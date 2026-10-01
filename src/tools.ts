@@ -3164,3 +3164,63 @@ export function registerAllMemoryTools(
     }
   }
 }
+
+// ============================================================================
+// Deferred extraction drain (agent-driven)
+// ============================================================================
+// Host-transport completions are authorized against the live turn, so the
+// deferred agent_end lane cannot call the extraction model. The scheduled
+// memory-extraction turn is a live host-owned turn, so its agent calls this
+// tool to drain the queue that agent_end deposited. The runner (owned by the
+// plugin registration closure in index.ts) performs the extraction with the
+// host model and the caller's scope, so no plugin credential or per-install
+// configuration is involved.
+
+export type PendingExtractionSummary = {
+  sessions: number;
+  created: number;
+  merged: number;
+  skipped: number;
+  failed: number;
+};
+
+export function registerMemoryExtractPendingTool(
+  api: OpenClawPluginApi,
+  runPending: (agentId: string | undefined) => Promise<PendingExtractionSummary>,
+) {
+  api.registerTool(
+    (toolCtx) => {
+      const staticAgentId =
+        toolCtx && typeof toolCtx === "object" && typeof (toolCtx as { agentId?: unknown }).agentId === "string"
+          ? ((toolCtx as { agentId?: string }).agentId as string)
+          : undefined;
+      return {
+        name: "memory_extract_pending",
+        label: "Memory: Extract Pending",
+        description:
+          "Drain the auto-capture queue for this agent: extract and persist memories from the " +
+          "conversation texts queued since the last extraction, then retire the consumed texts. " +
+          "Called by the scheduled memory-extraction turn; safe to call ad hoc.",
+        parameters: Type.Object({}),
+        async execute(_toolCallId: string, _params: unknown, _signal: unknown, _onUpdate: unknown, runtimeCtx?: unknown) {
+          const agentId = resolveRuntimeAgentId(staticAgentId, runtimeCtx);
+          try {
+            const summary = await runPending(agentId);
+            const text =
+              summary.sessions === 0
+                ? "Nothing queued for memory extraction."
+                : `Extracted ${summary.created} created, ${summary.merged} merged, ${summary.skipped} skipped across ${summary.sessions} queued session(s).` +
+                  (summary.failed > 0 ? ` ${summary.failed} session(s) failed and stay queued for retry.` : "");
+            return textResult(text, summary);
+          } catch (error) {
+            return textResult(
+              `Memory extraction failed: ${error instanceof Error ? error.message : String(error)}`,
+              { error: "extraction_failed", message: String(error) },
+            );
+          }
+        },
+      };
+    },
+    { name: "memory_extract_pending" },
+  );
+}

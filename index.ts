@@ -57,7 +57,7 @@ import {
 } from "./src/retriever.js";
 import { createScopeManager, resolveScopeFilter, isSystemBypassId, parseAgentIdFromSessionKey } from "./src/scopes.js";
 import { createMigrator } from "./src/migrate.js";
-import { registerAllMemoryTools } from "./src/tools.js";
+import { registerAllMemoryTools, registerMemoryExtractPendingTool } from "./src/tools.js";
 import { ManualEchoLedger } from "./src/manual-echo-guard.js";
 import { appendSelfImprovementEntry, ensureSelfImprovementLearningFiles } from "./src/self-improvement-files.js";
 import type { MdMirrorWriter } from "./src/tools.js";
@@ -4873,6 +4873,32 @@ const memoryLanceDBCipPlugin = {
           // so no-op sessions don't consume the hourly quota.
           // ----------------------------------------------------------------
           if (smartExtractor) {
+            // Host-transport completions are authorized against the LIVE turn, so
+            // a post-turn extraction call from this detached agent_end run is
+            // refused ("caller authority is no longer active") and nothing is
+            // ever persisted. On that lane the ordinary path is queue-only: the
+            // texts are deposited for the scheduled extraction turn, whose agent
+            // owns live authority and drains the queue through
+            // memory_extract_pending. Nothing is consumed here, so nothing can be
+            // lost. A direct-transport lane (plugin-owned credential) keeps the
+            // in-process extraction below.
+            const usingHostTransport = ((config.llm?.transport ?? "direct") as string) === "host";
+            if (usingHostTransport) {
+              const retainedCap = autoCaptureRetainedTextCap(minMessages);
+              const queuedTurns = dedupeTurnsByText([
+                ...(autoCaptureDeferredFlushTurns.get(sessionKey) || []),
+                ...turnsForTexts(thisCallTurns, newTexts),
+              ]).slice(-retainedCap);
+              if (queuedTurns.length === 0) {
+                return;
+              }
+              autoCaptureDeferredFlushTurns.set(sessionKey, queuedTurns);
+              pruneMapIfOver(autoCaptureDeferredFlushTurns, AUTO_CAPTURE_MAP_MAX_ENTRIES);
+              api.logger.debug(
+                `memory-lancedb-cip: auto-capture queued ${newTexts.length} text(s) for scheduled extraction for agent ${agentId} (sessionKey=${sessionKey}, pendingQueued=${queuedTurns.length})`,
+              );
+              return;
+            }
             // Pre-filter: embedding-based noise detection (language-agnostic)
             const noiseFiltered = await smartExtractor.filterNoiseByEmbeddingWithIndices(texts);
             const cleanTexts = noiseFiltered.texts;
@@ -5346,40 +5372,111 @@ const memoryLanceDBCipPlugin = {
 
       api.on("agent_end", agentEndAutoCaptureHook);
 
+      // ----------------------------------------------------------------------
+      // Agent-driven deferred extraction
+      // ----------------------------------------------------------------------
+      // The host authorizes a plugin completion against the LIVE turn, so the
+      // deferred agent_end lane cannot call the extraction model (that call
+      // runs after its turn ended). The scheduled cron turn below IS a live,
+      // host-owned turn, so its agent performs the extraction: it calls
+      // memory_extract_pending, whose execute drains the deferred queue through
+      // the plugin's own extract-and-persist pipeline (host model, no plugin
+      // credential, no configuration). A failed session keeps its queued texts
+      // for the next scheduled turn.
+      const runPendingExtractionForAgent = async (
+        agentId: string | undefined,
+        scopeFilter: string[] | undefined,
+        defaultScope: string,
+      ): Promise<{ sessions: number; created: number; merged: number; skipped: number; failed: number }> => {
+        const summary = { sessions: 0, created: 0, merged: 0, skipped: 0, failed: 0 };
+        if (!smartExtractor) return summary;
+        if (extractionRateLimiter.isRateLimited()) {
+          api.logger.debug(
+            `memory-lancedb-cip: scheduled extraction skipped (rate limited: ${extractionRateLimiter.getRecentCount()} extractions in last hour)`,
+          );
+          return summary;
+        }
+        for (const pendingSessionKey of [...autoCaptureDeferredFlushTurns.keys()]) {
+          const queuedTurns = autoCaptureDeferredFlushTurns.get(pendingSessionKey) || [];
+          if (queuedTurns.length === 0) {
+            autoCaptureDeferredFlushTurns.delete(pendingSessionKey);
+            continue;
+          }
+          const conversationText = queuedTurns.map((turn) => turn.text).join("\n");
+          try {
+            const stats = await smartExtractor.extractAndPersist(conversationText, pendingSessionKey, {
+              scope: defaultScope,
+              scopeFilter,
+              agentId,
+              conversationTurns: queuedTurns,
+              protectedPrefixTurns: 0,
+            });
+            if (stats.extractionFailed) {
+              // Restore-on-failure: the texts stay queued for the next turn
+              // instead of being consumed for nothing.
+              summary.failed += 1;
+              api.logger.warn(
+                `memory-lancedb-cip: scheduled extraction returned no usable LLM result for ${pendingSessionKey}; keeping queued texts for retry`,
+              );
+              continue;
+            }
+            summary.sessions += 1;
+            summary.created += stats.created;
+            summary.merged += stats.merged;
+            summary.skipped += stats.skipped;
+            if (!stats.skippedNoInput) {
+              extractionRateLimiter.recordExtraction();
+            }
+            // Retire ONLY the texts this run handed to the extractor; a
+            // concurrent agent_end deposit for the same session survives.
+            const consumedTexts = new Set(queuedTurns.map((turn) => turn.text));
+            const remaining = (autoCaptureDeferredFlushTurns.get(pendingSessionKey) || []).filter(
+              (turn) => !consumedTexts.has(turn.text),
+            );
+            if (remaining.length === 0) {
+              autoCaptureDeferredFlushTurns.delete(pendingSessionKey);
+            } else {
+              autoCaptureDeferredFlushTurns.set(pendingSessionKey, remaining);
+            }
+            api.logger.info(
+              `memory-lancedb-cip: scheduled extraction for ${pendingSessionKey}: ${stats.created} created, ${stats.merged} merged, ${stats.skipped} skipped`,
+            );
+          } catch (err) {
+            summary.failed += 1;
+            api.logger.error(
+              `memory-lancedb-cip: scheduled extraction failed for ${pendingSessionKey}: ${String(err)}`,
+            );
+          }
+        }
+        return summary;
+      };
+
+      // The scheduled turn's agent calls this tool; the tool invoke runs inside
+      // that live turn, so the extraction completion it triggers is authorized.
+      registerMemoryExtractPendingTool(api, async (agentId) => {
+        const resolvedAgentId = agentId || "main";
+        const accessibleScopes = resolveScopeFilter(scopeManager, resolvedAgentId);
+        const defaultScope = isSystemBypassId(resolvedAgentId)
+          ? config.scopes?.default ?? "global"
+          : scopeManager.getDefaultScope(resolvedAgentId);
+        return await runPendingExtractionForAgent(resolvedAgentId, accessibleScopes, defaultScope);
+      });
+
       // The managed extraction cron fires an isolated agentTurn carrying the
-      // trigger token. Handle it inside that live turn (the host owns it), so
-      // the extraction completion rides valid authority instead of a finished
-      // turn's.
+      // trigger token. Gate it here: nothing queued short-circuits to NO_REPLY;
+      // otherwise let the turn run so its agent drives the extraction with its
+      // own (live) model authority.
       api.on("before_agent_reply", async (event: any, ctx: any) => {
         const body = event?.cleanedBody ?? event?.body ?? "";
         if (!includesExtractionTriggerToken(body)) return;
         if (event?.trigger === "heartbeat") return;
-        const pendingSessions = [...autoCaptureDeferredFlushTurns.keys()];
-        if (pendingSessions.length === 0) {
+        if (autoCaptureDeferredFlushTurns.size === 0) {
           return { handled: true, reason: "memory-lancedb-cip: nothing queued to extract" };
         }
-        let flushed = 0;
-        for (const pendingSessionKey of pendingSessions) {
-          try {
-            await agentEndAutoCaptureHook(
-              {
-                success: true,
-                messages: [],
-                sessionKey: pendingSessionKey,
-                __autoCaptureTerminalFlush: true,
-                __autoCaptureTerminalBoundary: false,
-              } as any,
-              ctx as any,
-            );
-            flushed += 1;
-          } catch (err) {
-            api.logger.warn(
-              `memory-lancedb-cip: scheduled extraction flush failed for ${pendingSessionKey}: ${String(err)}`,
-            );
-          }
-        }
-        api.logger.info(`memory-lancedb-cip: scheduled extraction flushed ${flushed} session(s)`);
-        return { handled: true, reason: `memory-lancedb-cip: extraction flushed for ${flushed} session(s)` };
+        api.logger.info(
+          `memory-lancedb-cip: scheduled extraction turn dispatched for ${autoCaptureDeferredFlushTurns.size} queued session(s)`,
+        );
+        return;
       }, { eligibleTriggers: ["cron", "heartbeat", "user"] });
 
       // A session that ends below extractMinMessages would otherwise strand its

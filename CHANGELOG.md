@@ -1,3 +1,27 @@
+## 1.3.9
+
+**Extraction is now agent-driven, so it actually persists.** 1.3.7/1.3.8 dispatched the managed cron
+turn and 1.3.8's intercept ran inside it, but the completion still failed: the host authorizes a plugin
+completion only against the live turn that owns the call, and the intercept's flush ran as a detached
+background run, so every call came back `agent tool caller authority is no longer active` and ended as
+`no memories extracted` (the log showed 35 dispatched turns and 0 persisted memories for the day).
+
+- Ordinary path is queue-only on the host-transport lane: at `agent_end` the capture texts are deposited
+  into the deferred queue instead of being handed to a model the finished turn can no longer authorize,
+  so nothing is consumed and nothing is lost. A direct-credential lane keeps its in-process extraction.
+- The scheduled extraction turn now does the extraction itself: the cron payload carries an explicit
+  instruction (token retained for cheap detection) and the turn's agent calls the new
+  `memory_extract_pending` tool. Because a tool invocation runs inside the live turn,
+  `api.runtime.llm.complete` is authorized there and the plugin's own extract-and-persist pipeline runs
+  with the host model, no plugin credential and no per-install configuration.
+- Restore-on-failure is preserved on the new path: a session whose extraction returns no usable result
+  keeps its queued texts for the next scheduled turn.
+- `before_agent_reply` now only gates the turn: nothing queued short-circuits to `NO_REPLY`, otherwise
+  the turn is left to run.
+
+Files: `src/extraction-cron.ts` (instruction + payload message), `index.ts` (queue-only lane, deferred
+extraction runner, tool registration, intercept gate), `src/tools.ts` (`memory_extract_pending`).
+
 ## 1.3.8
 
 **The scheduled extraction turn now actually reaches the plugin.** 1.3.7 registered the managed cron job

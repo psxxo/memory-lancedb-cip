@@ -100,6 +100,7 @@ function createRuntimeLlmStub(captured) {
 
 function createPluginApiHarness({ pluginConfig, resolveRoot, runtimeLlmComplete }) {
   const eventHandlers = new Map();
+  const tools = [];
   const logs = { info: [], warn: [], debug: [] };
   const api = {
     pluginConfig,
@@ -118,7 +119,9 @@ function createPluginApiHarness({ pluginConfig, resolveRoot, runtimeLlmComplete 
       warn(message) { logs.warn.push(String(message)); },
       debug(message) { logs.debug.push(String(message)); },
     },
-    registerTool() {},
+    registerTool(factory, opts) {
+      tools.push({ factory, opts: opts ?? {} });
+    },
     registerCli() {},
     registerService() {},
     on(eventName, handler, meta) {
@@ -132,7 +135,28 @@ function createPluginApiHarness({ pluginConfig, resolveRoot, runtimeLlmComplete 
       eventHandlers.set(eventName, list);
     },
   };
-  return { api, eventHandlers, logs };
+  return { api, eventHandlers, tools, logs };
+}
+
+function resolveRegisteredTool(tools, name) {
+  for (const entry of tools) {
+    const def = typeof entry.factory === "function" ? entry.factory({}) : entry.factory;
+    if (def && def.name === name) return entry;
+  }
+  return undefined;
+}
+
+/**
+ * Drives the agent-driven extraction lane: `agent_end` deposits the capture
+ * texts into the deferred queue, and the scheduled turn's agent then calls
+ * memory_extract_pending, whose execute runs the extraction with the host
+ * model.
+ */
+async function runPendingExtraction(harness, runtimeCtx) {
+  const entry = resolveRegisteredTool(harness.tools, "memory_extract_pending");
+  assert.ok(entry, "expected the memory_extract_pending tool to be registered");
+  const def = typeof entry.factory === "function" ? entry.factory(runtimeCtx) : entry.factory;
+  return await def.execute("tool-call-1", {}, undefined, undefined, runtimeCtx);
 }
 
 function getAutoCaptureHook(eventHandlers) {
@@ -205,11 +229,17 @@ describe("host transport composition through the plugin wiring (index.ts)", () =
     memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
+    const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
     await fireAgentEnd(
       hook,
       userMessages("I prefer synthetic teal accents in every dashboard I build."),
-      { sessionKey: "agent:agent-two:main", agentId: "agent-two" },
+      ctx,
     );
+
+    // No host call may happen on the finished agent_end turn; the scheduled
+    // extraction turn (live authority) drains the queue through the tool.
+    assert.equal(captured.length, 0, "agent_end must not call the host on the deferred lane");
+    await runPendingExtraction(harness, ctx);
 
     assert.ok(captured.length >= 1, "expected at least one host runtime call");
     const stripped = HOST_CATALOG_MODEL.split("/").slice(1).join("/");
@@ -234,11 +264,15 @@ describe("host transport composition through the plugin wiring (index.ts)", () =
     memoryLanceDBCipPlugin.register(harness.api);
     const hook = getAutoCaptureHook(harness.eventHandlers);
 
+    const ctx = { sessionKey: "agent:agent-two:main", agentId: "agent-two" };
     await fireAgentEnd(
       hook,
       userMessages("I prefer synthetic amber accents in every report I write."),
-      { sessionKey: "agent:agent-two:main", agentId: "agent-two" },
+      ctx,
     );
+
+    assert.equal(captured.length, 0, "agent_end must not call the host on the deferred lane");
+    await runPendingExtraction(harness, ctx);
 
     assert.ok(captured.length >= 1, "expected at least one host runtime call");
     for (const call of captured) {
