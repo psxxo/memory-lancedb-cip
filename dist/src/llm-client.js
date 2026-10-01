@@ -260,13 +260,56 @@ async function runInHostWorkScope(run) {
     }
     return scope.track(run);
 }
+/** Host refusal signatures that mean "this call outlived its turn's authority". */
+const HOST_AUTHORITY_EXPIRED_SIGNATURES = [
+    "async work scope is closed",
+    "caller authority is no longer active",
+    "caller authority is no longer current",
+    "caller authority is unavailable",
+];
+/** True when a host-transport failure says the call's authority had ended. */
+export function isHostAuthorityExpiredError(error) {
+    const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+    return HOST_AUTHORITY_EXPIRED_SIGNATURES.some((signature) => message.includes(signature));
+}
+/**
+ * Runs one host-managed completion.
+ *
+ * The host authorizes a plugin completion against the live turn, so a call made
+ * after that turn ended is refused ("caller authority is no longer active").
+ * Hosts that expose the isolated execution mode can be asked for a fresh agent
+ * runtime instead — that mode does not ride the finished turn's authority. The
+ * retry keeps this lane configless (no plugin credential) and still uses the
+ * host's own model and auth. Isolated mode accepts exactly one user message, so
+ * the system prompt travels in its own field on the retry.
+ */
+async function runHostCompletion(runtimeLlmComplete, params, config, log) {
+    try {
+        return await runInHostWorkScope(() => runtimeLlmComplete(params));
+    }
+    catch (err) {
+        if (!isHostAuthorityExpiredError(err))
+            throw err;
+        const systemMessages = params.messages.filter((message) => message.role === "system");
+        const userMessages = params.messages.filter((message) => message.role !== "system");
+        log(`memory-lancedb-cip: llm-client [${params.purpose ?? "generic"}] host transport refused the call after its turn ended; retrying through the host's isolated agent runtime`);
+        return await runInHostWorkScope(() => runtimeLlmComplete({
+            ...params,
+            messages: userMessages.length ? [userMessages[userMessages.length - 1]] : params.messages,
+            ...(systemMessages.length
+                ? { systemPrompt: systemMessages.map((message) => message.content).join("\n") }
+                : {}),
+            execution: { mode: "isolated-agent-runtime", timeoutMs: config.timeoutMs },
+        }));
+    }
+}
 function createHostClient(config, runtimeLlmComplete, log, warnLog) {
     let lastError = null;
     return {
         async completeJson(prompt, label = "generic", systemPrompt, temperature) {
             lastError = null;
             try {
-                const result = await raceWithTimeout(runInHostWorkScope(() => runtimeLlmComplete({
+                const result = await raceWithTimeout(runHostCompletion(runtimeLlmComplete, {
                     messages: [
                         {
                             role: "system",
@@ -284,7 +327,7 @@ function createHostClient(config, runtimeLlmComplete, log, warnLog) {
                     temperature: temperature ?? 0.1,
                     purpose: `memory-lancedb-cip:${label}`,
                     reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
-                })), config.timeoutMs);
+                }, config, warnLog ?? log), config.timeoutMs);
                 const raw = result?.text;
                 if (!raw || typeof raw !== "string") {
                     lastError =
@@ -337,13 +380,13 @@ function createHostClient(config, runtimeLlmComplete, log, warnLog) {
                 messages.push({ role: "system", content: systemPrompt });
             messages.push({ role: "user", content: prompt });
             try {
-                const result = await raceWithTimeout(runInHostWorkScope(() => runtimeLlmComplete({
+                const result = await raceWithTimeout(runHostCompletion(runtimeLlmComplete, {
                     messages,
                     ...(config.modelExplicit ? { model: config.model } : {}),
                     temperature: temperature ?? 0.1,
                     purpose: `memory-lancedb-cip:${label}`,
                     reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
-                })), config.timeoutMs);
+                }, config, warnLog ?? log), config.timeoutMs);
                 const text = typeof result?.text === "string" ? result.text.trim() : "";
                 if (!text) {
                     lastError =

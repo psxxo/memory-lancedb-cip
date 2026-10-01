@@ -1,3 +1,24 @@
+## 1.3.6
+
+**Post-turn completions retry through the host's isolated agent runtime.**
+1.3.5 tried to keep the turn alive for capture and did not work: the host authorizes a plugin completion
+against the admitting request, and that authority is already gone by the time a post-turn extraction runs
+(observed live: the refusal recurred six seconds after the turn's last model response). This release
+instead retries the refused call through the host's own isolated execution mode —
+`execution: { mode: "isolated-agent-runtime" }` — which asks the host to start a fresh agent runtime for
+that one completion rather than riding a finished turn's authority.
+
+Nothing is configured for this and nothing is owned by the plugin: the retry still runs on the host's
+model and auth exactly like the rest of the lane, so the plugin stays configless and keeps following the
+system. Only an authority-expired refusal triggers the retry; every other failure keeps the previous
+behaviour. Isolated mode accepts a single user message, so the system prompt travels in its own field on
+the retry. The 1.3.5 hook-hold was reverted as ineffective.
+
+- `src/llm-client.ts`: `runHostCompletion()` + `isHostAuthorityExpiredError()`; both host lanes route
+  through it. `RuntimeLlmCompleteFn` now documents `systemPrompt` and `execution`.
+- Reverted from 1.3.5: `AUTO_CAPTURE_HOOK_BUDGET_MS` and `awaitCaptureHookBudget()`.
+- Tests: `llm-host-work-scope` + `llm-host-transport` → 26 pass / 0 fail.
+
 ## 1.3.5
 
 **Withdrawn: the credential-based fallback lane introduced in 1.3.4.** A plugin's LLM lane must follow the
