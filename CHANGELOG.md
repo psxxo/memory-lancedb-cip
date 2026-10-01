@@ -1,3 +1,17 @@
+## 1.3.8
+
+**The scheduled extraction turn now actually reaches the plugin.** 1.3.7 registered the managed cron job
+and it fired, but the `before_agent_reply` intercept never ran: that hook limits host dispatch through its
+`{ eligibleTriggers }` registration option, and a registration without it is not dispatched for cron
+turns (docs: `plugins/hooks/reference` — `eligibleTriggers` is `before_agent_reply` only, one or more of
+`cron`, `heartbeat`, `user`, …). The intercept now registers with `eligibleTriggers: ["cron",
+"heartbeat", "user"]`, so the scheduled isolated turn flushes the queued capture texts inside a turn the
+host owns — where the completion's authority is valid.
+
+- `index.ts`: the `before_agent_reply` registration gained its `eligibleTriggers` option.
+- Config gate verified on this host: `plugins.entries.memory-lancedb-cip.hooks.allowConversationAccess`
+  is already `true`, which non-bundled plugins need for conversation hooks.
+
 ## 1.3.7
 
 **Deferred extraction now runs inside a host-scheduled turn instead of after the user's turn.**

@@ -5380,7 +5380,7 @@ const memoryLanceDBCipPlugin = {
         }
         api.logger.info(`memory-lancedb-cip: scheduled extraction flushed ${flushed} session(s)`);
         return { handled: true, reason: `memory-lancedb-cip: extraction flushed for ${flushed} session(s)` };
-      });
+      }, { eligibleTriggers: ["cron", "heartbeat", "user"] });
 
       // A session that ends below extractMinMessages would otherwise strand its
       // deferred texts (requeued ingress or rolled-back history) forever, losing
