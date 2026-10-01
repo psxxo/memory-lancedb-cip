@@ -1,3 +1,28 @@
+## 1.3.10
+
+**The pending-extraction queue is durable, so the scheduled turn actually drains it.** 1.3.9's
+agent-driven extraction worked, but the queue lived only in the in-memory `autoCaptureDeferredFlushTurns`
+Map. The host re-captures the prepared plugin generation per agent run, so the `before_agent_reply`
+intercept inside the scheduled cron turn could log "scheduled extraction turn dispatched for 16..18
+queued session(s)" from the generation that deposited the texts while the `memory_extract_pending`
+tool, running in a different generation, read an empty Map and returned
+`{"sessions":0,"created":0,"merged":0,"skipped":0,"failed":0}` ("Nothing queued for memory extraction").
+
+- Deposits are mirrored to a JSONL file (`pending-extraction-queue.jsonl`) beside the plugin's store
+  (`dirname(dbPath)`): session key, role, text, messageId, timestamp. The file is capped by entry count
+  (2000) and byte size (2 MB); oldest records are dropped first. Writes are best-effort and never break
+  capture.
+- `runPendingExtractionForAgent` merges the durable queue with whatever the current generation holds in
+  memory before draining, so texts deposited by ANY generation (or a previous process) are picked up.
+  After a successful extraction it retires exactly the consumed entries from the file; a failed session
+  keeps its texts queued (same restore-on-failure semantics).
+- A drain-start log line reports `inMemorySessions`, `durableSessions`, `durableEntries`, and
+  `mergedSessions`, so the next run proves which generation owns the deposit.
+- Configless, no credentials, plugin-side only, still following the host model.
+
+Files: `src/extraction-queue.ts` (new durable store), `index.ts` (deposit mirroring, drain merge,
+drain-start log), `test/extraction-queue-durable.test.mjs` (new).
+
 ## 1.3.9
 
 **Extraction is now agent-driven, so it actually persists.** 1.3.7/1.3.8 dispatched the managed cron

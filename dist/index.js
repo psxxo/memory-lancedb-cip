@@ -28,6 +28,7 @@ import { createRetriever, normalizeRetrievalConfig, } from "./src/retriever.js";
 import { createScopeManager, resolveScopeFilter, isSystemBypassId, parseAgentIdFromSessionKey } from "./src/scopes.js";
 import { createMigrator } from "./src/migrate.js";
 import { registerAllMemoryTools, registerMemoryExtractPendingTool } from "./src/tools.js";
+import { PendingExtractionQueueStore, resolvePendingExtractionQueuePath } from "./src/extraction-queue.js";
 import { ManualEchoLedger } from "./src/manual-echo-guard.js";
 import { appendSelfImprovementEntry, ensureSelfImprovementLearningFiles } from "./src/self-improvement-files.js";
 import { shouldSkipRetrieval } from "./src/adaptive-retrieval.js";
@@ -2577,6 +2578,13 @@ const memoryLanceDBCipPlugin = {
             reflectionDerivedBySession.clear();
         };
         const pendingRecall = new Map();
+        // Durable mirror of the deferred extraction queue. The scheduled extraction
+        // turn can run in a different plugin generation than the agent_end run that
+        // deposited the texts, so the queue must live outside module state (see
+        // src/extraction-queue.ts).
+        const pendingExtractionQueue = new PendingExtractionQueueStore(resolvePendingExtractionQueuePath(dirname(resolvedDbPath)), {
+            onError: (message) => api.logger.warn(`memory-lancedb-cip: pending extraction queue file error: ${message}`),
+        });
         const logReg = isCliMode() ? api.logger.debug : api.logger.info;
         if (isFirstRegistration) {
             logReg(`memory-lancedb-cip@${pluginVersion}: plugin registered (db: ${resolvedDbPath}, model: ${config.embedding.model || "text-embedding-3-small"}, smartExtraction: ${smartExtractor ? 'ON' : 'OFF'}, admissionControl: ${captureAdmissionController() ? 'ON' : 'OFF'})`);
@@ -3712,6 +3720,7 @@ const memoryLanceDBCipPlugin = {
                                 if (restored.length > 0) {
                                     autoCaptureDeferredFlushTurns.set(sessionKey, restored);
                                     pruneMapIfOver(autoCaptureDeferredFlushTurns, AUTO_CAPTURE_MAP_MAX_ENTRIES);
+                                    void pendingExtractionQueue.append(sessionKey, restored);
                                 }
                                 return;
                             }
@@ -3744,11 +3753,13 @@ const memoryLanceDBCipPlugin = {
                             }
                             if (pendingIngressTexts.length === 0) {
                                 const retainedCap = autoCaptureRetainedTextCap(minMessages);
-                                autoCaptureDeferredFlushTurns.set(sessionKey, [
+                                const deferredTurns = [
                                     ...(autoCaptureDeferredFlushTurns.get(sessionKey) || []),
                                     ...turnsForTexts(thisCallTurns, newTexts),
-                                ].slice(-retainedCap));
+                                ].slice(-retainedCap);
+                                autoCaptureDeferredFlushTurns.set(sessionKey, deferredTurns);
                                 pruneMapIfOver(autoCaptureDeferredFlushTurns, AUTO_CAPTURE_MAP_MAX_ENTRIES);
+                                void pendingExtractionQueue.append(sessionKey, deferredTurns);
                                 return;
                             }
                             restoreConsumedCaptureState();
@@ -3780,6 +3791,7 @@ const memoryLanceDBCipPlugin = {
                                 }
                                 autoCaptureDeferredFlushTurns.set(sessionKey, queuedTurns);
                                 pruneMapIfOver(autoCaptureDeferredFlushTurns, AUTO_CAPTURE_MAP_MAX_ENTRIES);
+                                void pendingExtractionQueue.append(sessionKey, queuedTurns);
                                 api.logger.debug(`memory-lancedb-cip: auto-capture queued ${newTexts.length} text(s) for scheduled extraction for agent ${agentId} (sessionKey=${sessionKey}, pendingQueued=${queuedTurns.length})`);
                                 return;
                             }
@@ -3940,11 +3952,13 @@ const memoryLanceDBCipPlugin = {
                                     // History content lives in the session transcript, which is gone
                                     // once the session ends: retain the deferred texts so a terminal
                                     // flush can still consume them.
-                                    autoCaptureDeferredFlushTurns.set(sessionKey, [
+                                    const deferredTurns = [
                                         ...(autoCaptureDeferredFlushTurns.get(sessionKey) || []),
                                         ...turnsForTexts(thisCallTurns, newTexts),
-                                    ].slice(-retainedCap));
+                                    ].slice(-retainedCap);
+                                    autoCaptureDeferredFlushTurns.set(sessionKey, deferredTurns);
                                     pruneMapIfOver(autoCaptureDeferredFlushTurns, AUTO_CAPTURE_MAP_MAX_ENTRIES);
+                                    void pendingExtractionQueue.append(sessionKey, deferredTurns);
                                 }
                                 else if (conversationKey) {
                                     const mergedIngressTexts = [
@@ -4184,8 +4198,21 @@ const memoryLanceDBCipPlugin = {
                     api.logger.debug(`memory-lancedb-cip: scheduled extraction skipped (rate limited: ${extractionRateLimiter.getRecentCount()} extractions in last hour)`);
                     return summary;
                 }
-                for (const pendingSessionKey of [...autoCaptureDeferredFlushTurns.keys()]) {
-                    const queuedTurns = autoCaptureDeferredFlushTurns.get(pendingSessionKey) || [];
+                // The scheduled turn can run in a different plugin generation than the
+                // agent_end run that deposited the texts, so the in-memory map alone may
+                // be empty here. Merge the durable file with memory before draining; the
+                // log line below proves whether this generation owns the deposit.
+                const durableQueue = await pendingExtractionQueue.load();
+                let durableEntries = 0;
+                for (const turns of durableQueue.values())
+                    durableEntries += turns.length;
+                const retainedCap = autoCaptureRetainedTextCap(config.extractMinMessages ?? 4);
+                const sessionKeys = [...new Set([...autoCaptureDeferredFlushTurns.keys(), ...durableQueue.keys()])];
+                api.logger.info(`memory-lancedb-cip: pending extraction drain start: inMemorySessions=${autoCaptureDeferredFlushTurns.size} durableSessions=${durableQueue.size} durableEntries=${durableEntries} mergedSessions=${sessionKeys.length}`);
+                for (const pendingSessionKey of sessionKeys) {
+                    const inMemoryTurns = autoCaptureDeferredFlushTurns.get(pendingSessionKey) || [];
+                    const durableTurns = durableQueue.get(pendingSessionKey) || [];
+                    const queuedTurns = dedupeTurnsByText([...inMemoryTurns, ...durableTurns]).slice(-retainedCap);
                     if (queuedTurns.length === 0) {
                         autoCaptureDeferredFlushTurns.delete(pendingSessionKey);
                         continue;
@@ -4223,6 +4250,9 @@ const memoryLanceDBCipPlugin = {
                         else {
                             autoCaptureDeferredFlushTurns.set(pendingSessionKey, remaining);
                         }
+                        // Retire the same texts from the durable file so a later generation
+                        // (or a later process) does not re-extract them.
+                        await pendingExtractionQueue.remove(pendingSessionKey, consumedTexts);
                         api.logger.info(`memory-lancedb-cip: scheduled extraction for ${pendingSessionKey}: ${stats.created} created, ${stats.merged} merged, ${stats.skipped} skipped`);
                     }
                     catch (err) {
@@ -4252,10 +4282,23 @@ const memoryLanceDBCipPlugin = {
                     return;
                 if (event?.trigger === "heartbeat")
                     return;
-                if (autoCaptureDeferredFlushTurns.size === 0) {
+                // Count both the in-memory map and the durable queue: the deposit may
+                // have landed in a different plugin generation (see
+                // src/extraction-queue.ts), where this handler's Map is empty while
+                // the file still holds the queued texts. Gating on the Map alone would
+                // short-circuit the turn and strand the durable queue forever.
+                const durableQueue = await pendingExtractionQueue.load();
+                let durableEntries = 0;
+                for (const turns of durableQueue.values())
+                    durableEntries += turns.length;
+                const queuedSessions = new Set([
+                    ...autoCaptureDeferredFlushTurns.keys(),
+                    ...durableQueue.keys(),
+                ]);
+                if (queuedSessions.size === 0) {
                     return { handled: true, reason: "memory-lancedb-cip: nothing queued to extract" };
                 }
-                api.logger.info(`memory-lancedb-cip: scheduled extraction turn dispatched for ${autoCaptureDeferredFlushTurns.size} queued session(s)`);
+                api.logger.info(`memory-lancedb-cip: scheduled extraction turn dispatched for ${queuedSessions.size} queued session(s) (inMemorySessions=${autoCaptureDeferredFlushTurns.size} durableEntries=${durableEntries})`);
                 return;
             }, { eligibleTriggers: ["cron", "heartbeat", "user"] });
             // A session that ends below extractMinMessages would otherwise strand its
