@@ -223,13 +223,50 @@ function raceWithTimeout(promise, timeoutMs) {
         });
     });
 }
+let hostWorkScopeCtor;
+/** Test hook: forget the cached host scope constructor. */
+export function resetHostWorkScopeCacheForTests() {
+    hostWorkScopeCtor = undefined;
+}
+/** Test hook: inject a fake host scope constructor (or null for "unavailable"). */
+export function setHostWorkScopeCtorForTests(ctor) {
+    hostWorkScopeCtor = ctor;
+}
+async function resolveHostWorkScopeCtor() {
+    if (hostWorkScopeCtor !== undefined)
+        return hostWorkScopeCtor;
+    try {
+        // Variable specifier: keeps the subpath out of static resolution so this
+        // module still loads on hosts that do not ship it.
+        const specifier = "openclaw/plugin-sdk/concurrency-runtime";
+        const mod = (await import(specifier));
+        hostWorkScopeCtor = typeof mod?.AsyncWorkScope === "function" ? mod.AsyncWorkScope : null;
+    }
+    catch {
+        hostWorkScopeCtor = null;
+    }
+    return hostWorkScopeCtor;
+}
+async function runInHostWorkScope(run) {
+    const Ctor = await resolveHostWorkScopeCtor();
+    if (!Ctor)
+        return run();
+    let scope;
+    try {
+        scope = new Ctor();
+    }
+    catch {
+        return run();
+    }
+    return scope.track(run);
+}
 function createHostClient(config, runtimeLlmComplete, log, warnLog) {
     let lastError = null;
     return {
         async completeJson(prompt, label = "generic", systemPrompt, temperature) {
             lastError = null;
             try {
-                const result = await raceWithTimeout(runtimeLlmComplete({
+                const result = await raceWithTimeout(runInHostWorkScope(() => runtimeLlmComplete({
                     messages: [
                         {
                             role: "system",
@@ -247,7 +284,7 @@ function createHostClient(config, runtimeLlmComplete, log, warnLog) {
                     temperature: temperature ?? 0.1,
                     purpose: `memory-lancedb-cip:${label}`,
                     reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
-                }), config.timeoutMs);
+                })), config.timeoutMs);
                 const raw = result?.text;
                 if (!raw || typeof raw !== "string") {
                     lastError =
@@ -300,13 +337,13 @@ function createHostClient(config, runtimeLlmComplete, log, warnLog) {
                 messages.push({ role: "system", content: systemPrompt });
             messages.push({ role: "user", content: prompt });
             try {
-                const result = await raceWithTimeout(runtimeLlmComplete({
+                const result = await raceWithTimeout(runInHostWorkScope(() => runtimeLlmComplete({
                     messages,
                     ...(config.modelExplicit ? { model: config.model } : {}),
                     temperature: temperature ?? 0.1,
                     purpose: `memory-lancedb-cip:${label}`,
                     reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
-                }), config.timeoutMs);
+                })), config.timeoutMs);
                 const text = typeof result?.text === "string" ? result.text.trim() : "";
                 if (!text) {
                     lastError =

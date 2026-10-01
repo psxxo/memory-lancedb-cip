@@ -350,6 +350,62 @@ function raceWithTimeout<T>(promise: Promise<T>, timeoutMs: number | undefined):
   });
 }
 
+/**
+ * Runs a host-managed completion inside a FRESH async work scope.
+ *
+ * The host tracks \`api.runtime.llm.complete\` against whatever async work scope
+ * is active at call time (\`captureAsyncWorkTracker()\` -> \`scope.track(run)\`),
+ * and \`AsyncWorkScope.track\` rejects with \`Async work scope is closed\` once that
+ * scope has closed. Our extraction/dedup lanes run deferred (timers scheduled
+ * from inside a hook), so they still inherit the finished turn's scope through
+ * AsyncLocalStorage long after the turn ended -- which made every deferred
+ * host-transport call fail. Entering our own open scope first makes the host
+ * track the call against a live scope instead. Best effort: if the host does
+ * not export the helper, or entering the scope throws, the call runs as before.
+ */
+interface HostWorkScope {
+  track<T>(run: () => Promise<T>): Promise<T>;
+}
+type HostWorkScopeCtor = new () => HostWorkScope;
+
+let hostWorkScopeCtor: HostWorkScopeCtor | null | undefined;
+
+/** Test hook: forget the cached host scope constructor. */
+export function resetHostWorkScopeCacheForTests(): void {
+  hostWorkScopeCtor = undefined;
+}
+
+/** Test hook: inject a fake host scope constructor (or null for "unavailable"). */
+export function setHostWorkScopeCtorForTests(ctor: HostWorkScopeCtor | null): void {
+  hostWorkScopeCtor = ctor;
+}
+
+async function resolveHostWorkScopeCtor(): Promise<HostWorkScopeCtor | null> {
+  if (hostWorkScopeCtor !== undefined) return hostWorkScopeCtor;
+  try {
+    // Variable specifier: keeps the subpath out of static resolution so this
+    // module still loads on hosts that do not ship it.
+    const specifier = "openclaw/plugin-sdk/concurrency-runtime";
+    const mod = (await import(specifier)) as { AsyncWorkScope?: HostWorkScopeCtor };
+    hostWorkScopeCtor = typeof mod?.AsyncWorkScope === "function" ? mod.AsyncWorkScope : null;
+  } catch {
+    hostWorkScopeCtor = null;
+  }
+  return hostWorkScopeCtor;
+}
+
+async function runInHostWorkScope<T>(run: () => Promise<T>): Promise<T> {
+  const Ctor = await resolveHostWorkScopeCtor();
+  if (!Ctor) return run();
+  let scope: HostWorkScope;
+  try {
+    scope = new Ctor();
+  } catch {
+    return run();
+  }
+  return scope.track(run);
+}
+
 function createHostClient(
   config: LlmClientConfig,
   runtimeLlmComplete: RuntimeLlmCompleteFn,
@@ -363,7 +419,7 @@ function createHostClient(
       lastError = null;
       try {
         const result = await raceWithTimeout(
-          runtimeLlmComplete({
+          runInHostWorkScope(() => runtimeLlmComplete({
             messages: [
               {
                 role: "system",
@@ -382,7 +438,7 @@ function createHostClient(
             temperature: temperature ?? 0.1,
             purpose: `memory-lancedb-cip:${label}`,
             reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
-          }),
+          })),
           config.timeoutMs,
         );
 
@@ -439,13 +495,13 @@ function createHostClient(
       messages.push({ role: "user", content: prompt });
       try {
         const result = await raceWithTimeout(
-          runtimeLlmComplete({
+          runInHostWorkScope(() => runtimeLlmComplete({
             messages,
             ...(config.modelExplicit ? { model: config.model } : {}),
             temperature: temperature ?? 0.1,
             purpose: `memory-lancedb-cip:${label}`,
             reasoning: config.thinkLevel?.trim() || DEFAULT_HOST_REASONING_EFFORT,
-          }),
+          })),
           config.timeoutMs,
         );
         const text = typeof result?.text === "string" ? result.text.trim() : "";

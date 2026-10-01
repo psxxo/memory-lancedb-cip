@@ -1,3 +1,20 @@
+## 1.3.3
+
+**Deferred host-transport completions no longer die with `Async work scope is closed`.**
+The host tracks `api.runtime.llm.complete` against whatever async work scope is live at call time
+(`captureAsyncWorkTracker()` -> `scope.track(run)`), and `AsyncWorkScope.track` rejects once that scope
+has closed. The extraction and dedup lanes run deferred — timers scheduled from inside a hook — so they
+kept inheriting the finished turn's scope through AsyncLocalStorage, and every deferred host call failed
+(measured: 33 failures/day, `llm-client [extract-candidates] host-transport request failed ... Async work
+scope is closed`). Each host completion now runs inside a fresh, plugin-owned scope, loaded best-effort
+from `openclaw/plugin-sdk/concurrency-runtime`; if that subpath is missing, or entering the scope throws,
+the call runs exactly as before.
+
+- `src/llm-client.ts`: `runInHostWorkScope()` wraps both host lanes (`completeJson`, `completeText`);
+  `resetHostWorkScopeCacheForTests()` / `setHostWorkScopeCtorForTests()` expose the cache to tests.
+- `test/llm-host-work-scope.test.mjs`: five cases — wrapped call, text lane, unavailable helper, missing
+  subpath, throwing constructor.
+
 ## 1.3.2
 
 **No built-in generation model any more: the LLM lane always follows the host default unless configured.**
