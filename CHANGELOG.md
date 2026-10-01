@@ -1,3 +1,22 @@
+## 1.3.5
+
+**Withdrawn: the credential-based fallback lane introduced in 1.3.4.** A plugin's LLM lane must follow the
+host by default. Requiring operators to configure a second credential for a plugin is neither advanced nor
+simple, and every future install would pay for it.
+
+**Instead, capture completes inside the live turn.** A host completion is authorized only while its run is
+live (`AgentRunContext(runId) === context`), so the `agent_end` auto-capture hook — which used to fire its
+work and return — now stays inside the hook for a bounded window (12 s) while capture runs. The completion
+goes out under the turn's own authority: no plugin credential, no configuration, and the lane keeps
+following the host's model and auth exactly like the rest of the plugin. Anything slower than the budget
+keeps running in the background and is retried by the next turn's hook.
+
+- `index.ts`: `AUTO_CAPTURE_HOOK_BUDGET_MS` and `awaitCaptureHookBudget()`; the `agent_end` hook returns
+  the bounded wait instead of a detached `void` run.
+- Reverted from 1.3.4: `llm.fallback`, `isHostAuthorityExpiredError`, `createConfiguredFallbackClient`,
+  `createAuthorityFallbackClient`, the manifest `llm.fallback` block and their tests.
+- Tests: `llm-host-work-scope` + `per-agent-auto-recall` → 27 pass / 0 fail.
+
 ## 1.3.3
 
 **Deferred host-transport completions no longer die with `Async work scope is closed`.**

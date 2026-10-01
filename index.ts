@@ -4273,8 +4273,25 @@ const memoryLanceDBCipPlugin = {
       );
 
       type AgentEndAutoCaptureHook = {
-        (event: any, ctx: any): void;
+        (event: any, ctx: any): void | Promise<void>;
         __lastRun?: Promise<void>;
+      };
+
+      // How long the agent_end hook may wait for capture before letting the
+      // turn close. A host completion is authorized only while its run is
+      // live, so this window is what keeps the extraction lane configless:
+      // the call goes out under the turn's own authority while the hook is
+      // still running, instead of after the turn has ended.
+      const AUTO_CAPTURE_HOOK_BUDGET_MS = 12_000;
+      const awaitCaptureHookBudget = (run: Promise<void>): Promise<void> => {
+        if (AUTO_CAPTURE_HOOK_BUDGET_MS <= 0) return run.catch(() => {});
+        return new Promise<void>((resolve) => {
+          const timer = setTimeout(() => resolve(), AUTO_CAPTURE_HOOK_BUDGET_MS);
+          run.catch(() => {}).then(() => {
+            clearTimeout(timer);
+            resolve();
+          });
+        });
       };
 
       const awaitSessionCaptureRuns = (key: string): Promise<void> => {
@@ -5248,7 +5265,11 @@ const memoryLanceDBCipPlugin = {
         // Test-synchronization seam only: flush coordination reads
         // autoCaptureInFlightRuns for the session's own key, never this slot.
         agentEndAutoCaptureHook.__lastRun = trackedRun;
-        void backgroundRun;
+        // Keep the run (and therefore the host authority) alive for a bounded
+        // window so the extraction lane's completion is accepted; anything
+        // slower than the budget keeps running and is retried by the next
+        // turn's hook.
+        return awaitCaptureHookBudget(trackedRun);
       };
 
       api.on("agent_end", agentEndAutoCaptureHook);
