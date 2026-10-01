@@ -1,3 +1,24 @@
+## 1.4.0
+
+**Stable release: the smart-extraction lane now actually extracts.** This closes the sequence
+1.3.3 → 1.3.10, in which every earlier attempt was disproved by measurement and replaced:
+
+- 1.3.3 wrapped host completions in a plugin-built AsyncWorkScope (fixed `Async work scope is closed`).
+- 1.3.9 moved extraction into a host-scheduled isolated agent turn, because a plugin completion
+  fired after its turn ended is refused with `caller authority is no longer active`; the scheduled
+  turn's own agent performs the extraction through the `memory_extract_pending` tool.
+- The manifest now declares `memory_extract_pending` in `contracts.tools`; without that the host
+  drops the tool at registration (`plugin must declare contracts.tools for: …`) and the turn's
+  agent has nothing to call.
+- 1.3.10 makes the pending queue durable: texts are appended to `pending-extraction-queue.jsonl`
+  in the plugin data directory and re-read on drain, because the host re-captures the prepared
+  plugin generation per agent run, so the in-memory `autoCaptureDeferredFlushTurns` Map of the
+  depositing generation is not the one the draining tool sees.
+
+Configless, no plugin-owned credentials, follows the host model. Verified after a real restart:
+`pending extraction drain start: inMemorySessions=0 durableSessions=1 durableEntries=6 mergedSessions=1`
+then `scheduled extraction for …: 4 created, 0 merged, 0 skipped`; no `caller authority is no longer
+active`, no `contracts.tools` error. Extraction failures of that class were 51/day before.
 ## 1.3.10
 
 **The pending-extraction queue is durable, so the scheduled turn actually drains it.** 1.3.9's
