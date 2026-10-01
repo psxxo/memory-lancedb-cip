@@ -365,73 +365,6 @@ function createHostClient(config, runtimeLlmComplete, log, warnLog) {
         },
     };
 }
-/** Host refusal signatures that mean "this call outlived its turn's authority". */
-const HOST_AUTHORITY_EXPIRED_SIGNATURES = [
-    "async work scope is closed",
-    "caller authority is no longer active",
-    "caller authority is no longer current",
-    "caller authority is unavailable",
-];
-/**
- * True when a host-transport failure (as an Error or as the already-formatted
- * last-error string) says the call's authority or scope had ended, rather than
- * a transient, provider-side, or malformed-response failure.
- */
-export function isHostAuthorityExpiredError(error) {
-    const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
-    return HOST_AUTHORITY_EXPIRED_SIGNATURES.some((signature) => message.includes(signature));
-}
-/** Builds the operator-configured post-turn fallback lane, when one is set. */
-function createConfiguredFallbackClient(config, log, warnLog) {
-    const fallback = config.fallback;
-    if (!fallback || !fallback.model || !fallback.model.trim())
-        return null;
-    const fallbackConfig = {
-        ...config,
-        ...fallback,
-        transport: "direct",
-        model: fallback.model,
-        modelExplicit: true,
-        runtimeLlmComplete: undefined,
-        fallback: undefined,
-    };
-    if ((fallback.auth ?? config.auth ?? "api-key") === "oauth") {
-        return createOauthClient(fallbackConfig, log, warnLog);
-    }
-    if (!fallbackConfig.apiKey) {
-        (warnLog ?? log)("memory-lancedb-cip: llm-client llm.fallback is configured without an apiKey; the post-turn fallback lane stays disabled");
-        return null;
-    }
-    return createApiKeyClient(fallbackConfig, log, warnLog);
-}
-/**
- * Wraps the host client so a completion the host refuses because its turn has
- * ended is retried once on the plugin-owned fallback lane. Every other failure
- * keeps the previous behaviour.
- */
-function createAuthorityFallbackClient(primary, fallback, log, warnLog) {
-    let lastError = null;
-    const runWithFallback = async (label, call) => {
-        const primaryResult = await call(primary);
-        if (primaryResult !== null) {
-            lastError = null;
-            return primaryResult;
-        }
-        if (!isHostAuthorityExpiredError(primary.getLastError())) {
-            lastError = primary.getLastError();
-            return null;
-        }
-        (warnLog ?? log)(`memory-lancedb-cip: llm-client [${label}] host transport refused the call after its turn ended; retrying on the configured plugin fallback lane`);
-        const fallbackResult = await call(fallback);
-        lastError = fallbackResult === null ? fallback.getLastError() : null;
-        return fallbackResult;
-    };
-    return {
-        completeJson: (prompt, label = "generic", systemPrompt, temperature) => runWithFallback(label, (client) => client.completeJson(prompt, label, systemPrompt, temperature)),
-        completeText: (prompt, label = "generic", systemPrompt, temperature) => runWithFallback(label, (client) => client.completeText(prompt, label, systemPrompt, temperature)),
-        getLastError: () => lastError,
-    };
-}
 function createApiKeyClient(config, log, warnLog) {
     if (!config.apiKey) {
         throw new Error("LLM api-key mode requires llm.apiKey or embedding.apiKey");
@@ -786,11 +719,7 @@ export function createLlmClient(config) {
     config = { ...config, thinkLevel: resolveThinkLevel(config) };
     if (config.transport === "host") {
         if (typeof config.runtimeLlmComplete === "function") {
-            const hostClient = createHostClient(config, config.runtimeLlmComplete, log, warnLog);
-            const fallbackClient = createConfiguredFallbackClient(config, log, warnLog);
-            return fallbackClient
-                ? createAuthorityFallbackClient(hostClient, fallbackClient, log, warnLog)
-                : hostClient;
+            return createHostClient(config, config.runtimeLlmComplete, log, warnLog);
         }
         if (!hostTransportFallbackWarned) {
             hostTransportFallbackWarned = true;
