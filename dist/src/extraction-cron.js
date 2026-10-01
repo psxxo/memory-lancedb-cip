@@ -32,7 +32,16 @@ export const MANAGED_EXTRACTION_CRON_TAG = "[managed-by=memory-lancedb-cip]";
 export const EXTRACTION_CRON_RECONCILE_INTERVAL_MS = 60_000;
 export const STARTUP_CRON_RETRY_DELAY_MS = 5_000;
 export const STARTUP_CRON_MAX_RETRIES = 120;
-export const DEFAULT_EXTRACTION_CRON_EXPR = "*/2 * * * *";
+/**
+ * Safety-net schedule for the managed extraction sweep.
+ *
+ * The primary lane now drains a session's queue when that session's next turn
+ * starts (see src/turn-start-drain.ts), so the cron is only a fallback for
+ * sessions that never speak again. A 2-minute cadence paid for a full isolated
+ * agent turn every run on a small host; every 6 hours keeps idle sessions
+ * swept without that cost. Tighten only if extraction latency matters.
+ */
+export const DEFAULT_EXTRACTION_CRON_EXPR = "0 */6 * * *";
 /** Accepts only a candidate exposing the full list/add/update/remove surface. */
 export function resolveCronServiceFromCandidate(candidate) {
     if (!candidate || typeof candidate !== "object")

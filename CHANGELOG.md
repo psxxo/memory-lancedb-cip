@@ -1,3 +1,27 @@
+## 1.4.1
+
+**Extraction now happens at turn start, so the frequent scheduled turn is gone.** The lane no
+longer needs a full isolated agent turn every 2 minutes. 1.4.0 proved the scheduled turn works,
+but paid for it on a 2 vCPU / 3.7GB host hundreds of times a day.
+
+- PRIMARY — turn-start drain. `before_agent_reply` now checks whether the session starting a turn
+  has queued extraction texts and, if so, drains exactly that session through the same
+  `runPendingExtractionForAgent` + durable-queue path the scheduled turn used. The drain is issued
+  while the run is live (the authority a finished `agent_end` turn lacks) and is deliberately NOT
+  awaited, so reply latency is unchanged; at most one drain runs at a time.
+- SAFETY NET — the managed cron remains for sessions that never speak again. Its default schedule
+  changes from `*/2 * * * *` to `0 */6 * * *`; the gateway-start reconcile updates the existing
+  managed job to the new expression. The durable queue (`pending-extraction-queue.jsonl`) and the
+  `memory_extract_pending` tool are unchanged and still part of the design.
+- Added a pure decision module (`src/turn-start-drain.ts`) covering smart-extraction availability,
+  session resolution, queued texts, in-flight drains, and the hourly extraction budget, with
+  `test/turn-start-drain-decision.test.mjs`.
+- Log lines: `memory-lancedb-cip: turn-start extraction drain for <sessionKey> (trigger=…, queuedTurns=…)`
+  then `… turn-start extraction drain complete for <sessionKey>: N created, M merged, K skipped (failed=F)`.
+
+Files: `src/turn-start-drain.ts` (new), `src/extraction-cron.ts`, `index.ts`,
+`test/turn-start-drain-decision.test.mjs` (new).
+
 ## 1.4.0
 
 **Stable release: the smart-extraction lane now actually extracts.** This closes the sequence

@@ -29,6 +29,7 @@ import { createScopeManager, resolveScopeFilter, isSystemBypassId, parseAgentIdF
 import { createMigrator } from "./src/migrate.js";
 import { registerAllMemoryTools, registerMemoryExtractPendingTool } from "./src/tools.js";
 import { PendingExtractionQueueStore, resolvePendingExtractionQueuePath } from "./src/extraction-queue.js";
+import { DEFAULT_TURN_START_DRAIN_MIN_INTERVAL_MS, decideTurnStartDrain, resolveTurnSessionKey, } from "./src/turn-start-drain.js";
 import { ManualEchoLedger } from "./src/manual-echo-guard.js";
 import { appendSelfImprovementEntry, ensureSelfImprovementLearningFiles } from "./src/self-improvement-files.js";
 import { shouldSkipRetrieval } from "./src/adaptive-retrieval.js";
@@ -4190,7 +4191,7 @@ const memoryLanceDBCipPlugin = {
             // the plugin's own extract-and-persist pipeline (host model, no plugin
             // credential, no configuration). A failed session keeps its queued texts
             // for the next scheduled turn.
-            const runPendingExtractionForAgent = async (agentId, scopeFilter, defaultScope) => {
+            const runPendingExtractionForAgent = async (agentId, scopeFilter, defaultScope, options) => {
                 const summary = { sessions: 0, created: 0, merged: 0, skipped: 0, failed: 0 };
                 if (!smartExtractor)
                     return summary;
@@ -4207,8 +4208,14 @@ const memoryLanceDBCipPlugin = {
                 for (const turns of durableQueue.values())
                     durableEntries += turns.length;
                 const retainedCap = autoCaptureRetainedTextCap(config.extractMinMessages ?? 4);
-                const sessionKeys = [...new Set([...autoCaptureDeferredFlushTurns.keys(), ...durableQueue.keys()])];
-                api.logger.info(`memory-lancedb-cip: pending extraction drain start: inMemorySessions=${autoCaptureDeferredFlushTurns.size} durableSessions=${durableQueue.size} durableEntries=${durableEntries} mergedSessions=${sessionKeys.length}`);
+                const allSessionKeys = [...new Set([...autoCaptureDeferredFlushTurns.keys(), ...durableQueue.keys()])];
+                // A turn-start drain names exactly one session so it stays bounded and
+                // does not spend the speaking turn's authority on other sessions; the
+                // scheduled tool path passes no filter and still drains everything.
+                const sessionKeys = options?.sessionKeyFilter
+                    ? allSessionKeys.filter((key) => key === options.sessionKeyFilter)
+                    : allSessionKeys;
+                api.logger.info(`memory-lancedb-cip: pending extraction drain start: inMemorySessions=${autoCaptureDeferredFlushTurns.size} durableSessions=${durableQueue.size} durableEntries=${durableEntries} mergedSessions=${allSessionKeys.length} drainingSessions=${sessionKeys.length}${options?.sessionKeyFilter ? ` sessionKeyFilter=${options.sessionKeyFilter}` : ""}`);
                 for (const pendingSessionKey of sessionKeys) {
                     const inMemoryTurns = autoCaptureDeferredFlushTurns.get(pendingSessionKey) || [];
                     const durableTurns = durableQueue.get(pendingSessionKey) || [];
@@ -4272,33 +4279,102 @@ const memoryLanceDBCipPlugin = {
                     : scopeManager.getDefaultScope(resolvedAgentId);
                 return await runPendingExtractionForAgent(resolvedAgentId, accessibleScopes, defaultScope);
             });
-            // The managed extraction cron fires an isolated agentTurn carrying the
-            // trigger token. Gate it here: nothing queued short-circuits to NO_REPLY;
-            // otherwise let the turn run so its agent drives the extraction with its
-            // own (live) model authority.
+            // Turn-start drain state. A drain is bounded to one session and runs
+            // concurrently with the reply (never awaited by the hook), so the only
+            // coordination needed is "at most one drain in flight" on this small
+            // host: a second turn that starts meanwhile leaves its texts queued for
+            // its own next turn (or the low-frequency sweep).
+            const turnStartDrainInFlight = new Set();
+            const turnStartDrainLastAt = new Map();
+            // before_agent_reply serves two extraction lanes:
+            //
+            // 1. PRIMARY — turn-start drain. When a turn begins for a session that
+            //    has queued texts, drain THAT session now, while the host-owned run
+            //    is live ("authority" is what the finished agent_end turn lacks). The
+            //    drain is started synchronously so it is issued while the run is
+            //    active, but NOT awaited: the reply latency stays untouched.
+            // 2. SAFETY NET — the managed extraction cron fires an isolated
+            //    agentTurn carrying the trigger token. Gate it here: nothing queued
+            //    short-circuits to NO_REPLY; otherwise let the turn run so its agent
+            //    drives the extraction via memory_extract_pending.
             api.on("before_agent_reply", async (event, ctx) => {
                 const body = event?.cleanedBody ?? event?.body ?? "";
-                if (!includesExtractionTriggerToken(body))
+                const trigger = typeof event?.trigger === "string" ? event.trigger : undefined;
+                // --- Lane 2: the scheduled sweep turn -----------------------------
+                if (includesExtractionTriggerToken(body)) {
+                    if (trigger === "heartbeat")
+                        return;
+                    // Count both the in-memory map and the durable queue: the deposit may
+                    // have landed in a different plugin generation (see
+                    // src/extraction-queue.ts), where this handler's Map is empty while
+                    // the file still holds the queued texts. Gating on the Map alone would
+                    // short-circuit the turn and strand the durable queue forever.
+                    const durableQueue = await pendingExtractionQueue.load();
+                    let durableEntries = 0;
+                    for (const turns of durableQueue.values())
+                        durableEntries += turns.length;
+                    const queuedSessions = new Set([
+                        ...autoCaptureDeferredFlushTurns.keys(),
+                        ...durableQueue.keys(),
+                    ]);
+                    if (queuedSessions.size === 0) {
+                        return { handled: true, reason: "memory-lancedb-cip: nothing queued to extract" };
+                    }
+                    api.logger.info(`memory-lancedb-cip: scheduled extraction turn dispatched for ${queuedSessions.size} queued session(s) (inMemorySessions=${autoCaptureDeferredFlushTurns.size} durableEntries=${durableEntries})`);
                     return;
-                if (event?.trigger === "heartbeat")
-                    return;
-                // Count both the in-memory map and the durable queue: the deposit may
-                // have landed in a different plugin generation (see
-                // src/extraction-queue.ts), where this handler's Map is empty while
-                // the file still holds the queued texts. Gating on the Map alone would
-                // short-circuit the turn and strand the durable queue forever.
-                const durableQueue = await pendingExtractionQueue.load();
-                let durableEntries = 0;
-                for (const turns of durableQueue.values())
-                    durableEntries += turns.length;
-                const queuedSessions = new Set([
-                    ...autoCaptureDeferredFlushTurns.keys(),
-                    ...durableQueue.keys(),
-                ]);
-                if (queuedSessions.size === 0) {
-                    return { handled: true, reason: "memory-lancedb-cip: nothing queued to extract" };
                 }
-                api.logger.info(`memory-lancedb-cip: scheduled extraction turn dispatched for ${queuedSessions.size} queued session(s) (inMemorySessions=${autoCaptureDeferredFlushTurns.size} durableEntries=${durableEntries})`);
+                // --- Lane 1: drain the speaking session at turn start -------------
+                const sessionKey = resolveTurnSessionKey(event, ctx, (sessionId) => autoCaptureSessionIdToKey.get(sessionId));
+                if (!sessionKey)
+                    return;
+                // Read the durable queue too, for the same cross-generation reason as
+                // the sweep gate above. This is a small local JSONL read, not a model
+                // call, so it does not materially delay the reply.
+                const durableQueue = await pendingExtractionQueue.load();
+                const turnStartRetainedCap = autoCaptureRetainedTextCap(config.extractMinMessages ?? 4);
+                const queuedTurns = dedupeTurnsByText([
+                    ...(autoCaptureDeferredFlushTurns.get(sessionKey) || []),
+                    ...(durableQueue.get(sessionKey) || []),
+                ]).slice(-turnStartRetainedCap).length;
+                const decision = decideTurnStartDrain({
+                    trigger,
+                    sessionKey,
+                    queuedTurns,
+                    drainInFlight: turnStartDrainInFlight.size > 0,
+                    smartExtractionEnabled: !!smartExtractor,
+                    rateLimited: extractionRateLimiter.isRateLimited(),
+                    scheduledExtractionTurn: false,
+                    now: Date.now(),
+                    lastDrainAt: turnStartDrainLastAt.get(sessionKey),
+                    minIntervalMs: DEFAULT_TURN_START_DRAIN_MIN_INTERVAL_MS,
+                });
+                if (!decision.drain)
+                    return;
+                const resolvedAgentId = (typeof ctx?.agentId === "string" && ctx.agentId) ||
+                    (typeof event?.agentId === "string" && event.agentId) ||
+                    "main";
+                const accessibleScopes = resolveScopeFilter(scopeManager, resolvedAgentId);
+                const defaultScope = isSystemBypassId(resolvedAgentId)
+                    ? config.scopes?.default ?? "global"
+                    : scopeManager.getDefaultScope(resolvedAgentId);
+                turnStartDrainInFlight.add(sessionKey);
+                turnStartDrainLastAt.set(sessionKey, Date.now());
+                api.logger.info(`memory-lancedb-cip: turn-start extraction drain for ${sessionKey} (trigger=${trigger ?? "unknown"}, queuedTurns=${queuedTurns})`);
+                // Deliberately not awaited: a model call here would otherwise add
+                // seconds to every reply. The run stays live for the rest of the turn,
+                // so the completion is issued with (and authorised against) the live
+                // run just like the scheduled turn's tool call.
+                const drainRun = runPendingExtractionForAgent(resolvedAgentId, accessibleScopes, defaultScope, { sessionKeyFilter: sessionKey })
+                    .then((summary) => {
+                    api.logger.info(`memory-lancedb-cip: turn-start extraction drain complete for ${sessionKey}: ${summary.created} created, ${summary.merged} merged, ${summary.skipped} skipped (failed=${summary.failed})`);
+                })
+                    .catch((err) => {
+                    api.logger.warn(`memory-lancedb-cip: turn-start extraction drain failed for ${sessionKey}: ${String(err)}`);
+                })
+                    .finally(() => {
+                    turnStartDrainInFlight.delete(sessionKey);
+                });
+                void drainRun;
                 return;
             }, { eligibleTriggers: ["cron", "heartbeat", "user"] });
             // A session that ends below extractMinMessages would otherwise strand its

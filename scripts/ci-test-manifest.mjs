@@ -171,6 +171,8 @@ export const CI_TEST_MANIFEST = [
   { group: "storage-and-schema", runner: "node", file: "test/store-open-observability.test.mjs" },
   { group: "storage-and-schema", runner: "node", file: "test/corrupt-table-quarantine.test.mjs", args: ["--test"] },
   { group: "storage-and-schema", runner: "node", file: "test/crash-safety-sigkill.test.mjs", args: ["--test"] },
+  { group: "core-regression", runner: "node", file: "test/turn-start-drain-decision.test.mjs", args: ["--test"] },
+  { group: "core-regression", runner: "node", file: "test/extraction-queue-durable.test.mjs", args: ["--test"] },
 ];
 
 export function getEntriesForGroup(group) {

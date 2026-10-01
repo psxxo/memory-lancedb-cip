@@ -1,3 +1,8 @@
+## 1.4.1
+
+Turn-start extraction drain + low-frequency safety-net sweep; see `CHANGELOG.md`. This mirror was
+left at 1.3.2 by the 1.4.0 release, so it resumes tracking here.
+
 ## 1.3.2
 
 **No built-in generation model any more.** `DEFAULT_GENERATION_MODEL` is gone from the code, so an
