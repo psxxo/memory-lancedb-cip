@@ -1,3 +1,22 @@
+## 1.3.4
+
+**Post-turn completions: an authority refusal now retries on a plugin-owned fallback lane.**
+1.3.3 removed the "Async work scope is closed" rejection by entering a fresh async work scope, but a
+deferred call can still be refused once its turn has ended, because the host binds a completion's caller
+authority to the live run (`AgentRunContext(runId) === context`, `hasCurrentClientAuthority()`); that
+authority cannot be re-entered afterwards. When `llm.fallback` is configured, a host completion that
+fails with an authority-expired signature ("async work scope is closed", "caller authority is no longer
+active", "... no longer current", "... unavailable") is retried once over the plugin's own direct
+transport. Every other failure keeps the previous behaviour, and the lane stays inert while
+`llm.fallback` is unset.
+
+- `src/llm-client.ts`: `isHostAuthorityExpiredError()`, `createConfiguredFallbackClient()` and
+  `createAuthorityFallbackClient()`; the host client is wrapped only when a fallback is configured.
+- `openclaw.plugin.json`: new `llm.fallback` object (`model` required; `apiKey`, `baseURL`, `auth`,
+  `oauthPath`, `oauthProvider`, `timeoutMs`).
+- `test/llm-host-work-scope.test.mjs`: three more cases — authority refusal retried on the fallback lane,
+  unrelated host failures not retried, and no-fallback behaviour unchanged (29 pass / 0 fail).
+
 ## 1.3.3
 
 **Deferred host-transport completions no longer die with `Async work scope is closed`.**

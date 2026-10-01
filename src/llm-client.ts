@@ -82,6 +82,22 @@ export interface LlmClientConfig {
    * reads it.
    */
   thinkLevel?: string;
+  /**
+   * Post-turn fallback lane. The host binds a completion's caller authority to
+   * the live run, so deferred work (extraction timers that fire after the turn
+   * ended) is refused even when it runs inside a fresh async work scope. When
+   * this block is configured, an authority-expired host refusal is retried once
+   * through this plugin-owned direct transport. Inert while unset.
+   */
+  fallback?: {
+    model: string;
+    apiKey?: string;
+    baseURL?: string;
+    auth?: "api-key" | "oauth";
+    oauthPath?: string;
+    oauthProvider?: string;
+    timeoutMs?: number;
+  };
 }
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -525,6 +541,96 @@ function createHostClient(
   };
 }
 
+/** Host refusal signatures that mean "this call outlived its turn's authority". */
+const HOST_AUTHORITY_EXPIRED_SIGNATURES = [
+  "async work scope is closed",
+  "caller authority is no longer active",
+  "caller authority is no longer current",
+  "caller authority is unavailable",
+];
+
+/**
+ * True when a host-transport failure (as an Error or as the already-formatted
+ * last-error string) says the call's authority or scope had ended, rather than
+ * a transient, provider-side, or malformed-response failure.
+ */
+export function isHostAuthorityExpiredError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+  return HOST_AUTHORITY_EXPIRED_SIGNATURES.some((signature) => message.includes(signature));
+}
+
+/** Builds the operator-configured post-turn fallback lane, when one is set. */
+function createConfiguredFallbackClient(
+  config: LlmClientConfig,
+  log: (msg: string) => void,
+  warnLog?: (msg: string) => void,
+): LlmClient | null {
+  const fallback = config.fallback;
+  if (!fallback || !fallback.model || !fallback.model.trim()) return null;
+  const fallbackConfig: LlmClientConfig = {
+    ...config,
+    ...fallback,
+    transport: "direct",
+    model: fallback.model,
+    modelExplicit: true,
+    runtimeLlmComplete: undefined,
+    fallback: undefined,
+  };
+  if ((fallback.auth ?? config.auth ?? "api-key") === "oauth") {
+    return createOauthClient(fallbackConfig, log, warnLog);
+  }
+  if (!fallbackConfig.apiKey) {
+    (warnLog ?? log)(
+      "memory-lancedb-cip: llm-client llm.fallback is configured without an apiKey; the post-turn fallback lane stays disabled",
+    );
+    return null;
+  }
+  return createApiKeyClient(fallbackConfig, log, warnLog);
+}
+
+/**
+ * Wraps the host client so a completion the host refuses because its turn has
+ * ended is retried once on the plugin-owned fallback lane. Every other failure
+ * keeps the previous behaviour.
+ */
+function createAuthorityFallbackClient(
+  primary: LlmClient,
+  fallback: LlmClient,
+  log: (msg: string) => void,
+  warnLog?: (msg: string) => void,
+): LlmClient {
+  let lastError: string | null = null;
+
+  const runWithFallback = async <T>(
+    label: string,
+    call: (client: LlmClient) => Promise<T | null>,
+  ): Promise<T | null> => {
+    const primaryResult = await call(primary);
+    if (primaryResult !== null) {
+      lastError = null;
+      return primaryResult;
+    }
+    if (!isHostAuthorityExpiredError(primary.getLastError())) {
+      lastError = primary.getLastError();
+      return null;
+    }
+    (warnLog ?? log)(
+      `memory-lancedb-cip: llm-client [${label}] host transport refused the call after its turn ended; retrying on the configured plugin fallback lane`,
+    );
+    const fallbackResult = await call(fallback);
+    lastError = fallbackResult === null ? fallback.getLastError() : null;
+    return fallbackResult;
+  };
+
+  return {
+    completeJson: <T>(prompt: string, label = "generic", systemPrompt?: string, temperature?: number) =>
+      runWithFallback<T>(label, (client) => client.completeJson<T>(prompt, label, systemPrompt, temperature)),
+    completeText: (prompt: string, label = "generic", systemPrompt?: string, temperature?: number) =>
+      runWithFallback<string>(label, (client) => client.completeText(prompt, label, systemPrompt, temperature)),
+    getLastError: () => lastError,
+  };
+}
+
 function createApiKeyClient(config: LlmClientConfig, log: (msg: string) => void, warnLog?: (msg: string) => void): LlmClient {
   if (!config.apiKey) {
     throw new Error("LLM api-key mode requires llm.apiKey or embedding.apiKey");
@@ -899,7 +1005,11 @@ export function createLlmClient(config: LlmClientConfig): LlmClient {
   config = { ...config, thinkLevel: resolveThinkLevel(config) };
   if (config.transport === "host") {
     if (typeof config.runtimeLlmComplete === "function") {
-      return createHostClient(config, config.runtimeLlmComplete, log, warnLog);
+      const hostClient = createHostClient(config, config.runtimeLlmComplete, log, warnLog);
+      const fallbackClient = createConfiguredFallbackClient(config, log, warnLog);
+      return fallbackClient
+        ? createAuthorityFallbackClient(hostClient, fallbackClient, log, warnLog)
+        : hostClient;
     }
     if (!hostTransportFallbackWarned) {
       hostTransportFallbackWarned = true;

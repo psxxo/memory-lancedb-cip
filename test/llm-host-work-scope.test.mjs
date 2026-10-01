@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import { afterEach, describe, it } from "node:test";
 import jitiFactory from "jiti";
 
@@ -7,13 +8,14 @@ const { createLlmClient, resetHostWorkScopeCacheForTests, setHostWorkScopeCtorFo
   "../src/llm-client.ts",
 );
 
-function hostClient(runtimeComplete) {
+function hostClient(runtimeComplete, extra = {}) {
   return createLlmClient({
     transport: "host",
     model: "",
     modelExplicit: false,
     runtimeLlmComplete: runtimeComplete,
     timeoutMs: 5000,
+    ...extra,
   });
 }
 
@@ -84,5 +86,67 @@ describe("host transport async work scope", () => {
     });
     assert.deepEqual(await llm.completeJson("hello", "boom"), { memories: [] });
     assert.equal(called, 1);
+  });
+
+  describe("post-turn authority fallback", () => {
+    let server;
+    afterEach(async () => {
+      if (server) {
+        await new Promise((resolve) => server.close(resolve));
+        server = null;
+      }
+    });
+
+    async function startServer(payload) {
+      server = http.createServer(async (req, res) => {
+        for await (const _ of req) {
+          // drain
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(payload));
+      });
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      return server.address().port;
+    }
+
+    it("retries on the plugin fallback lane when the host authority has ended", async () => {
+      const port = await startServer({ choices: [{ message: { content: '{"memories":["fallback"]}' } }] });
+      let hostCalls = 0;
+      const llm = hostClient(
+        async () => {
+          hostCalls += 1;
+          throw new Error("agent tool caller authority is no longer active");
+        },
+        { fallback: { model: "fallback-model", apiKey: "***", baseURL: `http://127.0.0.1:${port}/v1`, timeoutMs: 5000 } },
+      );
+      assert.deepEqual(await llm.completeJson("hello", "authority-probe"), { memories: ["fallback"] });
+      assert.equal(hostCalls, 1);
+    });
+
+    it("does not use the fallback lane for unrelated host failures", async () => {
+      const port = await startServer({ choices: [{ message: { content: '{"memories":["fallback"]}' } }] });
+      let fallbackHits = 0;
+      server.on("request", () => {
+        fallbackHits += 1;
+      });
+      const llm = hostClient(
+        async () => {
+          throw new Error("socket hang up");
+        },
+        { fallback: { model: "fallback-model", apiKey: "***", baseURL: `http://127.0.0.1:${port}/v1`, timeoutMs: 5000 } },
+      );
+      assert.equal(await llm.completeJson("hello", "transient-probe"), null);
+      assert.equal(fallbackHits, 0);
+    });
+
+    it("keeps the host lane when no fallback is configured", async () => {
+      let hostCalls = 0;
+      const llm = hostClient(async () => {
+        hostCalls += 1;
+        throw new Error("agent tool caller authority is no longer active");
+      });
+      assert.equal(await llm.completeJson("hello", "no-fallback"), null);
+      assert.equal(hostCalls, 1);
+    });
   });
 });
