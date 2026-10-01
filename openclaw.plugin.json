@@ -2532,6 +2532,7 @@
       "memory_promote",
       "memory_explain_rank",
       "memory_reflection_resolve",
+      "memory_extract_pending",
       "self_improvement_log",
       "self_improvement_extract_skill",
       "self_improvement_review"
