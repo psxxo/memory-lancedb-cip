@@ -4,6 +4,17 @@
  */
 
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
+import {
+  EXTRACTION_TRIGGER_TOKEN,
+  STARTUP_CRON_MAX_RETRIES,
+  STARTUP_CRON_RETRY_DELAY_MS,
+  includesExtractionTriggerToken,
+  reconcileManagedExtractionCron,
+  resolveCronFromGatewayStartupEvent,
+  resolveCronServiceFromCandidate,
+  resolveExtractionCronExpr,
+  type HostCronService,
+} from "./src/extraction-cron.js";
 import { homedir, tmpdir } from "node:os";
 import { join, dirname, basename, win32 as winPath } from "node:path";
 import { readFile, readdir, writeFile, mkdir, appendFile, unlink, stat } from "node:fs/promises";
@@ -3607,6 +3618,87 @@ const memoryLanceDBCipPlugin = {
       }
     );
 
+    // ========================================================================
+    // Managed extraction cron
+    // ========================================================================
+    // The host authorizes a plugin completion against the live turn, so a
+    // post-turn extraction call is refused ("caller authority is no longer
+    // active"). This lane borrows the host's own scheduler instead of owning a
+    // credential: one managed cron job whose payload is an isolated agentTurn,
+    // so extraction runs inside a turn the host owns. Configless by default.
+    {
+      const extractionCronExpr = resolveExtractionCronExpr((config as any).extractionCron);
+      let extractionCron: HostCronService | null = null;
+      let extractionCronRetryTimer: ReturnType<typeof setInterval> | null = null;
+      let extractionCronRetries = 0;
+
+      const reconcileExtractionCron = async (label: string) => {
+        if (!extractionCron) return;
+        try {
+          const result = await reconcileManagedExtractionCron({
+            cron: extractionCron,
+            enabled: true,
+            cronExpr: extractionCronExpr,
+            logger: api.logger,
+          });
+          if (result.status === "added" || result.status === "updated") {
+            api.logger.info(`memory-lancedb-cip: managed extraction cron ${result.status} (${label})`);
+          }
+        } catch (err) {
+          api.logger.warn(`memory-lancedb-cip: extraction cron reconcile failed: ${String(err)}`);
+        }
+      };
+
+      const stopExtractionCronRetries = () => {
+        if (extractionCronRetryTimer) {
+          clearInterval(extractionCronRetryTimer);
+          extractionCronRetryTimer = null;
+        }
+      };
+
+      const scheduleExtractionCronRetries = () => {
+        if (extractionCronRetryTimer) return;
+        extractionCronRetries = 0;
+        extractionCronRetryTimer = setInterval(() => {
+          extractionCronRetries += 1;
+          if (extractionCronRetries > STARTUP_CRON_MAX_RETRIES) {
+            stopExtractionCronRetries();
+            api.logger.warn(
+              "memory-lancedb-cip: extraction cron service unavailable after retries; extraction stays queued until it appears",
+            );
+            return;
+          }
+          const resolved =
+            resolveCronServiceFromCandidate((globalThis as any).__openclawCronService) ??
+            resolveCronServiceFromCandidate((globalThis as any).openclawCron);
+          if (resolved) {
+            extractionCron = resolved;
+            stopExtractionCronRetries();
+            void reconcileExtractionCron("retry");
+          }
+        }, STARTUP_CRON_RETRY_DELAY_MS);
+        const timer = extractionCronRetryTimer as unknown as { unref?: () => void };
+        if (typeof timer?.unref === "function") timer.unref();
+      };
+
+      api.on("gateway_start", (event: any, ctx: any) => {
+        const candidate =
+          resolveCronFromGatewayStartupEvent(event) ??
+          resolveCronServiceFromCandidate(typeof ctx?.getCron === "function" ? ctx.getCron() : null);
+        if (candidate) {
+          extractionCron = candidate;
+          void reconcileExtractionCron("startup");
+        } else {
+          api.logger.warn("memory-lancedb-cip: gateway_start without a cron service; scheduling retries");
+          scheduleExtractionCronRetries();
+        }
+      });
+
+      api.on("gateway_stop", () => {
+        stopExtractionCronRetries();
+      });
+    }
+
     // Auto-compaction at gateway_start (if enabled, respects cooldown)
     if (config.memoryCompaction?.enabled) {
       api.on("gateway_start", () => {
@@ -5253,6 +5345,42 @@ const memoryLanceDBCipPlugin = {
       };
 
       api.on("agent_end", agentEndAutoCaptureHook);
+
+      // The managed extraction cron fires an isolated agentTurn carrying the
+      // trigger token. Handle it inside that live turn (the host owns it), so
+      // the extraction completion rides valid authority instead of a finished
+      // turn's.
+      api.on("before_agent_reply", async (event: any, ctx: any) => {
+        const body = event?.cleanedBody ?? event?.body ?? "";
+        if (!includesExtractionTriggerToken(body)) return;
+        if (event?.trigger === "heartbeat") return;
+        const pendingSessions = [...autoCaptureDeferredFlushTurns.keys()];
+        if (pendingSessions.length === 0) {
+          return { handled: true, reason: "memory-lancedb-cip: nothing queued to extract" };
+        }
+        let flushed = 0;
+        for (const pendingSessionKey of pendingSessions) {
+          try {
+            await agentEndAutoCaptureHook(
+              {
+                success: true,
+                messages: [],
+                sessionKey: pendingSessionKey,
+                __autoCaptureTerminalFlush: true,
+                __autoCaptureTerminalBoundary: false,
+              } as any,
+              ctx as any,
+            );
+            flushed += 1;
+          } catch (err) {
+            api.logger.warn(
+              `memory-lancedb-cip: scheduled extraction flush failed for ${pendingSessionKey}: ${String(err)}`,
+            );
+          }
+        }
+        api.logger.info(`memory-lancedb-cip: scheduled extraction flushed ${flushed} session(s)`);
+        return { handled: true, reason: `memory-lancedb-cip: extraction flushed for ${flushed} session(s)` };
+      });
 
       // A session that ends below extractMinMessages would otherwise strand its
       // deferred texts (requeued ingress or rolled-back history) forever, losing

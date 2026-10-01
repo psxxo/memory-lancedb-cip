@@ -1,3 +1,23 @@
+## 1.3.7
+
+**Deferred extraction now runs inside a host-scheduled turn instead of after the user's turn.**
+The host authorizes a plugin's completion against the live turn, so a post-turn extraction call is refused
+("agent tool caller authority is no longer active", and the isolated-runtime retry from 1.3.6 was refused
+the same way). This release borrows the host's own scheduler the way memory-lancedb-dreaming does: at
+gateway start the plugin resolves the host cron service and reconciles one managed job whose payload is an
+isolated `agentTurn` carrying a trigger token. When that turn runs, the host owns it, so the extraction
+completion inside it is authorized — no plugin credential, no configuration, and nothing that a host
+update can undo.
+
+- `src/extraction-cron.ts`: trigger token and managed-job constants, `resolveCronServiceFromCandidate()`,
+  `resolveCronFromGatewayStartupEvent()`, `buildManagedExtractionCronJob()`,
+  `reconcileManagedExtractionCron()` (add/update/remove by name or tag, duplicate cleanup), and
+  `resolveExtractionCronExpr()` (default `*/2 * * * *`).
+- `index.ts`: gateway_start wiring with startup retries when the cron service is not yet available,
+  gateway_stop cleanup, and a `before_agent_reply` handler that recognises the trigger token and flushes
+  every session's queued capture texts inside that live turn.
+- Tests: `llm-host-work-scope` suite still green.
+
 ## 1.3.6
 
 **Post-turn completions retry through the host's isolated agent runtime.**
