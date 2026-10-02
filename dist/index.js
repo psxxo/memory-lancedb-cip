@@ -67,7 +67,97 @@ import { analyzeIntent, applyCategoryBoost } from "./src/intent-analyzer.js";
 import { createOpenClawMemoryCapability } from "./src/openclaw-memory-capability.js";
 import { CanonicalCorpusIndexer, parseCanonicalCorpusConfig, } from "./src/corpus-indexer.js";
 import { computeNextDreamingDelayMs, createDreamingEngine, normalizeDreamingConfig, } from "./src/dreaming-engine.js";
-const SUPPORTED_SECRET_REF_SOURCES = ["env", "file"];
+const SUPPORTED_SECRET_REF_SOURCES = ["env", "file", "store"];
+/**
+ * Values resolved from the shared secret store (`{ source: "store" }`).
+ *
+ * The host's resolver (`openclaw/plugin-sdk/secret-ref-runtime`) is async while
+ * this plugin's credential accessors are synchronous, so store values are
+ * primed once asynchronously and then read from this cache. A store ref that has
+ * not been primed yet fails closed with a clear message — it never borrows an
+ * ambient credential and never substitutes a built-in value.
+ */
+const storeSecretCache = new Map();
+/** Cache key for a store ref (provider defaults to "default", like the host). */
+function storeSecretCacheKey(ref) {
+    return `${(ref.provider ?? "default").trim() || "default"}:${ref.id.trim()}`;
+}
+/** Collect every `{ source: "store" }` ref anywhere in a config object. */
+export function collectStoreSecretRefs(value, out = [], seen = new Set()) {
+    if (!value || typeof value !== "object" || seen.has(value))
+        return out;
+    seen.add(value);
+    if (Array.isArray(value)) {
+        for (const item of value)
+            collectStoreSecretRefs(item, out, seen);
+        return out;
+    }
+    const rec = value;
+    if (rec.source === "store" && typeof rec.id === "string" && rec.id.trim().length > 0) {
+        out.push({
+            source: "store",
+            provider: typeof rec.provider === "string" ? rec.provider : undefined,
+            id: rec.id.trim(),
+        });
+        return out;
+    }
+    for (const item of Object.values(rec))
+        collectStoreSecretRefs(item, out, seen);
+    return out;
+}
+/**
+ * Resolve every configured store SecretRef through the host's public resolver
+ * and cache the values. Best effort: on any failure the cache is left as-is, so
+ * the ref keeps failing closed with a readable message.
+ */
+export async function primeStoreSecretRefs(api, config) {
+    const refs = collectStoreSecretRefs(config);
+    if (refs.length === 0)
+        return;
+    let runtimeConfig;
+    try {
+        runtimeConfig = api?.runtime?.config?.current?.();
+    }
+    catch {
+        runtimeConfig = undefined;
+    }
+    if (!runtimeConfig)
+        return;
+    let resolveValues;
+    try {
+        const mod = (await import("openclaw/plugin-sdk/secret-ref-runtime"));
+        if (typeof mod?.resolveSecretRefValues === "function")
+            resolveValues = mod.resolveSecretRefValues;
+    }
+    catch {
+        resolveValues = undefined;
+    }
+    if (!resolveValues)
+        return;
+    for (const ref of refs) {
+        const key = storeSecretCacheKey(ref);
+        if (storeSecretCache.has(key))
+            continue;
+        try {
+            // Resolve one ref at a time so the returned map key never has to be known.
+            const resolved = await resolveValues([ref], { config: runtimeConfig });
+            const value = [...resolved.values()][0];
+            if (typeof value === "string" && value.length > 0)
+                storeSecretCache.set(key, value);
+        }
+        catch {
+            /* keep failing closed */
+        }
+    }
+}
+/** Test hook: the primed store-secret cache. */
+export function __getStoreSecretCacheForTests() {
+    return storeSecretCache;
+}
+/** Test hook: resolve through the plugin's own SecretRef path. */
+export function __resolveSecretRefForTests(api, ref, label) {
+    return resolveSecretRef(api, ref, label);
+}
 // ============================================================================
 // Default Configuration
 // ============================================================================
@@ -129,6 +219,13 @@ function resolveSecretRef(api, ref, label) {
             if (!value)
                 throw new Error(`file ${filePath} is empty`);
             return value;
+        }
+        if (source === "store") {
+            const cached = storeSecretCache.get(storeSecretCacheKey(ref));
+            if (cached !== undefined)
+                return cached;
+            throw new Error(`shared-store secret "${id}" is not resolved yet (the store lane resolves asynchronously at startup); `
+                + "refusing to substitute an ambient credential or a built-in value");
         }
         const exhaustive = source;
         throw new Error(`unsupported SecretRef source "${exhaustive}"`);
@@ -1850,6 +1947,9 @@ function _initPluginState(api) {
     // is the machine-checkable conclusion surfaced by `memory-cip doctor`.
     const loadStartedAt = Date.now();
     const config = parsePluginConfig(api.pluginConfig);
+    // Store-backed SecretRefs resolve asynchronously through the host; fire the
+    // prime early so the cache is populated by the time a lane needs it.
+    void primeStoreSecretRefs(api, config);
     // Bounded/observable load: warn when synchronous init exceeds this threshold.
     const loadWarnAfterMs = config.storage?.loadWarnAfterMs ?? 2000;
     const generationModel = resolveGenerationModel(config);
