@@ -1,3 +1,47 @@
+## 1.5.1
+
+**Raw-tier hardening: the index no longer cancels the payload gain, per-block frames share a
+host-trained zstd dictionary, raw files move into the plugin data dir, and the extraction lane now
+stamps provenance.** Live-measured on the same 12-block sample (9967 raw bytes) that 1.5.0 wrote.
+
+- INDEX v2 — compact framed index. The ~197-byte-per-block JSONL is replaced by an append-only
+  sequence of length-prefixed zstd frames of compact JSON with per-frame string tables. On the
+  sample the index fell **2362 → 410 bytes** (~34 bytes/block, **5.8× smaller**); index overhead
+  fell from ~24% to ~4%. A torn tail frame is skipped; every frame is self-contained, so appends
+  from different plugin generations cannot interleave a read-modify-write.
+- COMPRESSION — zstd level 19 and a trained dictionary. Node ignores `zstdCompressSync`'s `level`
+  option, so the level is set through `params: { 100: 19 }` (ZSTD_c_compressionLevel). Blocks may
+  be written against a trained dictionary stored as `raw-blocks.dict.<hash>` with the pointer
+  `raw-blocks.dict.current`; every block records the dictionary it used, and a missing dictionary
+  degrades to a plain frame rather than losing the block. `scripts/train-raw-dict.mjs` trains it on
+  this host's conversation text.
+- PLACEMENT — raw files now live in the plugin data dir (beside `memories.lance`), not one level
+  up. The 1.5.0 files are migrated once on load into the new location and left in place.
+- PROVENANCE — the extraction lane (`src/smart-extractor.ts`) now stamps `rawBlockIds` onto the
+  distilled entries it creates, derived from the same (sessionKey, role, text) hash the raw writer
+  uses, so a summary names the raw blocks it came from.
+
+**Measured on the live 12-block sample** (raw 9967 bytes; baseline 1.5.0: payload 7211 + index 2362
+= 9573, 1.04×):
+
+| variant | payload | index | net | net ratio |
+| --- | --- | --- | --- | --- |
+| 1.5.0 (JSONL index, no dict) | 7211 | 2362 | 9573 | 1.04× |
+| 1.5.1, no dictionary | 6742 | 400 | 7142 | 1.40× |
+| 1.5.1, holdout dictionary (sample excluded) | 4691 | 410 | 5101 | **1.95×** |
+| 1.5.1, dictionary trained on all host text incl. the sample | 3464 | 408 | 3872 | 2.57× |
+
+Honest read: the index problem is fixed (5.8× smaller index) and the payload improves from 1.38×
+to 2.12× with a holdout dictionary; net is 1.95× on this deliberately small, assistant-heavy
+sample — essentially at 2× but not clearly above it. Cross-block redundancy is real (whole-stream
+level-19 on the same corpus compresses 2.13×) and only a dictionary can recover it per block, but
+the 12-block sample gives a dictionary little prior context. Net exceeds 2× (2.57×) only when the
+dictionary has seen the evaluated text. Full live-corpus numbers and smaller-sample numbers are in
+RAW-FIRST-DESIGN.md.
+
+Files: `src/raw-store.ts`, `src/smart-extractor.ts`, `scripts/train-raw-dict.mjs` (new),
+`test/raw-block-store.test.mjs`, `test/raw-store-index-dict.test.mjs` (new).
+
 ## 1.5.0
 
 **Raw-first, two-tier memory: every turn is stored verbatim and nothing deletes it.** Storage no

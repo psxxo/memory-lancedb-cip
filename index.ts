@@ -64,12 +64,7 @@ import {
   decideTurnStartDrain,
   resolveTurnSessionKey,
 } from "./src/turn-start-drain.js";
-import {
-  RawBlockStore,
-  formatRawWriteLog,
-  resolveRawBlockBlobPath,
-  resolveRawBlockIndexPath,
-} from "./src/raw-store.js";
+import { RawBlockStore, formatRawWriteLog } from "./src/raw-store.js";
 import { decideDrillDown, formatDrillDownLog } from "./src/drill-down.js";
 import { parseRawBlockIdsFromMetadata } from "./src/provenance.js";
 import { ManualEchoLedger } from "./src/manual-echo-guard.js";
@@ -3500,14 +3495,14 @@ const memoryLanceDBCipPlugin = {
 
     // Raw tier of the two-tier memory store (RAW-FIRST-DESIGN.md): verbatim,
     // append-only, immutable, one zstd blob per block under the plugin data dir.
-    const rawBlockStore = new RawBlockStore(
-      resolveRawBlockBlobPath(dirname(resolvedDbPath)),
-      resolveRawBlockIndexPath(dirname(resolvedDbPath)),
-      {
-        onError: (message) =>
-          api.logger.warn("memory-lancedb-cip: raw block store error: " + message),
-      },
-    );
+    // Raw files live in the plugin data dir itself (beside memories.lance).
+    // legacyDir imports the 1.5.0 files that were written one level up.
+    const rawBlockStore = new RawBlockStore(resolvedDbPath, {
+      legacyDir: dirname(resolvedDbPath),
+      onError: (message) =>
+        api.logger.warn("memory-lancedb-cip: raw block store error: " + message),
+      onLog: (message) => api.logger.info(message),
+    });
 
     const logReg = isCliMode() ? api.logger.debug : api.logger.info;
     if (isFirstRegistration) {
@@ -4870,7 +4865,7 @@ const memoryLanceDBCipPlugin = {
             if (rawInputs.length > 0) {
               const rawResult = await rawBlockStore.append(rawInputs);
               if (rawResult.stored.length > 0 || rawResult.skipped > 0) {
-                api.logger.info(formatRawWriteLog(rawResult, { sessionKey, agentId }));
+                api.logger.info(formatRawWriteLog(rawResult, { sessionKey, agentId, dictHash: rawBlockStore.dictionaryHash }));
               }
             }
           } catch (error) {

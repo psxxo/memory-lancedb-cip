@@ -176,6 +176,7 @@ export const CI_TEST_MANIFEST = [
   { group: "core-regression", runner: "node", file: "test/raw-block-store.test.mjs", args: ["--test"] },
   { group: "core-regression", runner: "node", file: "test/provenance-mandatory.test.mjs", args: ["--test"] },
   { group: "core-regression", runner: "node", file: "test/drill-down-decision.test.mjs", args: ["--test"] },
+  { group: "storage-and-schema", runner: "node", file: "test/raw-store-index-dict.test.mjs", args: ["--test"] },
 ];
 
 export function getEntriesForGroup(group) {

@@ -6,6 +6,7 @@
  *
  */
 import { buildExtractionPrompt, buildDedupPrompt, buildGroundingRejudgePrompt, buildMergePrompt, buildBatchDedupPrompt, buildBatchMergePrompt, } from "./extraction-prompts.js";
+import { rawBlockId } from "./raw-store.js";
 import { formatExistingMemoryEntry } from "./prompt-blocks.js";
 import { ALWAYS_MERGE_CATEGORIES, FICTION_JUDGED_CATEGORIES, FICTION_UNCONDITIONAL_DROP_CATEGORIES, REGISTER_STRICTNESS, getStorageCategoryForMemoryCategory, MERGE_SUPPORTED_CATEGORIES, TEMPORAL_VERSIONED_CATEGORIES, normalizeCategory, } from "./memory-categories.js";
 import { isMetaFrustrationNoise, isNoise } from "./noise-filter.js";
@@ -328,6 +329,43 @@ function normalizeRegisterToken(value) {
 // ============================================================================
 // Constants
 // ============================================================================
+/**
+ * Provenance for a distilled entry: the raw block ids of the turns the
+ * extraction read. Derived from the same (sessionKey, role, text) hash the raw
+ * writer uses, so a summary can always name the raw blocks it came from.
+ */
+export function resolveExtractionProvenance(sessionKey, turns) {
+    if (!sessionKey || !Array.isArray(turns) || turns.length === 0)
+        return [];
+    const ids = [];
+    const seen = new Set();
+    for (const turn of turns) {
+        if (!turn || typeof turn.text !== "string" || turn.text.length === 0)
+            continue;
+        if (turn.role !== "user" && turn.role !== "assistant")
+            continue;
+        const id = rawBlockId({ sessionKey, role: turn.role, text: turn.text });
+        if (!seen.has(id)) {
+            seen.add(id);
+            ids.push(id);
+        }
+    }
+    return ids;
+}
+/** Merge the mandatory provenance link into a distilled entry's metadata. */
+export function withRawBlockIds(metadata, rawBlockIds) {
+    if (!rawBlockIds || rawBlockIds.length === 0)
+        return metadata ?? "{}";
+    let parsed = {};
+    try {
+        parsed = metadata ? JSON.parse(metadata) : {};
+    }
+    catch {
+        parsed = {};
+    }
+    parsed.rawBlockIds = rawBlockIds;
+    return JSON.stringify(parsed);
+}
 const SIMILARITY_THRESHOLD = 0.7;
 const NO_SIMILAR_MEMORIES_REASON = "No similar memories found";
 // Burst-lane identity of a row's serialized metadata: the mapped kind wins,
@@ -687,7 +725,8 @@ export class SmartExtractor {
         // past MERGE_BATCH_MAX_SIZE. Zero queued merges → zero writer calls.
         await this.flushPendingMerges(pendingMerges, stats);
         if (createEntries.length > 0) {
-            const createdEntries = await this.bulkStoreAndValidate(createEntries);
+            const provenanceRawBlockIds = resolveExtractionProvenance(sessionKey, options.conversationTurns);
+            const createdEntries = await this.bulkStoreAndValidate(createEntries, provenanceRawBlockIds);
             if (createdEntries) {
                 await this.applyPendingSupersedeInvalidations(createEntries, createdEntries, pendingSupersedeInvalidations, stats);
                 for (const created of createdEntries) {
@@ -1088,7 +1127,12 @@ export class SmartExtractor {
     // --------------------------------------------------------------------------
     // Embedding Noise Pre-Filter
     // --------------------------------------------------------------------------
-    async bulkStoreAndValidate(entries) {
+    async bulkStoreAndValidate(entries, provenanceRawBlockIds) {
+        if (provenanceRawBlockIds && provenanceRawBlockIds.length > 0) {
+            for (const entry of entries) {
+                entry.metadata = withRawBlockIds(typeof entry.metadata === "string" ? entry.metadata : undefined, provenanceRawBlockIds);
+            }
+        }
         const beforeCount = await this.readStoreCount("before bulkStore");
         const storedEntries = await this.store.bulkStore(entries);
         if (!Array.isArray(storedEntries)) {

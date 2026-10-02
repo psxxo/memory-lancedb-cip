@@ -131,3 +131,75 @@ requires. Larger real message blocks compress better than the 992-byte average.
 - Not yet proven on the real host: the disk delta over a day of live traffic (the design's own
   verification requirement), and the drill-down trigger mix / raw-detail injection in live recall.
   Both need a live turn to measure; do not claim them.
+
+## 1.5.1: index compaction, trained dictionary, placement (measured 2026-10-02)
+
+The 1.5.0 raw tier worked live, but two problems limited it and one placement was wrong.
+
+### Storage layout (1.5.1)
+
+Raw files now live in the plugin data dir itself - the directory that holds `memories.lance` -
+not one level up:
+
+- `raw-blocks.zst` - concatenated per-block zstd frames (the payload, unchanged idea).
+- `raw-blocks.index.zst` - append-only framed index: a sequence of
+  `[u32 little-endian frameLength][zstd frame]`, each frame one append batch of compact JSON with
+  per-frame string tables (`{"s":[...],"a":[...],"dh":"<dictHash>","b":[[id,si,ai,rb,ts,o,l,n,mid],...]}`).
+  Frames are compressed without a dictionary and are self-contained, so any plugin generation can
+  append safely; a torn final frame reads short and is skipped while every earlier frame still
+  loads. Fetching one block still reads exactly `[offset, offset+length)` - O(1), independent.
+- `raw-blocks.dict.<hash>` + `raw-blocks.dict.current` - a trained zstd dictionary and its
+  pointer. Each block records the dictionary hash it used, so retraining never breaks old blocks;
+  a missing dictionary falls back to a plain frame.
+
+The 1.5.0 files written one level up are migrated once on load into the data dir and left in place
+(nothing deletes raw bytes).
+
+### Codec
+
+zstd level 19 via `node:zlib`, set through `params: { 100: 19 }` (ZSTD_c_compressionLevel).
+Node's `zstdCompressSync` silently ignores its `level` option - all levels produce identical
+frames - so the numeric parameter is required. `scripts/train-raw-dict.mjs` trains a dictionary on
+this host's conversation text (live raw blocks by default; `--include-workspace` and
+`--include-sessions` broaden it) using the `zstd` CLI, with a raw-content fallback when the CLI is
+absent.
+
+### Measured on the same 12-block live sample (9967 raw bytes)
+
+The sample is the first 12 blocks 1.5.0 wrote: payload 7211 bytes and index 2362 bytes, net 9573
+= 1.04x on disk. 1.5.1 (real implementation, not a model of it):
+
+| variant | payload | index | net | net ratio |
+| --- | --- | --- | --- | --- |
+| 1.5.0 baseline (JSONL index, no dict) | 7211 | 2362 | 9573 | 1.04x |
+| 1.5.1, no dictionary | 6742 | 400 | 7142 | 1.40x |
+| 1.5.1, holdout dictionary (sample excluded from training) | 4691 | 410 | 5101 | **1.95x** |
+| 1.5.1, dictionary trained on all host text incl. the sample | 3464 | 408 | 3872 | 2.57x |
+
+Smaller samples (holdout dictionary): 1 block 0.17x, 3 blocks 0.51x, 6 blocks 1.94x, 12 blocks
+1.95x. The index is the fixed cost that dominates tiny samples; the payload ratio is the content
+ceiling. The dictionary itself is ~30-65 KB and is shared across the whole archive, so it must not
+be counted against a single small sample - it amortizes over every block written while it is
+current.
+
+Honest read: the index target is met (2362 -> 410 bytes, 5.8x smaller; overhead 24% -> ~4%), and
+the payload improves from 1.38x to 2.12x with a holdout dictionary. Net is 1.95x on this sample -
+at 2x but not clearly above it. Cross-block redundancy is real (whole-stream level-19 compresses
+the same corpus 2.13x, and a leave-one-out corpus dictionary reaches 2.3x payload), and only a
+dictionary recovers it per block, but a 12-block sample gives a dictionary little prior context.
+Net clearly above 2x (2.57x) is reached only when the dictionary has already seen the evaluated
+text, which is not the honest generalization case.
+
+### Provenance in the extraction lane
+
+`extractAndPersist` now computes the raw block ids of the turns it read (the same
+(sessionKey, role, text) hash the raw writer uses) and `bulkStoreAndValidate` merges them into
+each created entry's metadata as `rawBlockIds`. Distilled rows therefore name their raw source
+blocks; the reflection/mapped lane and merges of older rows are not stamped.
+
+### Still unproven after 1.5.1
+
+- The disk delta over a day of live traffic (the design's own requirement) - not measured.
+- The live drill-down trigger mix and raw-detail injection - not observed live.
+- The dictionary's steady-state benefit on a real growing archive - the 12-block sample is too
+  small to show it; expect it to rise as the dictionary's conversation context grows.
