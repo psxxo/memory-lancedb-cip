@@ -2047,12 +2047,24 @@ function _initPluginState(api) {
     // 2026-10-03: the component must contain no default model name).
     const embeddingModelConfigured = asNonEmptyString(config.embedding.model);
     if (!embeddingModelConfigured) {
+        // Fail closed, never fatal (owner directive 2026-10-03): the plugin ships no
+        // default model id, so an unconfigured embedding lane must report what to
+        // configure and keep every embedding-dependent feature OFF — it must not
+        // substitute a hidden default, and it must not throw out of register().
         const logLoudEmbed = typeof api.logger.error === "function" ? api.logger.error.bind(api.logger) : api.logger.warn.bind(api.logger);
         logLoudEmbed("memory-lancedb-cip: no embedding model configured — set embedding.model to an OpenAI-compatible "
-            + "embeddings model id (the plugin ships no default). Embedding-dependent features stay OFF until it is set.");
+            + "embeddings model id (or set embedding.dimensions). The plugin ships no default; every "
+            + "embedding-dependent feature stays OFF until it is configured.");
     }
     let resolvedDbPath = normalizeStoragePath(api.resolvePath(config.dbPath || getDefaultDbPath()));
-    const vectorDim = getEffectiveVectorDimensions(embeddingModelConfigured ?? "", config.embedding.dimensions, config.embedding.requestDimensions);
+    // No model configured: never substitute a model id. The lane is registered so
+    // the host sees a healthy plugin, but every embedding call fails closed with a
+    // readable error (see the embedder guard) until embedding.model is set. The
+    // dimension only has to be a positive number for construction; it is never used
+    // for a real write while the lane is unconfigured.
+    const vectorDim = embeddingModelConfigured
+        ? getEffectiveVectorDimensions(embeddingModelConfigured, config.embedding.dimensions, config.embedding.requestDimensions)
+        : (config.embedding.dimensions ?? config.embedding.requestDimensions ?? 1);
     const embeddingApiKey = resolveSecretCredentialArray(api, config.embedding.apiKey, "embedding.apiKey");
     const store = new MemoryStore({
         dbPath: resolvedDbPath,

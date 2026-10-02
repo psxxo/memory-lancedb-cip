@@ -470,7 +470,13 @@ export class Embedder {
         if (this.clients.length > 1) {
             console.log(`[memory-lancedb-cip] Initialized ${this.clients.length} API keys for round-robin rotation`);
         }
-        this.dimensions = getEffectiveVectorDimensions(config.model, config.dimensions, config.requestDimensions);
+        // An unconfigured model must not throw here: the plugin ships no default
+        // model id, so the constructor only needs a positive dimension and the lane
+        // fails closed on use (assertEmbeddingModelConfigured).
+        this.dimensions =
+            config.model && config.model.trim().length > 0
+                ? getEffectiveVectorDimensions(config.model, config.dimensions, config.requestDimensions)
+                : (config.requestDimensions ?? config.dimensions ?? 1);
         this._cache = new EmbeddingCache(256, 30); // 256 entries, 30 min TTL
     }
     normalizeInput(input) {
@@ -904,7 +910,19 @@ export class Embedder {
             throw chunkError;
         }
     }
+    /**
+     * Fail closed when no embedding model is configured: the plugin ships no
+     * default model id, so an unconfigured lane reports what to configure instead
+     * of substituting a hidden default (owner directive 2026-10-03).
+     */
+    assertEmbeddingModelConfigured() {
+        if (!this._model || this._model.trim().length === 0) {
+            throw new Error("memory-lancedb-cip: no embedding model configured — set embedding.model to an OpenAI-compatible "
+                + "embeddings model id (the plugin ships no default)");
+        }
+    }
     async embedSingle(text, task, depth = 0, signal) {
+        this.assertEmbeddingModelConfigured();
         if (!text || text.trim().length === 0) {
             throw new Error("Cannot embed empty text");
         }
@@ -956,6 +974,7 @@ export class Embedder {
         }
     }
     async embedMany(texts, task, signal) {
+        this.assertEmbeddingModelConfigured();
         if (!texts || texts.length === 0) {
             return [];
         }
