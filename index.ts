@@ -2560,10 +2560,19 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
   // resolves its own default, so the host catalog is not the plugin's to check.
   const hostResolvesGenerationModel =
     !generationModel.explicit && config.llm?.transport === "host";
+  // A direct lane posts to the plugin's own OpenAI-compatible endpoint, so the
+  // model is resolved there, not by the host catalog: gate only on whether that
+  // endpoint and its credential are actually configured.
+  const pluginResolvesGenerationModel =
+    config.llm?.transport !== "host"
+    && generationModel.explicit
+    && !!config.llm?.baseURL
+    && !!config.llm?.apiKey;
   const modelAvailability = evaluateGenerationModelAvailability({
     inventory: modelInventory,
     model: generationModel,
     hostResolvesModel: hostResolvesGenerationModel,
+    pluginResolvesModel: pluginResolvesGenerationModel,
   });
   const smartExtractionRequested = config.smartExtraction === true;
   const smartExtractionEnabled =

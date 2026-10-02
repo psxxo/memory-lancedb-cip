@@ -278,6 +278,14 @@ export function evaluateGenerationModelAvailability(params) {
                 + "so OpenClaw's own default model applies (nothing for the plugin to confirm)",
         };
     }
+    if (params.pluginResolvesModel) {
+        return {
+            ...base,
+            status: "available",
+            reason: "llm.transport is \"direct\" and llm.baseURL + llm.apiKey are configured: the model is "
+                + "resolved by the plugin's own endpoint, not OpenClaw's host catalog",
+        };
+    }
     if (!inventory.confirmed) {
         return {
             ...base,

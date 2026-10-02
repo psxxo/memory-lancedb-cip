@@ -329,6 +329,14 @@ export function evaluateGenerationModelAvailability(params: {
    * resolution; the host call still fails soft if it cannot resolve one.
    */
   hostResolvesModel?: boolean;
+  /**
+   * True when the model reference is resolved by the plugin's OWN endpoint
+   * (transport "direct" with llm.baseURL + llm.apiKey configured) rather than
+   * by OpenClaw's host catalog. A direct lane posts straight to that endpoint,
+   * so host-catalog membership is not the plugin's to check; the call itself
+   * fails soft (consumed texts are restored) if the endpoint rejects the model.
+   */
+  pluginResolvesModel?: boolean;
 }): GenerationModelAvailability {
   const { inventory, model } = params;
   const inventorySource = inventory.sources.length > 0 ? inventory.sources.join(", ") : "none";
@@ -344,6 +352,16 @@ export function evaluateGenerationModelAvailability(params: {
       reason:
         "no llm.model is configured and llm.transport is \"host\": the request carries no model, "
         + "so OpenClaw's own default model applies (nothing for the plugin to confirm)",
+    };
+  }
+
+  if (params.pluginResolvesModel) {
+    return {
+      ...base,
+      status: "available",
+      reason:
+        "llm.transport is \"direct\" and llm.baseURL + llm.apiKey are configured: the model is "
+        + "resolved by the plugin's own endpoint, not OpenClaw's host catalog",
     };
   }
 
