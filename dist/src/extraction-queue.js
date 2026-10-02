@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, open, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 /**
  * Durable mirror of the pending-extraction queue.
@@ -40,6 +40,29 @@ function recordToTurn(record) {
     return turn;
 }
 /**
+ * Best-effort fsync of a path so a just-written queue line survives a crash.
+ * The queue is the extraction source of truth, so its writes are synced; a
+ * failure here stays non-fatal to honor the store's best-effort contract.
+ */
+async function fsyncFile(path) {
+    let handle;
+    try {
+        handle = await open(path, "r+");
+        await handle.sync();
+    }
+    catch {
+        /* best effort */
+    }
+    finally {
+        try {
+            await handle?.close();
+        }
+        catch {
+            /* best effort */
+        }
+    }
+}
+/**
  * JSONL-backed queue of conversation turns awaiting scheduled extraction.
  *
  * Writes go through {@link PendingExtractionQueueStore.serialize} so concurrent
@@ -54,6 +77,7 @@ export class PendingExtractionQueueStore {
     maxEntries;
     maxBytes;
     onError;
+    onTrim;
     chain = Promise.resolve();
     constructor(filePath, options = {}) {
         this.filePath = filePath;
@@ -64,6 +88,7 @@ export class PendingExtractionQueueStore {
             ? Math.floor(options.maxBytes)
             : DEFAULT_PENDING_EXTRACTION_QUEUE_MAX_BYTES;
         this.onError = options.onError;
+        this.onTrim = options.onTrim;
     }
     get path() {
         return this.filePath;
@@ -113,6 +138,7 @@ export class PendingExtractionQueueStore {
                 await mkdir(dirname(this.filePath), { recursive: true });
                 const payload = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
                 await appendFile(this.filePath, payload, "utf8");
+                await fsyncFile(this.filePath);
                 await this.enforceCaps();
             }
             catch (error) {
@@ -210,11 +236,14 @@ export class PendingExtractionQueueStore {
         await mkdir(dirname(this.filePath), { recursive: true });
         if (lines.length === 0) {
             await writeFile(this.filePath, "", "utf8");
+            await fsyncFile(this.filePath);
             return;
         }
         const tempPath = `${this.filePath}.${process.pid}.tmp`;
         await writeFile(tempPath, lines.join("\n") + "\n", "utf8");
+        await fsyncFile(tempPath);
         await rename(tempPath, this.filePath);
+        await fsyncFile(this.filePath);
     }
     /** Bound the file by entry count and byte size, dropping the oldest records. */
     async enforceCaps() {
@@ -238,7 +267,19 @@ export class PendingExtractionQueueStore {
             }
             kept = kept.slice(start);
         }
-        if (trimmed)
-            await this.writeLines(kept);
+        if (!trimmed)
+            return;
+        const dropped = lines.length - kept.length;
+        await this.writeLines(kept);
+        try {
+            this.onTrim?.({
+                dropped,
+                entries: kept.length,
+                bytes: Buffer.byteLength(kept.join("\n") + "\n", "utf8"),
+            });
+        }
+        catch {
+            /* diagnostics must never throw */
+        }
     }
 }
