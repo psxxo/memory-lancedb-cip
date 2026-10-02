@@ -1,3 +1,24 @@
+## 1.6.0
+
+**Plugin-owned LLM lane + no built-in model defaults.** The generation lane can resolve its
+credential from the host's shared secret store and is now built lazily; the plugin ships no default
+model id of its own, and an unconfigured lane follows the host default instead of silently
+substituting one.
+
+- SECRETS — SecretRefs accept `{source: "store"}` (shared secret store): values are primed once
+  asynchronously through the host's public resolver and read from a cache, failing closed with a
+  readable message when unresolved. The manifest's SecretRef source enum now includes `store`.
+- LANE — the LLM client is built lazily, so a store-backed `llm.apiKey` resolves after the prime.
+  `llm.transport` now defaults to `host`: an unconfigured plugin follows the host's own default
+  model rather than disabling smart extraction.
+- CONFIG — the built-in default embedding model id is gone. An unconfigured `embedding.model` logs
+  an actionable configuration-required notice and reports as unconfigured; the host-default lane
+  also announces explicitly that no `llm.model` is configured.
+- QUEUE — pending-extraction queue writes are fsynced, and cap trims are reported through
+  `onTrim` instead of dropping the oldest records silently.
+- GATE — load-safety learns `pluginResolvesModel`: a direct lane with `baseURL` + `apiKey` is
+  resolved by the plugin's own endpoint and is no longer judged against the host model catalog.
+
 ## 1.5.4
 
 **Ships the finalised system-status dashboard widget asset and the session-start nudge module.**

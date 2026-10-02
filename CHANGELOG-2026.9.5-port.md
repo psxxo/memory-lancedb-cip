@@ -1,3 +1,8 @@
+## 1.6.0
+
+Plugin-owned LLM lane (shared-store SecretRefs, lazy client build, `llm.transport` defaulting to
+`host`) and the removal of built-in model defaults; see `CHANGELOG.md`.
+
 ## 1.5.2
 
 Complete raw-block provenance propagation for the summary tier; see `CHANGELOG.md`. Every

@@ -504,6 +504,14 @@ export async function primeStoreSecretRefs(api: unknown, config: unknown): Promi
 let storePrimeSettled: Promise<void> = Promise.resolve();
 
 /**
+ * Whether this host exposes its own completion surface (api.runtime.llm.complete).
+ * Set during register(). The host-following default for an unset llm.transport is
+ * only meaningful where that surface exists; otherwise the historical direct
+ * behaviour applies, so the lane still works and its host fallback never throws.
+ */
+let hostRuntimeLlmAvailable = false;
+
+/**
  * A thin proxy over a lazily-built LLM client whose credential may come from the
  * shared store. The first call awaits the store prime, then builds and caches
  * the real client. env/file/literal credentials never go through this path.
@@ -679,8 +687,20 @@ function resolveEmbeddingModelLabel(config: { embedding?: { model?: unknown } | 
  * requires its own model/baseURL/apiKey. (Owner requirement 2026-10-03: not
  * custom-configured ⇒ automatically follow the system default.)
  */
-function resolveLlmTransport(config: { llm?: { transport?: unknown } | undefined }): "direct" | "host" {
-  return config.llm?.transport === "direct" ? "direct" : "host";
+function resolveLlmTransport(config: {
+  llm?: { transport?: unknown; model?: unknown; baseURL?: unknown; apiKey?: unknown } | undefined;
+}): "direct" | "host" {
+  const explicit = config.llm?.transport;
+  if (explicit === "direct" || explicit === "host") return explicit;
+  // Unset: a fully configured direct lane stays direct; otherwise follow the
+  // host's own default model (no model id or credential of our own) — but only
+  // where the host actually exposes its completion surface.
+  const hasDirectLane =
+    Boolean(asNonEmptyString(config.llm?.model))
+    && Boolean(config.llm?.baseURL)
+    && Boolean(config.llm?.apiKey);
+  if (hasDirectLane) return "direct";
+  return hostRuntimeLlmAvailable ? "host" : "direct";
 }
 
 function resolveOptionalPathWithEnv(
@@ -2690,6 +2710,7 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
   // Store-backed SecretRefs resolve asynchronously through the host; fire the
   // prime early so the cache is populated by the time a lane needs it.
   storePrimeSettled = primeStoreSecretRefs(api, config).catch(() => undefined);
+  hostRuntimeLlmAvailable = typeof resolveRuntimeLlmComplete(api) === "function";
   // Bounded/observable load: warn when synchronous init exceeds this threshold.
   const loadWarnAfterMs = config.storage?.loadWarnAfterMs ?? 2000;
   const generationModel = resolveGenerationModel(config);

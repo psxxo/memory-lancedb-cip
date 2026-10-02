@@ -2,7 +2,7 @@
   "id": "memory-lancedb-cip",
   "name": "Memory (LanceDB CIP)",
   "description": "Enhanced LanceDB-backed long-term memory with hybrid retrieval, multi-scope isolation, long-context chunking, and management CLI",
-  "version": "1.5.4",
+  "version": "1.6.0",
   "kind": "memory",
   "skills": [
     "./skills"
@@ -54,6 +54,7 @@
                     "type": "string",
                     "enum": [
                       "env",
+                      "store",
                       "file"
                     ]
                   },
@@ -86,6 +87,7 @@
                           "type": "string",
                           "enum": [
                             "env",
+                            "store",
                             "file"
                           ]
                         },
@@ -729,6 +731,7 @@
                     "type": "string",
                     "enum": [
                       "env",
+                      "store",
                       "file"
                     ]
                   },
@@ -1624,6 +1627,7 @@
                     "type": "string",
                     "enum": [
                       "env",
+                      "store",
                       "file"
                     ]
                   },
