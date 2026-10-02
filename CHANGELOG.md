@@ -1,3 +1,22 @@
+## 1.5.2
+
+**Provenance propagation is now complete: every distilled row a create path mints carries its
+raw-block link, not just the primary extraction lane.**
+
+- SECONDARY CREATE PATHS — `SmartExtractor.persistGatedCandidates` (the reflection/mapped-row
+  lane) now derives the same `(sessionKey, role, text)` raw-block ids the primary lane does and
+  passes them through both of its `bulkStoreAndValidate` calls: the main mapped-row create and the
+  deferred-verdict follow-up create. Previously both stored rows with no link, so those summaries
+  could not be drilled back to their raw source.
+- CALLER WIRING — the reflection hook rebuilds the ordered turns behind its tagged transcript
+  (`parseTaggedTranscriptTurns`) and hands them to `persistGatedCandidates` as
+  `conversationTurns`, re-applying the raw writer's own normalization so the derived ids resolve
+  to blocks that were actually stored.
+- Read side and `src/provenance.ts` are unchanged; a caller that supplies no turns still stores
+  rows unstamped, so older/unlinked callers stay readable.
+
+Files: `src/smart-extractor.ts`, `index.ts`, `test/reflection-mapped-provenance.test.mjs` (new).
+
 ## 1.5.1
 
 **Raw-tier hardening: the index no longer cancels the payload gain, per-block frames share a

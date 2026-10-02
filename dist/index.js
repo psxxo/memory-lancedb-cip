@@ -933,6 +933,28 @@ function summarizeRecentConversationMessages(messages, messageCount, format = "t
     }
     return formatConversationTranscript(recent);
 }
+/**
+ * Rebuilds the ordered turns behind a tagged reflection transcript so the
+ * distilled rows minted from it can name their raw source blocks. Mirrors
+ * formatConversationTranscript in reverse (role tag + per-turn speaker-tag
+ * neutralization) and re-applies the raw writer's own normalization, so the
+ * derived raw-block ids resolve to the blocks that were actually stored.
+ * Unparseable input yields no turns rather than a wrong link.
+ */
+function parseTaggedTranscriptTurns(transcript) {
+    if (!transcript)
+        return [];
+    const turns = [];
+    const block = /<(user_message|assistant_message)>\n([\s\S]*?)\n<\/(?:user_message|assistant_message)>/g;
+    let match;
+    while ((match = block.exec(transcript)) !== null) {
+        const role = match[1] === "user_message" ? "user" : "assistant";
+        const normalized = normalizeAutoCaptureText(role, match[2], shouldSkipReflectionMessage);
+        if (normalized)
+            turns.push({ role, text: normalized });
+    }
+    return turns;
+}
 const SESSION_MEMORY_RECORD_RE = /^(user|assistant): (".*")$/;
 /**
  * Hosts on SQLite session storage no longer expose a transcript file to plugins;
@@ -5424,6 +5446,10 @@ const memoryLanceDBCipPlugin = {
                             scopeFilter: [targetScope],
                             agentId: ownerAgentId,
                             conversationText: conversation,
+                            // Provenance for the mapped-row creates: the same departing
+                            // transcript, parsed back into turns, so every distilled row
+                            // names the raw blocks it was read from.
+                            conversationTurns: parseTaggedTranscriptTurns(conversation),
                         });
                         api.logger.info(`memory-reflection: mapped rows through uniform pipeline: ${gatedResult.createdEntries.length} created, ${gatedResult.stats.merged} merged, ${gatedResult.stats.skipped} skipped`);
                         if (mdMirror) {

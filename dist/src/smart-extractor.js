@@ -774,6 +774,10 @@ export class SmartExtractor {
         const targetScope = options.targetScope;
         const scopeFilter = options.scopeFilter ?? [targetScope];
         const conversationText = options.conversationText ?? "";
+        // Same provenance derivation as the primary create path: the ids name the
+        // raw blocks these distilled rows were read from, derived from the same
+        // (sessionKey, role, text) hash the raw writer used.
+        const provenanceRawBlockIds = resolveExtractionProvenance(sessionKey, options.conversationTurns);
         for (const item of items) {
             const prebuilt = item.buildEntry(item.vector);
             this.externalEntryBuilders.set(item.candidate, {
@@ -980,7 +984,7 @@ export class SmartExtractor {
         await this.flushPendingMerges(pendingMerges, stats, createEntries);
         let createdEntries = [];
         if (createEntries.length > 0) {
-            const stored = await this.bulkStoreAndValidate(createEntries);
+            const stored = await this.bulkStoreAndValidate(createEntries, provenanceRawBlockIds);
             if (stored) {
                 createdEntries = stored;
                 await this.applyPendingSupersedeInvalidations(createEntries, stored, pendingSupersedeInvalidations, stats);
@@ -1116,7 +1120,7 @@ export class SmartExtractor {
                 await this.flushPendingMerges(followupMerges, stats, followupCreates);
             }
             if (followupCreates.length > 0) {
-                const extra = await this.bulkStoreAndValidate(followupCreates);
+                const extra = await this.bulkStoreAndValidate(followupCreates, provenanceRawBlockIds);
                 if (extra) {
                     createdEntries = createdEntries.concat(extra);
                 }

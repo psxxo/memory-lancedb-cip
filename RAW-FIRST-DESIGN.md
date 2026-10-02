@@ -190,12 +190,16 @@ dictionary recovers it per block, but a 12-block sample gives a dictionary littl
 Net clearly above 2x (2.57x) is reached only when the dictionary has already seen the evaluated
 text, which is not the honest generalization case.
 
-### Provenance in the extraction lane
+### Provenance on every create path
 
-`extractAndPersist` now computes the raw block ids of the turns it read (the same
+`extractAndPersist` computes the raw block ids of the turns it read (the same
 (sessionKey, role, text) hash the raw writer uses) and `bulkStoreAndValidate` merges them into
-each created entry's metadata as `rawBlockIds`. Distilled rows therefore name their raw source
-blocks; the reflection/mapped lane and merges of older rows are not stamped.
+each created entry's metadata as `rawBlockIds`. `SmartExtractor.persistGatedCandidates` — the
+reflection/mapped-row lane — derives the same ids and stamps them on both of its create paths
+(the main mapped-row create and the deferred-verdict follow-up create); the reflection hook
+passes the departing transcript's turns in as `conversationTurns`. Distilled rows therefore name
+their raw source blocks on every create path; merges of older rows are still not stamped (the
+merge target keeps its own link).
 
 ### Still unproven after 1.5.1
 

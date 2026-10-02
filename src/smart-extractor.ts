@@ -1114,6 +1114,13 @@ export class SmartExtractor {
       scopeFilter?: string[];
       agentId?: string;
       conversationText?: string;
+      /**
+       * This call's conversation as ordered, role-tagged turns. Present so the
+       * rows minted here carry the same raw-block provenance link the primary
+       * extraction lane stamps; without it a distilled row cannot name its raw
+       * source and drill-down has nothing to resolve.
+       */
+      conversationTurns?: ConversationTurn[];
     },
   ): Promise<{ stats: ExtractionStats; createdEntries: MemoryEntry[] }> {
     const stats: ExtractionStats = { created: 0, merged: 0, skipped: 0, boundarySkipped: 0 };
@@ -1121,6 +1128,10 @@ export class SmartExtractor {
     const targetScope = options.targetScope;
     const scopeFilter = options.scopeFilter ?? [targetScope];
     const conversationText = options.conversationText ?? "";
+    // Same provenance derivation as the primary create path: the ids name the
+    // raw blocks these distilled rows were read from, derived from the same
+    // (sessionKey, role, text) hash the raw writer used.
+    const provenanceRawBlockIds = resolveExtractionProvenance(sessionKey, options.conversationTurns);
 
     for (const item of items) {
       const prebuilt = item.buildEntry(item.vector);
@@ -1374,7 +1385,7 @@ export class SmartExtractor {
 
     let createdEntries: MemoryEntry[] = [];
     if (createEntries.length > 0) {
-      const stored = await this.bulkStoreAndValidate(createEntries);
+      const stored = await this.bulkStoreAndValidate(createEntries, provenanceRawBlockIds);
       if (stored) {
         createdEntries = stored;
         await this.applyPendingSupersedeInvalidations(createEntries, stored, pendingSupersedeInvalidations, stats);
@@ -1537,7 +1548,7 @@ export class SmartExtractor {
         await this.flushPendingMerges(followupMerges, stats, followupCreates);
       }
       if (followupCreates.length > 0) {
-        const extra = await this.bulkStoreAndValidate(followupCreates);
+        const extra = await this.bulkStoreAndValidate(followupCreates, provenanceRawBlockIds);
         if (extra) {
           createdEntries = createdEntries.concat(extra);
         }

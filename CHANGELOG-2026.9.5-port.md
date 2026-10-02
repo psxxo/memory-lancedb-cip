@@ -1,3 +1,9 @@
+## 1.5.2
+
+Complete raw-block provenance propagation for the summary tier; see `CHANGELOG.md`. Every
+create path now stamps `rawBlockIds`, including both `persistGatedCandidates` create sites used
+by the reflection/mapped-row lane.
+
 ## 1.4.1
 
 Turn-start extraction drain + low-frequency safety-net sweep; see `CHANGELOG.md`. This mirror was
