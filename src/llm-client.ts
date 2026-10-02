@@ -44,9 +44,11 @@ export interface LlmClientConfig {
   /** Warn-level logger for user-visible failures (timeouts, retries, network errors). */
   warnLog?: (msg: string) => void;
   /**
-   * Completion transport. "direct" (default) posts straight to llm.baseURL via
-   * the bundled OpenAI-compatible client, unchanged from prior behavior. "host"
-   * routes through OpenClaw's host-managed runtime LLM catalog (runtimeLlmComplete,
+   * Completion transport. "host" is the DEFAULT used by the plugin (it follows
+   * OpenClaw's own default model, so an unconfigured plugin needs no model or
+   * credential of its own). "direct" (opt-in) posts straight to llm.baseURL via
+   * the bundled OpenAI-compatible client. "host" routes through OpenClaw's
+   * host-managed runtime LLM catalog (runtimeLlmComplete,
    * e.g. api.runtime.llm.complete) so provider routing, auth profiles, and app
    * attribution apply automatically. Falls back to the direct/oauth transport
    * with a warning when runtimeLlmComplete is not supplied.

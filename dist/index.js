@@ -163,6 +163,18 @@ function resolveOptionalEnvString(value) {
 function resolveEmbeddingModelLabel(config) {
     return asNonEmptyString(config.embedding?.model) ?? "(no embedding model configured)";
 }
+/**
+ * Effective completion transport for the generation lane.
+ *
+ * "host" is the DEFAULT: an unconfigured plugin must need no model id and no
+ * credential of its own, so the lane follows OpenClaw's own default model. Only
+ * an explicit `llm.transport: "direct"` opts into the plugin-owned lane, which
+ * requires its own model/baseURL/apiKey. (Owner requirement 2026-10-03: not
+ * custom-configured ⇒ automatically follow the system default.)
+ */
+function resolveLlmTransport(config) {
+    return config.llm?.transport === "direct" ? "direct" : "host";
+}
 function resolveOptionalPathWithEnv(api, value, fallback) {
     const raw = typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
     return api.resolvePath(resolveEnvVars(raw));
@@ -1845,11 +1857,11 @@ function _initPluginState(api) {
     // The plugin gates only on a model IT will send. With no llm.model configured
     // and the host transport active, the request omits the model and OpenClaw
     // resolves its own default, so the host catalog is not the plugin's to check.
-    const hostResolvesGenerationModel = !generationModel.explicit && config.llm?.transport === "host";
+    const hostResolvesGenerationModel = !generationModel.explicit && resolveLlmTransport(config) === "host";
     // A direct lane posts to the plugin's own OpenAI-compatible endpoint, so the
     // model is resolved there, not by the host catalog: gate only on whether that
     // endpoint and its credential are actually configured.
-    const pluginResolvesGenerationModel = config.llm?.transport !== "host"
+    const pluginResolvesGenerationModel = resolveLlmTransport(config) !== "host"
         && generationModel.explicit
         && !!config.llm?.baseURL
         && !!config.llm?.apiKey;
@@ -1998,7 +2010,7 @@ function _initPluginState(api) {
         // direct client -- that talks to the wrong provider with the wrong
         // key on a split-provider setup. Leave apiKey/baseURL unset in that
         // case; createLlmClient throws a clear error / defaults the baseURL.
-        const llmIsHostTransport = config.llm?.transport === "host";
+        const llmIsHostTransport = resolveLlmTransport(config) === "host";
         const llmApiKey = llmAuth === "oauth"
             ? undefined
             : config.llm?.apiKey
@@ -2032,7 +2044,7 @@ function _initPluginState(api) {
             log: (msg) => api.logger.debug(msg),
             warnLog: (msg) => api.logger.warn(msg),
             thinkLevel,
-            transport: config.llm?.transport,
+            transport: resolveLlmTransport(config),
             runtimeLlmComplete: resolveRuntimeLlmComplete(api),
         });
         return {
@@ -2069,21 +2081,21 @@ function _initPluginState(api) {
                 lane: "other",
                 globalModel: llmModel,
                 reflectionModel: reflectionModelForAdmission,
-                transport: config.llm?.transport,
+                transport: resolveLlmTransport(config),
             });
             const admissionModelReflection = resolveAdmissionModel({
                 admissionControl: config.admissionControl,
                 lane: "reflection",
                 globalModel: llmModel,
                 reflectionModel: reflectionModelForAdmission,
-                transport: config.llm?.transport,
+                transport: resolveLlmTransport(config),
             });
             const globalThinkLevel = config.llm?.thinkLevel;
             const laneAffinity = config.admissionControl?.modelAffinity === "lane";
             const reflectionThinkLevel = laneAffinity
                 ? (asNonEmptyString(config.memoryReflection?.thinkLevel) ?? globalThinkLevel)
                 : globalThinkLevel;
-            const admissionHostTransport = config.llm?.transport === "host";
+            const admissionHostTransport = resolveLlmTransport(config) === "host";
             const admissionModelExplicitBase = Boolean(asNonEmptyString(config.admissionControl?.model));
             const admissionModelExplicitExtraction = admissionModelExplicitBase || llmModelExplicit;
             const admissionModelExplicitReflection = admissionModelExplicitBase ||
@@ -2142,7 +2154,7 @@ function _initPluginState(api) {
                 // (on the host transport) the host's own default when no model is configured.
                 const llmModelLabel = llmModelExplicit
                     ? llmModel
-                    : config.llm?.transport === "host"
+                    : resolveLlmTransport(config) === "host"
                         ? "host default"
                         : llmModel;
                 (isCliMode() ? api.logger.debug : api.logger.info)("memory-lancedb-cip: smart extraction enabled (LLM model: "
@@ -2882,7 +2894,7 @@ const memoryLanceDBCipPlugin = {
             llmClient: smartExtractor ? (() => {
                 try {
                     const llmAuth = config.llm?.auth || "api-key";
-                    const llmIsHostTransport = config.llm?.transport === "host";
+                    const llmIsHostTransport = resolveLlmTransport(config) === "host";
                     const llmApiKey = llmAuth === "oauth"
                         ? undefined
                         : config.llm?.apiKey
@@ -2914,7 +2926,7 @@ const memoryLanceDBCipPlugin = {
                         oauthPath: llmOauthPath,
                         timeoutMs: llmTimeoutMs,
                         log: (msg) => api.logger.debug(msg),
-                        transport: config.llm?.transport,
+                        transport: resolveLlmTransport(config),
                         runtimeLlmComplete: resolveRuntimeLlmComplete(api),
                     });
                 }
@@ -3911,7 +3923,7 @@ const memoryLanceDBCipPlugin = {
                             // memory_extract_pending. Nothing is consumed here, so nothing can be
                             // lost. A direct-transport lane (plugin-owned credential) keeps the
                             // in-process extraction below.
-                            const usingHostTransport = (config.llm?.transport ?? "direct") === "host";
+                            const usingHostTransport = (resolveLlmTransport(config)) === "host";
                             if (usingHostTransport) {
                                 const retainedCap = autoCaptureRetainedTextCap(minMessages);
                                 const queuedTurns = dedupeTurnsByText([
@@ -4809,10 +4821,10 @@ const memoryLanceDBCipPlugin = {
                     // transport sends no model field at all, so the host's own default applies.
                     // Without the host transport there is nothing to send, so the lane stays off.
                     const model = reflectionModel ?? asNonEmptyString(config.llm?.model);
-                    const reflectionUsesHostDefault = !model && config.llm?.transport === "host";
+                    const reflectionUsesHostDefault = !model && resolveLlmTransport(config) === "host";
                     try {
                         reflectionCompletionClient = model || reflectionUsesHostDefault
-                            ? makeLaneLlmClient(config.llm?.transport === "host" ? (model ?? "").trim() : normalizeDirectModelRef(model ?? ""), reflectionThinkLevel, reflectionModel ? true : undefined)
+                            ? makeLaneLlmClient(resolveLlmTransport(config) === "host" ? (model ?? "").trim() : normalizeDirectModelRef(model ?? ""), reflectionThinkLevel, reflectionModel ? true : undefined)
                             : null;
                     }
                     catch (err) {

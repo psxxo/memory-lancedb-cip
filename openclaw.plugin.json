@@ -1640,7 +1640,7 @@
           },
           "model": {
             "type": "string",
-            "description": "Generation model for the plugin LLM lane. Leave unset to follow the host: on the host transport an unset model means the request carries no model override and OpenClaw's own default model applies. Deliberately no JSON-schema default -- the OpenClaw host materializes schema defaults into the plugin config (see llm.thinkLevel), which would make an unset model indistinguishable from an explicit one. The built-in fallback for the standalone/direct transport lives in code (DEFAULT_GENERATION_MODEL)."
+            "description": "Generation model for the plugin LLM lane. Leave unset to follow the host: with the default host transport an unset model means the request carries no model override and OpenClaw's own default model applies. Deliberately no JSON-schema default and no built-in fallback: the plugin ships no model id of its own, so an unconfigured lane simply follows the host default and never substitutes a model."
           },
           "baseURL": {
             "type": "string"
@@ -1669,7 +1669,7 @@
               "host"
             ],
             "default": "direct",
-            "description": "Completion transport for the LLM lane. direct posts straight to llm.baseURL via the bundled OpenAI-compatible client (default; works standalone and in the CLI). host routes through OpenClaw's host-managed runtime LLM catalog so provider routing, auth profiles, and app attribution apply automatically; falls back to direct with a warning when the host runtime does not expose that surface."
+            "description": "Completion transport for the LLM lane. host (default) follows OpenClaw's own default model through the host-managed runtime LLM catalog, so provider routing, auth profiles, and app attribution apply automatically and an unconfigured plugin needs no model or credential of its own. direct (opt-in) posts straight to llm.baseURL via the bundled OpenAI-compatible client and requires llm.model plus llm.apiKey."
           }
         }
       },
