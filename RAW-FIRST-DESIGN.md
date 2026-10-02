@@ -82,3 +82,52 @@ asked for. The store mirrors that shape:
   Without the link, drill-down is impossible and the summary silently becomes the only record.
 
 Decision model: two-tier shape 1.00; deterministic-then-model drill trigger 0.86 (confidence 0.79).
+
+## Storage layout (implemented 2026-10-02, v1.5.0)
+
+The raw tier lives in the plugin data dir (`dirname(config.dbPath)`, the same directory as
+`pending-extraction-queue.jsonl`):
+
+- `raw-blocks.zst` — the concatenated, zstd-compressed payloads of every raw block, one
+  independent compressed frame per block.
+- `raw-blocks.index.jsonl` — one append-only metadata line per block: `id`, `sessionKey`,
+  `agentId`, `role`, `timestamp`, `messageId`, and the block's `offset` + `length` (compressed
+  bytes) and `rawLength` (uncompressed bytes).
+
+Fetching one block reads exactly `[offset, offset+length)` and inflates it, so a single block
+restores on its own in O(1) with no whole-archive dependency. Block ids are content-addressed
+(SHA-1 over sessionKey + role + text, truncated), which makes agent_end redeliveries and terminal
+flushes idempotent without any rewrite. There is deliberately no delete, rewrite or truncate path;
+a crash between the blob write and the index append can only orphan bytes at the blob tail, which
+the next append skips. The summary tier stores distilled entries in LanceDB as before, each
+required to name the raw block ids it came from (`src/provenance.ts`); distilled never replaces raw.
+
+### Codec
+
+zstd from Node's built-in `node:zlib` (`zstdCompressSync` / `zstdDecompressSync`, verified present
+on this host at Node v24.21.0). Chosen over gzip/brotli because it is a single call with no async
+stream state per block, and it restores each block independently. `@types/node` 20 does not declare
+the zstd members, so `src/raw-store.ts` accesses them through a small typed shim that fails loudly
+if a host lacks them; the codec itself is unchanged.
+
+### Measured compression ratio (real sample)
+
+Measured 2026-10-02 on a real corpus: the 11 `workspace/memory/*.md` daily records, split into
+message-sized paragraphs (327 blocks, avg 992 bytes, 324 KB raw):
+
+- per block, as the store writes them: **1.42×** (29.4% smaller)
+- whole corpus as one blob, for reference: 3.25× (69.2% smaller)
+
+Per-block compression is lower than whole-corpus because each block is a short, independent frame
+with no cross-block dictionary — that is the price of O(1) single-block restore, which the design
+requires. Larger real message blocks compress better than the 992-byte average.
+
+### Verified / not yet proven
+
+- Verified by test: zstd round-trip of many blocks; restoring one block from its byte range while
+  the archive bytes stay unchanged; a fresh instance reading another generation's blocks;
+  idempotent re-append; no delete/rewrite API; provenance is mandatory; the deterministic
+  drill-down triggers.
+- Not yet proven on the real host: the disk delta over a day of live traffic (the design's own
+  verification requirement), and the drill-down trigger mix / raw-detail injection in live recall.
+  Both need a live turn to measure; do not claim them.

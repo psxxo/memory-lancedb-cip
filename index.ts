@@ -64,6 +64,14 @@ import {
   decideTurnStartDrain,
   resolveTurnSessionKey,
 } from "./src/turn-start-drain.js";
+import {
+  RawBlockStore,
+  formatRawWriteLog,
+  resolveRawBlockBlobPath,
+  resolveRawBlockIndexPath,
+} from "./src/raw-store.js";
+import { decideDrillDown, formatDrillDownLog } from "./src/drill-down.js";
+import { parseRawBlockIdsFromMetadata } from "./src/provenance.js";
 import { ManualEchoLedger } from "./src/manual-echo-guard.js";
 import { appendSelfImprovementEntry, ensureSelfImprovementLearningFiles } from "./src/self-improvement-files.js";
 import type { MdMirrorWriter } from "./src/tools.js";
@@ -3490,6 +3498,17 @@ const memoryLanceDBCipPlugin = {
       },
     );
 
+    // Raw tier of the two-tier memory store (RAW-FIRST-DESIGN.md): verbatim,
+    // append-only, immutable, one zstd blob per block under the plugin data dir.
+    const rawBlockStore = new RawBlockStore(
+      resolveRawBlockBlobPath(dirname(resolvedDbPath)),
+      resolveRawBlockIndexPath(dirname(resolvedDbPath)),
+      {
+        onError: (message) =>
+          api.logger.warn("memory-lancedb-cip: raw block store error: " + message),
+      },
+    );
+
     const logReg = isCliMode() ? api.logger.debug : api.logger.info;
     if (isFirstRegistration) {
       logReg(
@@ -3985,6 +4004,24 @@ const memoryLanceDBCipPlugin = {
 
           if (shouldDropLateAutoRecall("post-retrieve")) return;
 
+          // Two-tier recall (RAW-FIRST-DESIGN.md): summarise first, drill into
+          // the raw tier only on deterministic triggers. Logged every recall so
+          // the trigger mix is observable.
+          const drillDecision = decideDrillDown({
+            query: recallQuery,
+            summaryHits: results.map((result) => ({
+              id: result.entry.id,
+              score: result.score,
+              rawBlockIds: parseRawBlockIdsFromMetadata(result.entry.metadata),
+            })),
+            hasRawTier: true,
+            modelFallbackAvailable: false,
+          });
+          const topRecallScore = typeof results[0]?.score === "number" ? results[0].score : undefined;
+          api.logger.info?.(
+            formatDrillDownLog(drillDecision, { hitCount: results.length, topScore: topRecallScore }),
+          );
+
           if (results.length === 0) {
             return;
           }
@@ -4200,7 +4237,35 @@ const memoryLanceDBCipPlugin = {
             minRepeated,
           };
 
-          const memoryContext = selected.map((item) => item.line).join("\n");
+          let rawDrillContext = "";
+          if (drillDecision.drill && drillDecision.mode === "deterministic") {
+            try {
+              const drillSessionKey = ctx?.sessionKey || ctx?.sessionId || "";
+              const drillIds = drillDecision.rawBlockIds.slice(0, 3);
+              let drillBlocks = drillIds.length > 0 ? await rawBlockStore.getMany(drillIds) : [];
+              if (drillBlocks.length === 0 && drillSessionKey) {
+                const recent = await rawBlockStore.listBySession(drillSessionKey, 3);
+                drillBlocks = await rawBlockStore.getMany(recent.map((meta) => meta.id));
+              }
+              if (drillBlocks.length > 0) {
+                rawDrillContext =
+                  "\n[raw detail - verbatim drill-down]\n" +
+                  drillBlocks
+                    .map((block) => "- [" + block.role + "] " + sanitizeForContext(block.text).slice(0, 1000))
+                    .join("\n") +
+                  "\n[END raw detail]";
+                api.logger.info?.(
+                  "memory-lancedb-cip: drill-down loaded=" + drillBlocks.length +
+                    " trigger=" + drillDecision.reason +
+                    " session=" + (drillSessionKey || "(none)"),
+                );
+              }
+            } catch (error) {
+              api.logger.warn?.("memory-lancedb-cip: drill-down fetch failed: " + String(error));
+            }
+          }
+
+          const memoryContext = selected.map((item) => item.line).join("\n") + rawDrillContext;
 
           const injectedIds = selected.map((item) => item.id).join(",") || "(none)";
           const retrievalDiagnostics = typeof retriever.getLastDiagnostics === "function"
@@ -4785,6 +4850,32 @@ const memoryLanceDBCipPlugin = {
           if (texts.length > 0) {
             api.logger.debug(
               `memory-lancedb-cip: auto-capture text diagnostics for agent ${agentId}: ${texts.map((text, idx) => `#${idx + 1}(${summarizeCaptureDecision(text)})`).join(" | ")}`,
+            );
+          }
+
+          // Raw-first (RAW-FIRST-DESIGN.md): store every turn verbatim,
+          // unconditionally, before any value judgement or model call. This is
+          // the 100%-fidelity tier; extraction below is optional enrichment.
+          try {
+            const rawInputs = thisCallTurns
+              .filter((turn) => typeof turn.text === "string" && turn.text.length > 0)
+              .map((turn) => ({
+                sessionKey,
+                agentId,
+                role: turn.role,
+                text: turn.text,
+                timestamp: Date.now(),
+                ...(typeof turn.messageId === "number" ? { messageId: turn.messageId } : {}),
+              }));
+            if (rawInputs.length > 0) {
+              const rawResult = await rawBlockStore.append(rawInputs);
+              if (rawResult.stored.length > 0 || rawResult.skipped > 0) {
+                api.logger.info(formatRawWriteLog(rawResult, { sessionKey, agentId }));
+              }
+            }
+          } catch (error) {
+            api.logger.warn(
+              "memory-lancedb-cip: raw-write failed for agent " + agentId + ": " + String(error),
             );
           }
 

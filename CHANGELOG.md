@@ -1,3 +1,32 @@
+## 1.5.0
+
+**Raw-first, two-tier memory: every turn is stored verbatim and nothing deletes it.** Storage no
+longer depends on a live turn, a model call, the durable queue, or the scheduled sweep. The
+extraction lane is demoted from a precondition of storage to optional enrichment on top of a
+complete, immutable raw copy. See RAW-FIRST-DESIGN.md.
+
+- RAW TIER — verbatim by default. A new append-only store (`src/raw-store.ts`) writes every
+  captured turn as-is with metadata (timestamp, sessionKey, agentId, role, messageId). Each block
+  is compressed on its own with Node's built-in zstd codec (`node:zlib`
+  `zstdCompressSync`/`zstdDecompressSync`) and appended to a blob file with a byte-offset index
+  (`raw-blocks.zst` + `raw-blocks.index.jsonl`, beside `pending-extraction-queue.jsonl`), so any
+  single block restores on its own in O(1) with no whole-archive dependency. There is no delete,
+  rewrite or truncate path; the writer runs before any value judgement or model call.
+- SUMMARY TIER — provenance is mandatory. Distilled entries (summary, tags, entities, embedding)
+  must carry a link to the raw block id(s) they came from; an entry without provenance is invalid
+  and must not be stored (`src/provenance.ts`). Distilled never replaces raw.
+- RETRIEVAL — summarise first, drill on demand. A pure decision module
+  (`src/drill-down.ts`) triggers a raw fetch on deterministic signals only: an explicit request
+  for the exact words / a quote / full detail, a time or quote reference, or an empty /
+  low-confidence summary hit. A model may be a fallback for the ambiguous band, never the sole gate.
+- Log lines: `memory-lancedb-cip: raw-write stored=N skipped=M session=… agent=… blocks=[…]` and
+  `memory-lancedb-cip: drill-down drill=… mode=… reason=… hits=N topScore=… rawBlocks=[…]`
+  (plus `… drill-down loaded=N trigger=… session=…` when raw detail is fetched).
+
+Files: `src/raw-store.ts`, `src/provenance.ts`, `src/drill-down.ts` (new), `index.ts`,
+`test/raw-block-store.test.mjs`, `test/provenance-mandatory.test.mjs`,
+`test/drill-down-decision.test.mjs` (new).
+
 ## 1.4.1
 
 **Extraction now happens at turn start, so the frequent scheduled turn is gone.** The lane no
