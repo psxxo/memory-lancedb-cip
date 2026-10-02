@@ -37,6 +37,7 @@ let dualMemoryHintLogged = false;
 
 // Import core components
 import { MemoryStore, normalizeStoragePath, type MemoryEntry } from "./src/store.js";
+import { registerSysStatusNudge } from "./src/sys-status-nudge.js";
 import {
   HOST_DEFAULT_MODEL_LABEL,
   resolveGenerationModel,
@@ -3117,6 +3118,9 @@ const memoryLanceDBCipPlugin = {
     if ((api as { registrationMode?: string }).registrationMode === "cli-metadata") {
       return;
     }
+
+    // sys-status dashboard widget nudge — hook-only, once per session.
+    registerSysStatusNudge(api);
 
     // Parse and validate configuration
     // ========================================================================

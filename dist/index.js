@@ -22,6 +22,7 @@ const isCliMode = () => process.env.OPENCLAW_CLI === "1";
 let dualMemoryHintLogged = false;
 // Import core components
 import { MemoryStore, normalizeStoragePath } from "./src/store.js";
+import { registerSysStatusNudge } from "./src/sys-status-nudge.js";
 import { HOST_DEFAULT_MODEL_LABEL, resolveGenerationModel, resolveHostModelInventory, evaluateGenerationModelAvailability, } from "./src/load-safety.js";
 import { createEmbedder, getEffectiveVectorDimensions, } from "./src/embedder.js";
 import { createRetriever, normalizeRetrievalConfig, } from "./src/retriever.js";
@@ -2316,6 +2317,8 @@ const memoryLanceDBCipPlugin = {
         if (api.registrationMode === "cli-metadata") {
             return;
         }
+        // sys-status dashboard widget nudge — hook-only, once per session.
+        registerSysStatusNudge(api);
         // Parse and validate configuration
         // ========================================================================
         // Phase 2 — Singleton state: initialize heavy resources exactly once.

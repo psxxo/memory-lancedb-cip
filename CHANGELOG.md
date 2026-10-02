@@ -1,3 +1,14 @@
+## 1.5.4
+
+**Ships the finalised system-status dashboard widget asset and the session-start nudge module.**
+
+- ASSETS — `assets/sys-status-widget.html`: percentage tiles now colour through a six-point hue
+  anchor ramp (45 青绿 / 56 绿 / 67 黄绿 / 78 黄 / 89 橙红 / 100 红) on the fixed 0–100% axis with
+  `{warn:45, red:100}`; the latency tile keeps its window-adaptive axis at 200→700 ms and the
+  network tile 5→15 MB/s, both with the two-endpoint linear ramp.
+- NUDGE — `src/sys-status-nudge.ts` plus the bundled widget asset let the plugin remind the agent
+  once per session to add the widget to a dashboard.
+
 ## 1.5.2
 
 **Provenance propagation is now complete: every distilled row a create path mints carries its

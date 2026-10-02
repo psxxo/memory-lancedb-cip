@@ -1,0 +1,239 @@
+<div id="oa-sys" class="oa-sys">
+<style>
+#oa-sys{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;font-size:12px;color:var(--text)}
+#oa-sys .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#oa-sys .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--muted) 18%,transparent)}
+#oa-sys .dot.ok{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 18%,transparent)}
+#oa-sys .dot.danger{background:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 18%,transparent)}
+#oa-sys .ttl{font-weight:600;letter-spacing:.02em}
+#oa-sys .sp1{flex:1}
+#oa-sys .upd{color:var(--muted);font-size:11px;font-family:var(--font-mono)}
+#oa-sys .grid{display:grid;gap:10px;grid-template-columns:1fr}
+#oa-sys .t{position:relative;display:flex;flex-direction:column;gap:3px;padding:11px 12px 0;border:1px solid var(--border);border-radius:13px;background:var(--card);min-width:0;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+#oa-sys .t:hover,#oa-sys .m:hover{border-color:var(--border-strong);box-shadow:0 4px 16px rgba(0,0,0,.18)}
+#oa-sys .l{color:var(--muted);font-size:10.5px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#oa-sys .v{font-family:var(--font-mono);font-size:20px;font-weight:600;line-height:1.1;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#oa-sys .s{color:var(--muted);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#oa-sys .chart{position:relative;height:38px;margin:7px -12px 0}
+#oa-sys .chart svg{display:block;width:100%;height:100%}
+#oa-sys .chart .dot-end,#oa-sys .cchart .dot-end{position:absolute;right:auto;left:calc(100% - 3px);width:5px;height:5px;border-radius:50%;background:#2f9e8f;box-shadow:0 0 6px color-mix(in srgb,#2f9e8f 55%,transparent);transform:translate(-50%,-50%);pointer-events:none}
+#oa-sys .chart .hairline,#oa-sys .cchart .hairline{position:absolute;top:0;bottom:0;width:1px;background:color-mix(in srgb,#2f9e8f 40%,transparent);pointer-events:none;display:none}
+#oa-sys .chart .hover-label,#oa-sys .cchart .hover-label{position:absolute;right:2px;top:0;padding:0 4px;font-size:10px;font-family:var(--font-mono);color:var(--text);background:var(--elevated,var(--card));border:1px solid var(--border);border-radius:5px;white-space:nowrap;pointer-events:none;display:none}(-50%);pointer-events:none}
+#oa-sys .corebox{display:flex;flex-direction:column;gap:7px;margin:11px 0 0}
+#oa-sys .corebox .crow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 12px;font-size:10.5px}
+#oa-sys .corebox .crow .cl{color:var(--muted)}
+#oa-sys .corebox .crow b{font-family:var(--font-mono);font-weight:600}
+#oa-sys .corebox .core{display:block;width:100%}
+#oa-sys .corebox .cchart{position:relative;height:24px;margin:0 -12px;width:auto}
+#oa-sys .corebox .core:last-child .cchart{border-radius:0 0 12px 12px}
+#oa-sys .corebox .cchart svg{display:block;width:100%;height:100%}
+#oa-sys .m{position:relative;display:flex;flex-direction:column;gap:2px;padding:9px 11px;border:1px solid var(--border);border-radius:11px;min-width:0;transition:border-color .15s,box-shadow .15s}
+#oa-sys .m .v{font-size:16px}
+#oa-sys .tip{position:absolute;z-index:9;display:none;max-width:250px;padding:9px 11px;border:1px solid var(--border-strong);border-radius:10px;background:var(--elevated,var(--card));box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:11px;line-height:1.55}
+#oa-sys .tip b{display:block;margin-bottom:3px}
+#oa-sys .tip .r{display:flex;justify-content:space-between;gap:14px}
+#oa-sys .tip .r span:first-child{color:var(--muted)}
+#oa-sys .sec{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+#oa-sys .sec:after{content:"";flex:1;height:1px;background:var(--border)}
+</style>
+<div class="hd"><span class="dot" id="gwdot"></span><span class="ttl">系统状态</span><span class="badge" id="gwbadge">读取中…</span><span class="sp1"></span><span class="upd" id="upd">—</span></div>
+<div class="grid" id="gmain">
+  <div class="t" data-tip="cpu"><span class="l">CPU 宿主 · 实时</span><span class="v" id="vcpu">—</span><span class="s" id="scpu">—</span><div class="chart" id="ccpu"></div></div>
+  <div class="t" data-tip="cores"><span class="l">CPU 各核 · 实时</span><div class="corebox" id="corebox"></div></div>
+  <div class="t" data-tip="mem"><span class="l">内存 宿主 · 实时</span><span class="v" id="vmem">—</span><span class="s" id="smem">—</span><div class="chart" id="cmem"></div></div>
+  <div class="t" data-tip="net"><span class="l">网络吞吐 · 实时</span><span class="v" id="vnet">—</span><span class="s" id="snet">—</span><div class="chart" id="cnet"></div></div>
+  <div class="t" data-tip="disk"><span class="l">磁盘 / · 实时</span><span class="v" id="vdisk">—</span><span class="s" id="sdisk">—</span><div class="chart" id="cdisk"></div></div>
+  <div class="t" data-tip="p99"><span class="l">延迟 P99 · 实时</span><span class="v" id="vp99">—</span><span class="s" id="sp99">—</span><div class="chart" id="cp99"></div></div>
+</div>
+<div class="sec">实时活动</div>
+<div class="grid" id="gact">
+  <div class="m" data-tip="sess"><span class="l">会话</span><span class="v" id="vsess">—</span></div>
+  <div class="m" data-tip="cron"><span class="l">自动化</span><span class="v" id="vcron">—</span></div>
+  <div class="m" data-tip="agent"><span class="l">智能体</span><span class="v" id="vagent">—</span></div>
+  <div class="m" data-tip="chan"><span class="l">通道</span><span class="v" id="vchan">—</span></div>
+</div>
+<div class="tip" id="tip"></div>
+</div>
+<script>
+(function(){
+  var root=document.getElementById("oa-sys"); if(!root) return;
+  var TEAL="#2f9e8f", WHITE="#ffffff", MB=1048576, HOST="https://47.93.209.162:18575/metrics.json", CAP=80;
+  var MODE={ccpu:"pct",cmem:"pct",cdisk:"pct",cnet:"abs",cp99:"abs"};
+  var ABS={cnet:{warn:5*MB, red:15*MB, unit:"MB/s"}, cp99:{warn:200, red:700, unit:"ms"}};
+  function cssv(n,fb){ try{ var v=getComputedStyle(document.documentElement).getPropertyValue(n); v=(v||"").trim(); return v||fb; }catch(e){ return fb; } }
+  var DANGER=hex(cssv("--danger","#f87171"));
+  function hex(c){ c=(c||"").trim(); if(c.charAt(0)==="#"){ if(c.length===4) return "#"+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]; return c.slice(0,7); } return "#f87171"; }
+  function rgb(c){ c=hex(c); return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]; }
+  function mix(a,b,t){ var A=rgb(a),B=rgb(b); t=Math.max(0,Math.min(1,t)); return "rgb("+Math.round(A[0]+(B[0]-A[0])*t)+","+Math.round(A[1]+(B[1]-A[1])*t)+","+Math.round(A[2]+(B[2]-A[2])*t)+")"; }
+  function hexToHsl(c){ c=hex(c); var r=parseInt(c.slice(1,3),16)/255,g=parseInt(c.slice(3,5),16)/255,b=parseInt(c.slice(5,7),16)/255; var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h=0,s=0,l=(mx+mn)/2,d=mx-mn; if(d>0){ s=l>0.5?d/(2-mx-mn):d/(mx+mn); if(mx===r) h=(g-b)/d+(g<b?6:0); else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; } return [h,s,l]; }
+  function hslCss(a){ return "hsl("+a[0].toFixed(1)+","+(a[1]*100).toFixed(1)+"%,"+(a[2]*100).toFixed(1)+"%)"; }
+  function colorAt(v,warn,red,pct){ var A=hexToHsl(TEAL), B=hexToHsl(DANGER); if(v<=warn) return hslCss(A); if(v>=red) return hslCss(B); var t=(v-warn)/(red-warn), h=A[0]+(B[0]-A[0])*t; if(pct){ var AN=[0,0.2,0.4,0.6,0.8,1], AH=[A[0],120,86,57,17,B[0]]; for(var i=1;i<AN.length;i++){ if(t<=AN[i]){ h=AH[i-1]+(AH[i]-AH[i-1])*((t-AN[i-1])/(AN[i]-AN[i-1])); break; } } } return hslCss([h, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t]); }
+  function scaleOf(id){ if(MODE[id]==="pct") return {warn:45, red:100}; return ABS[id]||{warn:45,red:100}; }
+  var hist={cpu:[],mem:[],disk:[],net:[],p99:[]};
+  var coreHist=[];
+  var st={busy:null,load:"",cores:2,cpu:null,perCore:[],mem:null,swap:null,disk:null,diskAvail:null,rx:null,tx:null,hostOk:null};
+  var maxP99=0;
+  var tips={
+    cpu:{t:"CPU 宿主",r:[["值","整机 CPU 使用率"],["来源","/proc/stat（3s）"],["比例尺","固定 0-100%"],["配色","预警阈值下青绿，越限经黄橙渐变到红"]]},
+    cores:{t:"CPU 各核",r:[["值","每核使用率与曲线"],["来源","/proc/stat 每核（3s）"],["比例尺","固定 0-100%"],["配色","预警阈值下青绿，越限经黄橙渐变到红"]]},
+    mem:{t:"内存（宿主）",r:[["已用 / 总计","/proc/meminfo"],["Swap","实时"],["比例尺","固定 0-100%"],["配色","预警阈值下青绿，越限经黄橙渐变到红"]]},
+    net:{t:"网络吞吐",r:[["合计","rx + tx 每秒速率"],["来源","/proc/net/dev（不含 lo）"],["比例尺","窗口自适应（仅几何）"],["配色","预警阈值下青绿，越限经黄橙渐变到红"]]},
+    disk:{t:"磁盘 /",r:[["已用 / 总计","statfs"],["可用","实时"],["比例尺","固定 0-100%"],["配色","预警阈值下青绿，越限经黄橙渐变到红"]]},
+    p99:{t:"事件循环延迟",r:[["当前 P99","health.eventLoop"],["观测最大","滚动窗口"],["比例尺","窗口自适应（仅几何）"],["配色","预警阈值下青绿，越限经黄橙渐变到红"]]},
+    sess:{t:"会话",r:[["来源","sessions.list"],["节奏","3s"]]},
+    cron:{t:"自动化任务",r:[["来源","cron.list"],["节奏","3s"]]},
+    agent:{t:"智能体",r:[["来源","agents.list"],["节奏","3s"]]},
+    chan:{t:"通道",r:[["含义","已连接 / 总数"],["来源","health.channels"],["节奏","3s"]]}
+  };
+  function set(id,v){var e=document.getElementById(id); if(e&&v!=null) e.textContent=String(v);}
+  function hhmm(){var d=new Date(),p=function(n){return String(n).padStart(2,"0");};return p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
+  function arr(x,k){ if(Array.isArray(x)) return x; if(x&&typeof x==="object"){for(var i=0;i<k.length;i++) if(Array.isArray(x[k[i]])) return x[k[i]];} return null; }
+  function gb(b){return (b/1073741824).toFixed(1)+" GB";}
+  function rate(b){ if(b==null) return "—"; if(b<1024) return b+" B/s"; if(b<MB) return (b/1024).toFixed(1)+" KB/s"; return (b/MB).toFixed(2)+" MB/s"; }
+  function domain(vals,mode){
+    var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
+    if(mode==="pct") return {lo:0,hi:100};
+    var span=mx-mn, minSpan=Math.max(1, mx*0.25);
+    if(span<minSpan){ var c=(mn+mx)/2; mn=c-minSpan/2; mx=c+minSpan/2; if(mn<0){mx-=mn;mn=0;} }
+    if(mx-mn<1e-6) mx=mn+1;
+    return {lo:mn,hi:mx};
+  }
+  function defs(id,lo,hi,ht){
+    var sc=scaleOf(id), warn=sc.warn, red=sc.red, pct=((MODE[id]||"pct")==="pct");
+    var f=function(v){ return Math.max(0,Math.min(1,(hi-v)/(hi-lo))); };
+    var vals=[lo];
+    var fr=pct?[0,0.2,0.4,0.6,0.8,1]:[0,0.2,0.4,0.6,0.8,1]; for(var i=0;i<fr.length;i++){ var vv=warn+(red-warn)*fr[i]; if(vv>lo&&vv<hi) vals.push(vv); }
+    vals.push(hi);
+    vals.sort(function(a,b){return a-b;});
+    var fs="", ls="";
+    for(var k=vals.length-1;k>=0;k--){ var v2=vals[k], off=f(v2), col=colorAt(v2,warn,red,pct);
+      fs+="<stop offset=\""+off.toFixed(4)+"\" style=\"stop-color:"+col+";stop-opacity:"+(0.45*((v2-lo)/(hi-lo))).toFixed(3)+"\"/>";
+      ls+="<stop offset=\""+off.toFixed(4)+"\" style=\"stop-color:"+col+";stop-opacity:1\"/>"; }
+    return "<linearGradient id=\"lg"+id+"\" gradientUnits=\"userSpaceOnUse\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\""+ht+"\">"+fs+"</linearGradient><linearGradient id=\"ls"+id+"\" gradientUnits=\"userSpaceOnUse\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\""+ht+"\">"+ls+"</linearGradient>";
+  }
+  function sparkSvg(id,vals,ht){
+    if(!vals||!vals.length) return "";
+    var mode=MODE[id]||"pct";
+    var w=100, d=domain(vals,mode), lo=d.lo, hi=d.hi;
+    var n=vals.length, pts=[];
+    for(var i=0;i<n;i++){ var x=n===1?XMAX:(i/(n-1))*XMAX, y=ht-1.5-((vals[i]-lo)/(hi-lo))*(ht-4); pts.push([x,y]); }
+    var line=pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1);}).join(" ");
+    var area=line+" L"+w+" "+pts[n-1][1].toFixed(1)+" L"+w+" "+ht+" L0 "+ht+" Z", lp=pts[pts.length-1];
+    var sc=scaleOf(id), gid="lg"+id;
+    return "<svg viewBox=\"0 0 "+w+" "+ht+"\" preserveAspectRatio=\"none\"><defs>"+defs(id,lo,hi,ht)+"</defs><path d=\""+area+"\" fill=\"url(#"+gid+")\"/><path d=\""+line+"\" fill=\"none\" stroke=\"url(#ls"+id+")\" stroke-width=\"1.6\" vector-effect=\"non-scaling-stroke\"/></svg>";
+  }
+  var XMAX=100;
+  var CFG={ccpu:{fmt:function(v){return Math.round(v)+"%";},swap:true},cmem:{fmt:function(v){return Math.round(v)+"%";},swap:true},cnet:{fmt:function(v){return rate(v);},swap:true},cdisk:{fmt:function(v){return Math.round(v)+"%";},swap:true},cp99:{fmt:function(v){return Math.round(v)+" ms";},swap:true}};
+  var CSTATE={};
+  function cfgFor(id){ if(CFG[id]) return CFG[id]; if(id.indexOf("cc")===0) return {fmt:function(v){return Math.round(v)+"%";},swap:true}; return {}; }
+  function readoutEl(el){ var c=el.closest(".core"); if(c) return c.querySelector("b"); var t=el.closest(".t"); return t?t.querySelector(".v"):null; }
+  function yFor(st,v){ var dm=domain(st.vals,st.mode); return st.h-1.5-((v-dm.lo)/(dm.hi-dm.lo))*(st.h-4); }
+  function nowDot(el){
+    var st=CSTATE[el.id]; if(!st) return;
+    var v=st.vals[st.vals.length-1];
+    var dot=el.querySelector(".dot-end"); if(dot){ dot.style.left=XMAX+"%"; dot.style.right="auto"; dot.style.top=(yFor(st,v)/st.h*100).toFixed(2)+"%"; }
+    var hair=el.querySelector(".hairline"); if(hair) hair.style.display="none";
+    var lab=el.querySelector(".hover-label"); if(lab) lab.style.display="none";
+    var ro=readoutEl(el); if(ro&&ro.__orig!==undefined){ ro.textContent=ro.__orig; ro.__orig=undefined; }
+  }
+  function ageText(sec){ if(sec<60) return "−"+sec+"秒"; var m=Math.floor(sec/60), s=sec%60; return "−"+m+"分钟"+(s?(" "+s+"秒"):""); }
+  function onHover(ev){
+    var el=ev.currentTarget; var st=CSTATE[el.id]; if(!st||st.vals.length<2) return;
+    var r=el.getBoundingClientRect(); if(!r.width) return;
+    var xp=Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width));
+    var pos=Math.max(0,Math.min(xp*(100/XMAX)*(st.vals.length-1), st.vals.length-1)), i0=Math.floor(pos), i1=Math.min(i0+1,st.vals.length-1), f=pos-i0;
+    var vi=st.vals[i0]+(st.vals[i1]-st.vals[i0])*f;
+    var idx=Math.max(0,Math.min(Math.round(pos),st.vals.length-1));
+    var y=yFor(st,vi), pct=(pos/(st.vals.length-1))*XMAX;
+    var dot=el.querySelector(".dot-end"); if(dot){ dot.style.right="auto"; dot.style.left=pct+"%"; dot.style.top=(y/st.h*100).toFixed(2)+"%"; }
+    var hair=el.querySelector(".hairline"); if(hair){ hair.style.display="block"; hair.style.left=pct+"%"; }
+    var cfg=cfgFor(el.id), fmt=cfg.fmt||function(x){return String(Math.round(x));};
+    var age=Math.round((st.vals.length-1-idx)*3);
+    var lab=el.querySelector(".hover-label"), ro=readoutEl(el);
+    if(cfg.swap&&ro){ if(ro.__orig===undefined) ro.__orig=ro.textContent; ro.textContent=fmt(st.vals[idx])+(age>0?(" "+ageText(age)):""); if(lab) lab.style.display="none"; }
+    else if(lab){ lab.style.display="block"; lab.textContent=fmt(st.vals[idx]); }
+  }
+  function onLeave(ev){ nowDot(ev.currentTarget); }
+  function spark(el,vals,ht){
+    if(!el) return;
+    var h=ht||38;
+    el.innerHTML=sparkSvg(el.id,vals,h);
+    var dot=el.querySelector(".dot-end"); if(!dot){ dot=document.createElement("i"); dot.className="dot-end"; el.appendChild(dot); }
+    var hair=el.querySelector(".hairline"); if(!hair){ hair=document.createElement("i"); hair.className="hairline"; el.appendChild(hair); }
+    var lab=el.querySelector(".hover-label"); if(!lab){ lab=document.createElement("span"); lab.className="hover-label"; el.appendChild(lab); }
+    CSTATE[el.id]={vals:vals.slice(),h:h,mode:(MODE[el.id]||"pct")==="pct"?"pct":"auto"};
+    if(!el.__wired){ el.__wired=1; el.addEventListener("pointermove",onHover); el.addEventListener("pointerleave",onLeave); }
+    nowDot(el);
+  }
+  function push(a,v,cap){a.push(v); if(a.length>cap)a.shift();}
+  function renderCores(vals){
+    var el=document.getElementById("corebox"); if(!el) return;
+    if(!vals||!vals.length){ el.innerHTML=""; return; }
+    while(coreHist.length<vals.length) coreHist.push([]);
+    for(var i=0;i<vals.length;i++){ if(typeof vals[i]==="number") push(coreHist[i],vals[i],CAP); }
+    el.innerHTML=vals.map(function(v,i){
+      return "<div class=\"core\"><div class=\"crow\"><span class=\"cl\">核 "+i+"</span><b>"+(typeof v==="number"?v+"%":"—")+"</b></div><div class=\"cchart\" id=\"cc"+i+"\"></div></div>";
+    }).join("");
+    for(var j=0;j<vals.length;j++){ spark(document.getElementById("cc"+j), coreHist[j]||[], 24); }
+  }
+  var rd=(window.openclaw&&openclaw.data&&openclaw.data.read)?openclaw.data.read.bind(openclaw.data):null;
+  function render(){
+    set("upd","实时 · "+hhmm());
+    set("scpu",(st.load?st.load:"—")+" · "+st.cores+" vCPU"+(st.busy!=null?" · 网关 "+st.busy+"%":""));
+    set("smem", st.mem!=null?("已用 "+st.mem+"% · swap "+(st.swap||"—")):"—");
+    set("snet", st.rx!=null?("↓ "+rate(st.rx)+" · ↑ "+rate(st.tx)):"—");
+    set("sdisk", st.disk!=null?("已用 "+st.disk+"% · 可用 "+gb(st.diskAvail)):"—");
+    if(st.hostOk===false){ set("sdisk","指标端点未连通 · 检查 18575"); }
+  }
+  async function hostTick(){
+    try{
+      var res=await fetch(HOST,{cache:"no-store"}); if(!res.ok) throw new Error("http");
+      var d=await res.json(); st.hostOk=true;
+      st.cores=d.cpu.cores;
+      if(typeof d.cpu.busyPct==="number"){ st.cpu=d.cpu.busyPct; push(hist.cpu,d.cpu.busyPct,CAP); set("vcpu",d.cpu.busyPct+"%"); spark(document.getElementById("ccpu"),hist.cpu); }
+      st.perCore=d.cpu.perCore||[]; renderCores(st.perCore);
+      st.load=d.cpu.load1.toFixed(2)+" / "+d.cpu.load5.toFixed(2)+" / "+d.cpu.load15.toFixed(2);
+      st.mem=d.mem.usedPct; push(hist.mem,d.mem.usedPct,CAP); set("vmem",gb(d.mem.usedBytes)+"/"+gb(d.mem.totalBytes)); spark(document.getElementById("cmem"),hist.mem);
+      st.swap=gb(d.swap.usedBytes);
+      if(d.net){ st.rx=d.net.rxBps; st.tx=d.net.txBps; var tot=(d.net.rxBps||0)+(d.net.txBps||0); push(hist.net,tot,CAP); set("vnet",rate(tot)); spark(document.getElementById("cnet"),hist.net); }
+      if(d.disk){ st.disk=d.disk.usedPct; st.diskAvail=d.disk.availableBytes; push(hist.disk,d.disk.usedPct,CAP); set("vdisk",gb(d.disk.totalBytes)); spark(document.getElementById("cdisk"),hist.disk); }
+    }catch(e){ st.hostOk=false; }
+  }
+  async function fastTick(){
+    if(!rd){ set("gwbadge","未授权"); } else try{
+      var H=await rd("health");
+      var ok=H&&H.running!==false&&H.connected!==false;
+      set("gwbadge", ok?"正常":((H&&(H.lifecycle||H.status))||"未知"));
+      var dd=document.getElementById("gwdot"); if(dd) dd.className="dot "+(ok?"ok":"danger");
+      var el=(H&&H.eventLoop)||{};
+      var u=el.eventLoopUtilization; if(typeof u!=="number") u=el.utilization;
+      if(typeof u==="number"){ if(u>0&&u<=1)u=u*100; st.busy=Math.round(u); }
+      var q=el.p99Ms; if(typeof q!=="number") q=el.delayP99Ms;
+      if(typeof q==="number"){ maxP99=Math.max(maxP99,q); push(hist.p99,Math.round(q),CAP); set("vp99",Math.round(q)+" ms"); set("sp99","最大 "+Math.round(maxP99)+" ms"); spark(document.getElementById("cp99"),hist.p99); }
+      var ch=H&&H.channels; if(ch&&typeof ch==="object"){var ids=Object.keys(ch),on=ids.filter(function(k){var c=ch[k]||{};return c.running!==false&&c.connected!==false;}).length; set("vchan",on+"/"+ids.length);} else set("vchan","—");
+    }catch(e){ set("gwbadge","读取失败"); }
+    render();
+  }
+  async function slowTick(){
+    if(!rd) return;
+    try{ var s=await rd("sessions.list"); var a=arr(s,["sessions","items","rows"]); set("vsess",a?a.length:"—"); }catch(e){}
+    try{ var c=await rd("cron.list"); var j=arr(c,["jobs","items","rows"]); set("vcron",j?j.length:"—"); }catch(e){}
+    try{ var g=await rd("agents.list"); var ag=arr(g,["agents","items"]); set("vagent",ag?ag.length:"—"); }catch(e){}
+  }
+  function fit(grid,min){ if(!grid) return; var w=grid.clientWidth; if(!w) return; var n=grid.children.length; if(!n) return; var gap=10,best=1;
+    for(var d=1; d<=n; d++){ if(n%d) continue; if((w-gap*(d-1))/d>=min) best=d; }
+    var v="repeat("+best+",minmax(0,1fr))"; if(grid.__cols!==v){ grid.__cols=v; grid.style.gridTemplateColumns=v; } }
+  function relayout(){ fit(document.getElementById("gmain"),200); fit(document.getElementById("gact"),120); }
+  var raf=0; function schedule(){ if(raf) return; raf=requestAnimationFrame(function(){raf=0;relayout();}); }
+  try{ if(window.ResizeObserver) new ResizeObserver(schedule).observe(root); }catch(e){}
+  window.addEventListener("resize",schedule);
+  var tip=document.getElementById("tip");
+  root.addEventListener("mouseover",function(ev){ var t=ev.target.closest?ev.target.closest("[data-tip]"):null; if(!t) return; var d=tips[t.getAttribute("data-tip")]; if(!d) return;
+    tip.innerHTML="<b>"+d.t+"</b>"+d.r.map(function(r){return "<div class=\"r\"><span>"+r[0]+"</span><span>"+r[1]+"</span></div>";}).join("");
+    var rb=root.getBoundingClientRect(), tb=t.getBoundingClientRect(); tip.style.display="block"; var tw=tip.offsetWidth;
+    tip.style.left=Math.min(Math.max(4,tb.left-rb.left), rb.width-tw-4)+"px"; tip.style.top=(tb.bottom-rb.top+6)+"px"; });
+  root.addEventListener("mouseout",function(ev){ var t=ev.target.closest?ev.target.closest("[data-tip]"):null; if(t) tip.style.display="none"; });
+  relayout(); hostTick(); fastTick(); slowTick(); render();
+  setInterval(hostTick,3000); setInterval(fastTick,3000); setInterval(slowTick,3000); setTimeout(relayout,250);
+})();
+</script>
