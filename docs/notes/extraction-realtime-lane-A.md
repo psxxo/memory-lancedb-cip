@@ -1,40 +1,64 @@
-# Extraction real-time lane (Plan A) — design freeze 2026-10-03
+# Extraction real-time lane (Plan A) — design freeze / status 2026-10-03
 
-Owner decision: Plan A. Buffer pool = source of truth; a plugin-owned **direct** LLM lane is primary;
-the host lanes (next-turn drain, 6h fallback cron) stay as fallback.
+Owner decision: Plan A. The plugin-owned **direct** LLM lane is primary (real-time, at `agent_end`);
+the host lanes (next-turn drain, 6h fallback cron) remain fallback.
 
-## Verified facts (from this repo @ 1.5.4)
-- **direct transport already exists** — `src/llm-client.ts`: `transport?: "direct" | "host"`; "direct"
-  posts straight to `llm.baseURL` / `llm.model` / `llm.apiKey` via the bundled OpenAI-compatible client.
-  The live install only sets `transport: "host"`. So the own-model+own-credential lane needs **no new
-  client code** — it is wiring + triggering.
-- **durable buffer already exists** — `src/extraction-queue.ts` → `<dataDir>/pending-extraction-queue.jsonl`,
-  append-only lines + atomic temp-file rename, caps 2000 entries / 2 MB (drops oldest), best-effort
-  (errors swallowed). Entries are `{sessionKey, role, text, timestamp, messageId?}`.
-- **drain implementation** — `index.ts runPendingExtractionForAgent()` merges the in-memory map with the
-  durable file, dedupes, then `smartExtractor.extractAndPersist()`; on failure it keeps texts queued
-  (restore-on-failure) and `pendingExtractionQueue.remove()` retires only the consumed texts.
-- **current triggers** — only two: the `memory_extract_pending` tool (inside the scheduled cron turn) and
-  the `turn_start` hook (next turn of the same session, line ~5711). There is **no immediate
-  post-agent_end drain**, so an active session's turns wait for its next turn.
-- **the real blocker** — the host authorizes a plugin completion only against the live run; a post-turn
-  call is refused (`caller authority is no longer active`). A direct fetch has no such gate.
+## Verified facts (this repo @ 1.5.4)
+- **The real-time trigger already exists.** `index.ts` `agent_end` splits on transport:
+  `const usingHostTransport = ((config.llm?.transport ?? "direct") === "host")`. On the host lane it is
+  queue-only (deposit into `pending-extraction-queue.jsonl`, drain later). On the **direct** lane it runs
+  `smartExtractor.extractAndPersist(...)` **in-process, right after the turn**, and on failure calls
+  `restoreConsumedCaptureState()` which puts the texts back into the durable queue for the fallback lanes.
+  So no new trigger code is needed — the lane exists and is only switched off by the live config
+  (`llm.transport: "host"`).
+- **direct transport already exists** — `src/llm-client.ts`: `transport: "direct" | "host"`; "direct" posts
+  straight to `llm.baseURL` / `llm.model` / `llm.apiKey`. No new client code.
+- **The load-safety gate blocked the direct lane** — `src/load-safety.ts`
+  `evaluateGenerationModelAvailability` checked the HOST model catalog for any explicit model, so a direct
+  lane naming e.g. `qwen-flash` (absent from the DeepSeek-only host catalog) was `unavailable` → smart
+  extraction **disabled at load**. Fixed: a new `pluginResolvesModel` input marks a direct lane whose
+  `llm.baseURL` + `llm.apiKey` are configured as resolved by the plugin's own endpoint.
+- **durable buffer already exists** — `src/extraction-queue.ts` → `<dataDir>/pending-extraction-queue.jsonl`
+  (append-only + atomic rename, caps 2000 / 2 MB).
 
-## Changes
-1. `src/extraction-queue.ts` — durability: fsync the append and the atomic rewrite; keep the
-   append-then-atomic-rewrite contract; make the caps configurable; when the cap forces a drop, log a
-   warning and never drop entries that were never extracted (retain on overflow instead of silently
-   discarding). Keep the per-instance serialize() chain; document the cross-process assumption.
-2. LLM lane wiring (config, not code): `llm.transport: "direct"`, `llm.model`, `llm.baseURL`,
-   `llm.apiKey: { source: "file", id: "<dashscope key>" }`. Default model `qwen-flash` (validated:
-   6.3 s, 6255 tokens, JSON ok).
-3. `index.ts` — add a post-`agent_end` immediate drain, gated by a new config flag
-   (`extraction.realtime.enabled`, default **false**), bounded by the existing extraction rate limiter and
-   one-in-flight-per-session; never awaited by the hook. Host lanes remain the fallback.
-4. Failure semantics: unchanged — a failed direct call leaves the texts queued; the next-turn drain or the
-   cron retries them through the host lane.
-5. Rollback: set `llm.transport` back to `host` and/or `extraction.realtime.enabled: false`.
+## Done (repo, not live)
+- `0b92af2` — `src/extraction-queue.ts`: fsync on append and on the atomic rewrite; cap trims now reported
+  through `onTrim` instead of silently dropping. Test `test/extraction-queue-durability.test.mjs` (3/3).
+- `e6904ad` — `src/load-safety.ts` + `index.ts`: `pluginResolvesModel` gate input so the direct lane is not
+  judged against the host catalog. Test `test/generation-model-gate.test.mjs` (3/3). `tsc` build green; dist
+  rebuilt and committed for both.
+
+## Remaining (live)
+1. Config switch: `plugins.entries.memory-lancedb-cip.config.llm` →
+   `transport: "direct"`, `model: "qwen-flash"`, `baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1"`,
+   `apiKey: {source:"file", id:"/home/admin/.openclaw/.secrets/dashscope.key"}`, keep `timeoutMs: 60000`.
+2. Install the new build (ClawHub publish + `plugins update`, or in-place copy) and **restart** — owner window
+   (a restart drops sessions).
+3. Verify: load line shows smartExtraction active on the direct lane; watch `extract-candidates` latency,
+   token cost, and the pending queue draining; confirm rollback (transport back to host) is clean.
+
+## Rollback
+Set `llm.transport` back to `host` (queue-only + host lanes) — the code path is untouched and still there.
+
+## Owner directive 2026-10-03: no built-in defaults
+The component must contain **no default model id, key name, or key path**; every such value is a
+configuration item, and when one is missing the component must **tell the host what to configure and what
+kind of model is needed** instead of quietly substituting a default that misleads the host.
+Landing it (`927bc08`):
+- the hardcoded fallback embedding id (`text-embedding-3-small`, used at 7 sites in `index.ts` + 1 in
+  `cli.ts`) is gone; an unconfigured embedding model now logs a loud, actionable notice
+  (`set embedding.model to an OpenAI-compatible embeddings model id`) and reports as
+  `(no embedding model configured)` in load-safety / logs;
+- the host-default generation lane now **announces** that no `llm.model` is configured and the host default
+  applies, rather than staying silent;
+- the disabled-lane reason now names the required model TYPE (an OpenAI-compatible chat model that can
+  return JSON), never a concrete id.
+Guard: `test/no-hardcoded-model-defaults.test.mjs` (no default id in the entry files; unconfigured
+generation model resolves to none; a direct lane with `baseURL`+`apiKey` is not host-catalog-gated).
+Kept (adapter knowledge, not defaults, per the decision model): provider identifiers (`dashscope` rerank),
+model-family detection (`/qwen3[-_]embedding/i`, `/qwen3|deepseek.*r1|qwq/i`), and the dims/context lookup
+tables in `src/embedder.ts` / `src/chunker.ts`.
 
 ## Still open
-- Default direct model (qwen-flash unless the owner picks otherwise).
-- Install + restart window (owner path; restart drops sessions).
+- Which model + credential the owner wants on the direct lane (never assumed; must be configured).
+- Install + restart window.
