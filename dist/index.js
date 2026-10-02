@@ -150,6 +150,27 @@ export async function primeStoreSecretRefs(api, config) {
         }
     }
 }
+/** Settles when the store-secret prime has run; never rejects. */
+let storePrimeSettled = Promise.resolve();
+/**
+ * A thin proxy over a lazily-built LLM client whose credential may come from the
+ * shared store. The first call awaits the store prime, then builds and caches
+ * the real client. env/file/literal credentials never go through this path.
+ */
+function lazyLlmClient(build) {
+    let inner = null;
+    const ensure = async () => {
+        await storePrimeSettled;
+        if (!inner)
+            inner = build();
+        return inner;
+    };
+    return {
+        completeJson: (prompt, label, systemPrompt, temperature) => ensure().then((client) => client.completeJson(prompt, label, systemPrompt, temperature)),
+        completeText: (prompt, label, systemPrompt, temperature) => ensure().then((client) => client.completeText(prompt, label, systemPrompt, temperature)),
+        getLastError: () => inner?.getLastError() ?? null,
+    };
+}
 /** Test hook: the primed store-secret cache. */
 export function __getStoreSecretCacheForTests() {
     return storeSecretCache;
@@ -1949,7 +1970,7 @@ function _initPluginState(api) {
     const config = parsePluginConfig(api.pluginConfig);
     // Store-backed SecretRefs resolve asynchronously through the host; fire the
     // prime early so the cache is populated by the time a lane needs it.
-    void primeStoreSecretRefs(api, config);
+    storePrimeSettled = primeStoreSecretRefs(api, config).catch(() => undefined);
     // Bounded/observable load: warn when synchronous init exceeds this threshold.
     const loadWarnAfterMs = config.storage?.loadWarnAfterMs ?? 2000;
     const generationModel = resolveGenerationModel(config);
@@ -2111,13 +2132,23 @@ function _initPluginState(api) {
         // key on a split-provider setup. Leave apiKey/baseURL unset in that
         // case; createLlmClient throws a clear error / defaults the baseURL.
         const llmIsHostTransport = resolveLlmTransport(config) === "host";
+        // A store-backed llm.apiKey resolves asynchronously (the shared-store prime),
+        // so it is deferred: the client is built lazily on first use, after the prime
+        // has settled. env/file/literal and host-transport keys resolve as before.
+        const llmApiKeyIsStoreRef = isSecretRefConfig(config.llm?.apiKey) && config.llm.apiKey.source === "store";
         const llmApiKey = llmAuth === "oauth"
             ? undefined
-            : config.llm?.apiKey
-                ? resolveSecretCredential(api, config.llm.apiKey, "llm.apiKey")
-                : llmIsHostTransport
-                    ? undefined
-                    : resolveFirstApiKey(api, config.embedding.apiKey);
+            : llmApiKeyIsStoreRef
+                ? undefined
+                : config.llm?.apiKey
+                    ? resolveSecretCredential(api, config.llm.apiKey, "llm.apiKey")
+                    : llmIsHostTransport
+                        ? undefined
+                        : resolveFirstApiKey(api, config.embedding.apiKey);
+        /** Resolve the (possibly store-backed) llm.apiKey at call time. */
+        const resolveLlmApiKey = () => llmApiKeyIsStoreRef
+            ? resolveSecretCredential(api, config.llm?.apiKey, "llm.apiKey")
+            : llmApiKey;
         const llmBaseURL = llmAuth === "oauth"
             ? (config.llm?.baseURL ? resolveEnvVars(config.llm.baseURL) : undefined)
             : config.llm?.baseURL
@@ -2134,7 +2165,7 @@ function _initPluginState(api) {
         const llmTimeoutMs = resolveLlmTimeoutMs(config);
         const makeClientForModel = (model, thinkLevel = config.llm?.thinkLevel, modelExplicit = llmModelExplicit) => createLlmClient({
             auth: llmAuth,
-            apiKey: llmApiKey,
+            apiKey: resolveLlmApiKey(),
             model,
             modelExplicit,
             baseURL: llmBaseURL,
@@ -2151,7 +2182,9 @@ function _initPluginState(api) {
             llmModel,
             llmModelExplicit,
             llmTimeoutMs,
-            llmClient: makeClientForModel(llmModel),
+            llmClient: llmApiKeyIsStoreRef
+                ? lazyLlmClient(() => makeClientForModel(llmModel))
+                : makeClientForModel(llmModel),
             makeClientForModel,
         };
     };
