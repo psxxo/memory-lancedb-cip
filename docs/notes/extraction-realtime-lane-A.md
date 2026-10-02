@@ -59,6 +59,16 @@ Kept (adapter knowledge, not defaults, per the decision model): provider identif
 model-family detection (`/qwen3[-_]embedding/i`, `/qwen3|deepseek.*r1|qwq/i`), and the dims/context lookup
 tables in `src/embedder.ts` / `src/chunker.ts`.
 
+## Owner requirement 2026-10-03: unconfigured ⇒ follow the system default
+The lane must need no model of its own when nothing is custom-configured. The code previously defaulted
+`llm.transport` to `direct`, so a plugin with no `llm.*` config resolved no model and the load-safety gate
+**disabled** smart extraction instead of following the host default. Fixed with a single resolver
+`resolveLlmTransport(config)`: **"host" is the default**, and only an explicit `llm.transport: "direct"`
+opts into the plugin-owned lane (which then needs `llm.model` + `llm.baseURL` + `llm.apiKey`). All 13
+call sites go through the resolver (`0b92af2…` family; commit for this change is the newest one).
+Consequence to keep in mind: following the system default means the **host** lane, and the host lane is
+queue-only at `agent_end` — so "system default" and "real-time direct" remain mutually exclusive.
+
 ## Still open
-- Which model + credential the owner wants on the direct lane (never assumed; must be configured).
-- Install + restart window.
+- Install + restart window (owner path).
+- Whether to configure a direct lane at all (only if real-time is wanted; needs an owner-supplied credential).
