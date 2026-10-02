@@ -61,3 +61,24 @@ if it is still needed to enrich idle sessions.
 - no code path deletes or rewrites a raw block; digging for delete calls on the raw table
   returns only retention/maintenance paths that the owner has approved
 - the disk delta over a day is measured and reported, not assumed
+
+## Two-tier recall (owner's design, 2026-10-02)
+
+Human recall returns the condensed version first and produces rich detail only when detail is
+asked for. The store mirrors that shape:
+
+- **Summary tier - default recall.** Distilled entries: summary, tags, entities, embedding,
+  each carrying a provenance link to the raw block it came from. Recall answers from this tier
+  by default, because it is compact and high-signal.
+- **Raw tier - detail on demand.** The verbatim blocks. Retrieved when detail is requested, or
+  when the summary tier cannot answer, and always reachable through a summary's provenance
+  link. This is the 100% fidelity copy.
+- **Drill-down trigger: deterministic first, model last.** Explicit wording (asking for the
+  exact words, a quote, or the full detail), a time or quote reference, or an empty or
+  low-confidence summary hit triggers a raw fetch without involving a model. A model may be
+  used only as a fallback, never as the sole gate: the 2026-10-02 lesson is that
+  model-dependent steps are exactly where this system breaks (26 turn-start drains, 0 created).
+- **Provenance is mandatory.** A distilled entry that cannot name its raw block is invalid.
+  Without the link, drill-down is impossible and the summary silently becomes the only record.
+
+Decision model: two-tier shape 1.00; deterministic-then-model drill trigger 0.86 (confidence 0.79).
