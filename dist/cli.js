@@ -928,7 +928,7 @@ function resolveDoctorLoadSafety(context) {
         loadTimeNetwork: "none",
         loadDurationMs: 0,
         loadWarnAfterMs: 2000,
-        embeddingModel: typeof embedding?.model === "string" ? embedding.model : "text-embedding-3-small",
+        embeddingModel: typeof embedding?.model === "string" ? embedding.model : "(no embedding model configured)",
         embeddingProvider: typeof embedding?.provider === "string" ? embedding.provider : "openai-compatible",
     };
 }

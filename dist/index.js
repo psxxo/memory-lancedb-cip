@@ -159,6 +159,10 @@ function resolveOptionalEnvString(value) {
     const raw = asNonEmptyString(value);
     return raw ? resolveEnvVars(raw) : undefined;
 }
+/** Display label for the configured embedding model — never a built-in model id. */
+function resolveEmbeddingModelLabel(config) {
+    return asNonEmptyString(config.embedding?.model) ?? "(no embedding model configured)";
+}
 function resolveOptionalPathWithEnv(api, value, fallback) {
     const raw = typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
     return api.resolvePath(resolveEnvVars(raw));
@@ -1861,7 +1865,8 @@ function _initPluginState(api) {
     if (smartExtractionRequested && !smartExtractionEnabled) {
         smartExtractionDisabledReason =
             `generation LLM "${generationModel.modelRef}" is ${modelAvailability.status}: ${modelAvailability.reason}`
-                + " | fix: set llm.model to a model this host serves (or configure the provider), or leave smartExtraction disabled (the default)"
+                + " | fix: set llm.model to an OpenAI-compatible chat model that can return JSON (used for memory extraction);"
+                + " the plugin ships no default model (leave smartExtraction off to keep it disabled)"
                 + (modelAvailability.status === "unconfirmed"
                     ? "; the host surfaced no readable model catalog"
                     : "");
@@ -1878,8 +1883,24 @@ function _initPluginState(api) {
     api.logger.debug?.(`memory-lancedb-cip: load-safety — generation model ${generationModel.modelRef} is ${modelAvailability.status}`
         + ` (inventory: ${modelAvailability.inventorySource}, ${modelAvailability.inventorySize} entries);`
         + ` smartExtraction: requested=${smartExtractionRequested} active=${smartExtractionEnabled}`);
+    // Never implicit: when no model is configured but the host resolves its own
+    // default, say so (owner directive 2026-10-03 — announce, do not silently
+    // fall back, and name no concrete model id).
+    if (!generationModel.explicit && hostResolvesGenerationModel) {
+        api.logger.info?.("memory-lancedb-cip: no llm.model configured — the host default model applies; the plugin names no model of its own. "
+            + "Set llm.model to an OpenAI-compatible chat model that can return JSON to pin one.");
+    }
+    // No built-in default: an unconfigured embedding model is reported, never
+    // silently replaced by a model id the plugin ships (owner directive
+    // 2026-10-03: the component must contain no default model name).
+    const embeddingModelConfigured = asNonEmptyString(config.embedding.model);
+    if (!embeddingModelConfigured) {
+        const logLoudEmbed = typeof api.logger.error === "function" ? api.logger.error.bind(api.logger) : api.logger.warn.bind(api.logger);
+        logLoudEmbed("memory-lancedb-cip: no embedding model configured — set embedding.model to an OpenAI-compatible "
+            + "embeddings model id (the plugin ships no default). Embedding-dependent features stay OFF until it is set.");
+    }
     let resolvedDbPath = normalizeStoragePath(api.resolvePath(config.dbPath || getDefaultDbPath()));
-    const vectorDim = getEffectiveVectorDimensions(config.embedding.model || "text-embedding-3-small", config.embedding.dimensions, config.embedding.requestDimensions);
+    const vectorDim = getEffectiveVectorDimensions(embeddingModelConfigured ?? "", config.embedding.dimensions, config.embedding.requestDimensions);
     const embeddingApiKey = resolveSecretCredentialArray(api, config.embedding.apiKey, "embedding.apiKey");
     const store = new MemoryStore({
         dbPath: resolvedDbPath,
@@ -1899,7 +1920,7 @@ function _initPluginState(api) {
     const embedder = createEmbedder({
         provider: "openai-compatible",
         apiKey: embeddingApiKey,
-        model: config.embedding.model || "text-embedding-3-small",
+        model: embeddingModelConfigured ?? "",
         baseURL: config.embedding.baseURL,
         dimensions: config.embedding.dimensions,
         requestDimensions: config.embedding.requestDimensions,
@@ -2184,7 +2205,7 @@ function _initPluginState(api) {
         loadTimeNetwork: "none",
         loadDurationMs: loadElapsedMs,
         loadWarnAfterMs,
-        embeddingModel: config.embedding.model || "text-embedding-3-small",
+        embeddingModel: resolveEmbeddingModelLabel(config),
         embeddingProvider: config.embedding.provider || "openai-compatible",
     };
     api.logger.debug?.(`memory-lancedb-cip: load phase complete in ${loadElapsedMs}ms ` +
@@ -2633,7 +2654,7 @@ const memoryLanceDBCipPlugin = {
         });
         const logReg = isCliMode() ? api.logger.debug : api.logger.info;
         if (isFirstRegistration) {
-            logReg(`memory-lancedb-cip@${pluginVersion}: plugin registered (db: ${resolvedDbPath}, model: ${config.embedding.model || "text-embedding-3-small"}, smartExtraction: ${smartExtractor ? 'ON' : 'OFF'}, admissionControl: ${captureAdmissionController() ? 'ON' : 'OFF'})`);
+            logReg(`memory-lancedb-cip@${pluginVersion}: plugin registered (db: ${resolvedDbPath}, model: ${resolveEmbeddingModelLabel(config)}, smartExtraction: ${smartExtractor ? 'ON' : 'OFF'}, admissionControl: ${captureAdmissionController() ? 'ON' : 'OFF'})`);
             logReg(`memory-lancedb-cip: diagnostic build tag loaded (${DIAG_BUILD_TAG})`);
         }
         // Dual-memory model warning: help users understand the two-layer architecture
@@ -2661,7 +2682,7 @@ const memoryLanceDBCipPlugin = {
             dbPath: resolvedDbPath,
             vectorDim,
             embeddingProvider: config.embedding.provider,
-            embeddingModel: config.embedding.model || "text-embedding-3-small",
+            embeddingModel: resolveEmbeddingModelLabel(config),
             workspaceDir: getDefaultWorkspaceDir(),
             store,
             retriever,
@@ -5926,7 +5947,7 @@ const memoryLanceDBCipPlugin = {
                 };
                 const runStartupChecks = async () => {
                     try {
-                        api.logger.info(`memory-lancedb-cip: startup checks started (db: ${resolvedDbPath}, model: ${config.embedding.model || "text-embedding-3-small"})`);
+                        api.logger.info(`memory-lancedb-cip: startup checks started (db: ${resolvedDbPath}, model: ${resolveEmbeddingModelLabel(config)})`);
                         // Warm the one-time store initialization (first table open, FTS
                         // index build) outside the probe timers so the checks measure
                         // steady-state behavior instead of cold-start costs.
@@ -6160,7 +6181,7 @@ export function parsePluginConfig(value) {
             apiKey,
             model: typeof embedding.model === "string"
                 ? embedding.model
-                : "text-embedding-3-small",
+                : "",
             baseURL: typeof embedding.baseURL === "string"
                 ? resolveEnvVars(embedding.baseURL)
                 : undefined,
