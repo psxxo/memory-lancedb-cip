@@ -1,3 +1,14 @@
+## 1.6.3
+
+**Three points in one line — the feature surface now matches across the manifest schema, the feature list, and all 11 READMEs (documentation only).**
+
+- DOCS — every `README*.md` (all 11 languages) gained a localized "feature surface" section that
+  mirrors `docs/FEATURES.md`'s ten categories and states that the README, `docs/FEATURES.md`, and the
+  plugin manifest `configSchema` describe the same surface and ship in the same release.
+- DOCS — `docs/FEATURES.md` declares the three-point alignment; `docs/release-checklist.md` adds a
+  mandatory "three points in one line" check so a feature change can never land in only one of them.
+- NOTE — no runtime change: `dist/` and `src/` are byte-identical to 1.6.0.
+
 ## 1.6.2
 
 **Complete documentation set — the nine remaining README languages.**
