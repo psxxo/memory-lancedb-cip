@@ -3,6 +3,10 @@
 Use this checklist before publishing a new `memory-lancedb-cip` package. It is
 intended for the release tracked in #812 and future beta/stable cuts.
 
+> **Before you start:** follow the ordered runbook [`docs/notes/release-runbook.md`](notes/release-runbook.md)
+> (pre-flight cleanup → prepare → verify → push → publish → **wait for scans** → cleanup).
+> The three non-negotiables: single-flight, capture output to a file, and wait after submit.
+
 ## Release Target
 
 - Current package version: `1.1.0-beta.11`
