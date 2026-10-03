@@ -44,7 +44,10 @@ Documentation is part of the release, never a follow-up. Confirm before publishi
 - no README still shows a removed default (e.g. a built-in model id) in its configuration example;
 - every README links `docs/FEATURES.md`;
 - `docs/notes/extraction-realtime-lane-A.md` matches the shipped code — triggers, transport
-  resolution, queue semantics, and runbook (a behaviour change updates it in the same release).
+  resolution, queue semantics, and runbook (a behaviour change updates it in the same release);
+- **three points in one line**: the plugin manifest `configSchema`, `docs/FEATURES.md`, and every
+  `README*.md` (all 11 languages) describe the same feature surface — a feature added, renamed, or
+  removed must be reflected in all three in the same release.
 
 If any of these is missing, finish it in the same cycle — do not publish first and patch the docs
 afterwards.

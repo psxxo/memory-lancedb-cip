@@ -31,6 +31,21 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 ---
 
+## 기능 면 — manifest schema와 한 줄로
+
+전체 권위 목록은 [`docs/FEATURES.md`](docs/FEATURES.md)입니다. 이 문서, 이 README, 플러그인 manifest의 `configSchema`는 **동일한 기능 면**을 기술하며 **같은 릴리스로 함께 배포**됩니다:
+
+1. **쓰기와 추출** — LLM 스마트 추출(10가지 기억 유형), 쓰기 어드미션, 적응형 스로틀링, 배치/길이 상한.
+2. **검색과 리랭크** — 벡터 + BM25 하이브리드 검색, cross-encoder 리랭크, 시간 감쇠, core/working/peripheral 계층, 2단계 드릴다운(요약 → raw 원문).
+3. **자동 리콜과 자동 캡처** — 턴별 리콜 주입, 캡처 파이프라인, 세션 압축.
+4. **유지보수와 드리밍** — 결정론적 드리밍(LLM 미사용·토큰 무소모), 점진적 컴팩션, 스토리지 유지보수, 정규 코퍼스.
+5. **스코프와 워크스페이스** — 에이전트별 읽기 스코프, Markdown 미러, 워크스페이스 경계.
+6. **모델 레인(LLM / Embedding / Rerank)** — 서로 독립적인 3개 레인. **기본 모델 id·키 이름·키 경로를 일절 내장하지 않으며** 모두 설정 항목입니다.
+7. **스토리지와 잠금** — LanceDB 경로, 유계 쓰기 잠금 설정, 선택적 Redis 조정.
+8. **도구와 CLI** — `memory_*` 에이전트 도구와 `openclaw memory-cip …` CLI.
+9. **1.6.0 변경점** — [`docs/FEATURES.md` §9](docs/FEATURES.md) 참조.
+10. **알려진 경계** — [`docs/FEATURES.md` §10](docs/FEATURES.md) 참조.
+
 ## 왜 memory-lancedb-cip인가?
 
 대부분의 AI 에이전트는 건망증이 있습니다. 새 채팅을 시작하는 순간 모든 것을 잊어버립니다.

@@ -31,6 +31,21 @@ Un plugin de mémoire long terme pour OpenClaw basé sur LanceDB qui stocke les 
 
 ---
 
+## Surface fonctionnelle — alignée sur le schéma du manifest
+
+La liste complète et faisant autorité est [`docs/FEATURES.md`](docs/FEATURES.md). Ce fichier, ce README et le `configSchema` du manifest décrivent **la même surface fonctionnelle** et sont livrés dans **la même version** :
+
+1. **Écriture et extraction** — extraction intelligente par LLM (10 classes de mémoire), contrôle d'admission, limitation adaptative, limites de lot et de longueur.
+2. **Recherche et rerank** — recherche hybride vecteur + BM25, rerank cross-encoder, décroissance temporelle, niveaux core/working/peripheral, exploration à deux étages (résumé → texte brut).
+3. **Rappel et capture automatiques** — injection de rappel à chaque tour, pipeline de capture, compression de session.
+4. **Maintenance et dreaming** — dreaming déterministe (sans LLM, sans tokens), compaction progressive, maintenance du stockage, corpus canonique.
+5. **Portées et espace de travail** — portées de lecture par agent, miroir Markdown, frontière d'espace de travail.
+6. **Voies de modèles (LLM / Embedding / Rerank)** — trois voies indépendantes ; **aucun id de modèle, nom de clé ou chemin de clé en dur** — tout est un élément de configuration.
+7. **Stockage et verrouillage** — chemin LanceDB, réglages de verrou d'écriture bornés, coordination Redis facultative.
+8. **Outils et CLI** — les outils d'agent `memory_*` et la CLI `openclaw memory-cip …`.
+9. **Nouveautés 1.6.0** — voir [`docs/FEATURES.md` §9](docs/FEATURES.md).
+10. **Limites connues** — voir [`docs/FEATURES.md` §10](docs/FEATURES.md).
+
 ## Pourquoi memory-lancedb-cip ?
 
 La plupart des agents IA souffrent d'amnésie. Ils oublient tout dès que vous démarrez une nouvelle conversation.

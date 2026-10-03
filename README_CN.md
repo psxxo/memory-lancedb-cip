@@ -37,6 +37,21 @@
 
 ---
 
+## 功能面 — 与 manifest schema 保持一线
+
+完整权威清单见 [`docs/FEATURES.md`](docs/FEATURES.md)。该文件、本 README 与插件 manifest 的 `configSchema` 描述**同一套功能面**，且**随同一版本发布**：
+
+1. **写入与抽取** — LLM 智能抽取（10 类记忆）、写入准入、自适应节流、批量与长度上限。
+2. **检索与重排** — 向量 + BM25 混合检索、cross-encoder 重排、时效衰减、核心/长期/常规分层、两级钻取（摘要 → raw 原文）。
+3. **自动回忆与自动捕获** — 每回合回忆注入、捕获管线、会话压缩。
+4. **维护与梦境** — 确定性梦境巡检（不调用 LLM、不花 token）、渐进式摘要合并、存储维护、规范语料。
+5. **作用域与工作区** — 每 agent 读取域、Markdown 镜像、工作区边界。
+6. **模型车道（LLM / Embedding / Rerank）** — 三条互相独立的车道；**不含任何默认模型 id、密钥名、密钥路径**，全部为配置项。
+7. **存储与锁** — LanceDB 路径、有界写锁设置、可选 Redis 协调。
+8. **工具与 CLI** — `memory_*` agent 工具与 `openclaw memory-cip …` CLI。
+9. **1.6.0 关键变化** — 见 [`docs/FEATURES.md` 第 9 节](docs/FEATURES.md)。
+10. **已知边界** — 见 [`docs/FEATURES.md` 第 10 节](docs/FEATURES.md)。
+
 ## 为什么选 memory-lancedb-cip？
 
 大多数 AI 智能体都有"失忆症"——每次新对话，之前聊过的全部清零。

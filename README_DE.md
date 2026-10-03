@@ -31,6 +31,21 @@ Ein LanceDB-basiertes OpenClaw-Langzeitgedächtnis-Plugin, das Präferenzen, Ent
 
 ---
 
+## Funktionsumfang — auf einer Linie mit dem Manifest-Schema
+
+Die vollständige, maßgebliche Liste steht in [`docs/FEATURES.md`](docs/FEATURES.md). Diese Datei, dieses README und das `configSchema` des Manifests beschreiben **denselben Funktionsumfang** und werden in **derselben Version** ausgeliefert:
+
+1. **Schreiben & Extraktion** — LLM-gestützte intelligente Extraktion (10 Gedächtnisklassen), Aufnahme-Kontrolle, adaptive Drosselung, Batch- und Längengrenzen.
+2. **Abruf & Rerank** — hybride Vektor- + BM25-Suche, Cross-Encoder-Rerank, zeitlicher Verfall, Ebenen core/working/peripheral, zweistufiges Drill-down (Zusammenfassung → Rohtext).
+3. **Auto-Recall & Auto-Capture** — Recall-Injektion pro Turn, Capture-Pipeline, Sitzungskomprimierung.
+4. **Wartung & Dreaming** — deterministisches Dreaming (kein LLM, keine Tokens), progressive Kompaktierung, Speicherwartung, kanonischer Korpus.
+5. **Scopes & Arbeitsbereich** — Lesescopes pro Agent, Markdown-Spiegel, Arbeitsbereichsgrenze.
+6. **Modell-Lanes (LLM / Embedding / Rerank)** — drei unabhängige Lanes; **keine eingebaute Modell-ID, kein Schlüsselname, kein Schlüsselpfad** — alles ist Konfiguration.
+7. **Speicher & Sperren** — LanceDB-Pfad, begrenzte Schreibsperr-Einstellungen, optionales Redis.
+8. **Werkzeuge & CLI** — die `memory_*`-Agent-Tools und die CLI `openclaw memory-cip …`.
+9. **Änderungen in 1.6.0** — siehe [`docs/FEATURES.md` §9](docs/FEATURES.md).
+10. **Bekannte Grenzen** — siehe [`docs/FEATURES.md` §10](docs/FEATURES.md).
+
 ## Warum memory-lancedb-cip?
 
 Die meisten KI-Agenten leiden unter Amnesie. Sie vergessen alles, sobald Sie einen neuen Chat starten.

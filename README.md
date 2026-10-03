@@ -46,6 +46,21 @@ A LanceDB-backed OpenClaw memory plugin that stores preferences, decisions, and 
 
 ---
 
+## Feature surface — kept in line with the manifest schema
+
+The complete, authoritative list is [`docs/FEATURES.md`](docs/FEATURES.md). That file, this README, and the plugin manifest's `configSchema` describe **the same feature surface** and ship in the **same release**:
+
+1. **Write & extraction** — LLM smart extraction (10 memory classes), admission control, adaptive throttling, batch/length limits.
+2. **Retrieval & rerank** — hybrid vector + BM25, cross-encoder rerank, recency decay, core/working/peripheral tiers, two-stage drill-down (summary → raw text).
+3. **Auto-recall & auto-capture** — per-turn recall injection, capture pipeline, session compression.
+4. **Maintenance & dreaming** — deterministic dreaming (no LLM, no tokens), progressive compaction, storage maintenance, canonical corpus.
+5. **Scopes & workspace** — per-agent read scopes, Markdown mirror, workspace boundary.
+6. **Model lanes (LLM / Embedding / Rerank)** — three independent lanes; **no built-in model id, key name, or key path** — every value is configuration.
+7. **Storage & locking** — LanceDB path, bounded write-lock settings, optional Redis coordination.
+8. **Tools & CLI** — the `memory_*` agent tools and the `openclaw memory-cip …` CLI.
+9. **1.6.0 changes** — see [`docs/FEATURES.md` §9](docs/FEATURES.md).
+10. **Known boundaries** — see [`docs/FEATURES.md` §10](docs/FEATURES.md).
+
 ## Why memory-lancedb-cip?
 
 Most AI agents have amnesia. They forget everything the moment you start a new chat.
