@@ -33,6 +33,20 @@ Confirm:
 - `CHANGELOG.md` and `CHANGELOG-v1.1.0.md` start with the package version
 - `npm pack --dry-run` includes compiled `dist` output and excludes test files
 
+## Documentation (ships in the SAME release)
+
+Documentation is part of the release, never a follow-up. Confirm before publishing:
+
+- every `README*.md` — all languages — carries the current version's "what's new" section; a release
+  that adds or changes behaviour must not ship with READMEs still describing the previous version;
+- `docs/FEATURES.md` matches the manifest `configSchema` (it is the authoritative feature list, since
+  the READMEs under-report the real surface);
+- no README still shows a removed default (e.g. a built-in model id) in its configuration example;
+- every README links `docs/FEATURES.md`.
+
+If any of these is missing, finish it in the same cycle — do not publish first and patch the docs
+afterwards.
+
 ## Publish Dry Run
 
 ```bash
