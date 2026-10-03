@@ -21,6 +21,10 @@ Ein LanceDB-basiertes OpenClaw-Langzeitgedächtnis-Plugin, das Präferenzen, Ent
 
 ---
 
+## Neu in 1.7.0
+
+**Die OAuth-LLM-Spur wurde entfernt (Breaking Change).** `llm.auth: "oauth"`, `llm.oauthProvider`, `llm.oauthPath`, der eingebaute `openai-codex`-Provider und die Befehle `openclaw memory-cip auth login/status/logout` sind entfallen. Die Generierungs-Spur nutzt immer einen API-Schlüssel (`llm.apiKey` / `embedding.apiKey`) über den konfigurierten Transport. Entfernen Sie diese Schlüssel aus einer bestehenden Plugin-Konfiguration.
+
 ## Neuerungen in 1.6.0
 
 - **Plugin-eigene LLM-Spur (optional)**: `llm.transport` ist standardmäßig `host`; ohne `llm.model` gelten OpenClaws eigenes Standardmodell und dessen Zugangsdaten (das Plugin hält weder Modellname noch Schlüssel). Für eine Extraktion direkt am Turn-Ende `"direct"` setzen und `llm.model` + `llm.baseURL` angeben. Zugangsdaten akzeptieren ein SecretRef mit Quelle `env`, `file` oder **`store`** (gemeinsamer Secret-Store des Hosts) — `store` wird beim Start asynchron voraufgelöst und synchron gelesen; ohne Auflösung schlägt es geschlossen fehl.

@@ -21,6 +21,10 @@
 
 ---
 
+## 1.7.0 更新要点（当前版本）
+
+**移除 OAuth LLM 车道（破坏性变更）。** `llm.auth: "oauth"`、`llm.oauthProvider`、`llm.oauthPath`、内置 `openai-codex` provider，以及 `openclaw memory-cip auth login/status/logout` 命令均已删除。生成车道统一使用 API Key（`llm.apiKey` / `embedding.apiKey`）走既有 transport。请从既有插件配置中移除这些键。
+
 ## 1.6.0 更新要点（当前版本）
 
 **1) 插件自有 LLM 车道可用（可选）。** 生成车道默认走宿主（`llm.transport: "host"`）：未配置 `llm.model` 时请求不带模型字段，由 OpenClaw 自己的默认模型与凭据生效，插件不持有任何模型名或密钥。若要让抽取**在回合结束当场完成（实时）**，可显式启用插件自有车道：`llm.transport` 设为 `"direct"`，并给出 `llm.model`、`llm.baseURL`。凭据支持 SecretRef，来源可选 `env` / `file` / **`store`**（宿主共享密钥库）——用 `store` 时只需按条目名引用，凭据由插件在启动时异步预热、同步读取；解析不到即失败闭合，绝不借用环境里的凭据或塞入默认值。

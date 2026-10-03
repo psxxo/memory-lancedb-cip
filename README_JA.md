@@ -21,6 +21,10 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 
 ---
 
+## 1.7.0 の更新ポイント
+
+**OAuth LLM レーンを削除（破壊的変更）。** `llm.auth: "oauth"`、`llm.oauthProvider`、`llm.oauthPath`、組み込みの `openai-codex` プロバイダー、および `openclaw memory-cip auth login/status/logout` コマンドは削除されました。生成レーンは常に API キー（`llm.apiKey` / `embedding.apiKey`）で既存の transport を使用します。既存のプラグイン設定からこれらのキーを削除してください。
+
 ## 1.6.0 の更新ポイント
 
 - **プラグイン自身の LLM レーン（任意）**：`llm.transport` は既定で `host`（`llm.model` 未設定時は OpenClaw 自身の既定モデルと資格情報が使われ、プラグインはモデル名も鍵も保持しません）。抽出をターン終了時に即時実行したい場合は `"direct"` を指定し、`llm.model` と `llm.baseURL` を渡します。資格情報は SecretRef に対応し、`env`／`file`／**`store`**（ホスト共有シークレットストア）を選べます。`store` は起動時に非同期で事前解決し同期読み出します（解決できなければフェイルクローズ）。

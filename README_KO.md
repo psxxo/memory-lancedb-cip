@@ -21,6 +21,10 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 ---
 
+## 1.7.0 업데이트 요점
+
+**OAuth LLM 레인 제거(호환성 깨짐).** `llm.auth: "oauth"`, `llm.oauthProvider`, `llm.oauthPath`, 내장 `openai-codex` 프로바이더, 그리고 `openclaw memory-cip auth login/status/logout` 명령이 제거되었습니다. 생성 레인은 항상 API 키(`llm.apiKey` / `embedding.apiKey`)로 기존 transport를 사용합니다. 기존 플러그인 구성에서 해당 키를 제거하세요.
+
 ## 1.6.0 업데이트 요점
 
 - **플러그인 자체 LLM 레인(선택)**：`llm.transport` 기본값은 `host`이며, `llm.model`을 설정하지 않으면 OpenClaw 자체 기본 모델과 자격 증명이 사용됩니다(플러그인은 모델명도 키도 보유하지 않음). 추출을 턴 종료 시 즉시 실행하려면 `"direct"`로 두고 `llm.model`과 `llm.baseURL`을 지정하세요. 자격 증명은 SecretRef를 지원하며 `env`/`file`/**`store`**(호스트 공유 시크릿 저장소)를 쓸 수 있습니다. `store`는 시작 시 비동기로 예열한 뒤 동기로 읽고, 해석되지 않으면 실패 폐쇄합니다.

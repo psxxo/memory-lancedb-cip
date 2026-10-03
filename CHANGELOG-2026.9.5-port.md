@@ -1,3 +1,9 @@
+## 1.7.0
+
+**Removed the OAuth LLM lane (breaking).** See `CHANGELOG.md` 1.7.0 for the full note: the
+`llm.auth: "oauth"` mode, the built-in `openai-codex` provider definition, the `auth` CLI commands,
+the `llm.oauthProvider` / `llm.oauthPath` config keys, and the OAuth token transport are gone.
+
 ## 1.6.2
 
 Documentation completeness: localized 1.6.0 sections for the nine remaining README languages, with

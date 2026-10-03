@@ -21,6 +21,10 @@ Un plugin di memoria a lungo termine per OpenClaw basato su LanceDB che memorizz
 
 ---
 
+## Novità della 1.7.0
+
+**Rimossa la via LLM OAuth (modifica incompatibile).** `llm.auth: "oauth"`, `llm.oauthProvider`, `llm.oauthPath`, il provider integrato `openai-codex` e i comandi `openclaw memory-cip auth login/status/logout` non esistono più. La via di generazione usa sempre una chiave API (`llm.apiKey` / `embedding.apiKey`) sul transport configurato. Rimuovi queste chiavi da una configurazione del plugin esistente.
+
 ## Novità della 1.6.0
 
 - **Corsia LLM del plugin (opzionale)**: `llm.transport` è `host` per impostazione predefinita; senza `llm.model` valgono il modello e le credenziali predefinite di OpenClaw (il plugin non conserva né nomi di modello né chiavi). Per estrarre subito a fine turno, imposta `"direct"` con `llm.model` e `llm.baseURL`. Le credenziali accettano un SecretRef con origine `env`, `file` o **`store`** (archivio segreti condiviso dell'host): `store` viene pre-risolto in modo asincrono all'avvio e letto in modo sincrono; se non risolto, fallisce in modo chiuso.

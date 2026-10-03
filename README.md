@@ -30,6 +30,10 @@ A LanceDB-backed OpenClaw memory plugin that stores preferences, decisions, and 
 
 ---
 
+## What's new in 1.7.0
+
+**Removed the OAuth LLM lane (breaking).** `llm.auth: "oauth"`, `llm.oauthProvider`, `llm.oauthPath`, the built-in `openai-codex` provider, and the `openclaw memory-cip auth login/status/logout` commands are gone. The generation lane always uses an API key (`llm.apiKey` / `embedding.apiKey`) over the configured transport. Remove those keys from an existing plugin config.
+
 ## What's new in 1.6.0
 
 **1) A plugin-owned LLM lane (optional).** The generation lane defaults to the host (`llm.transport: "host"`): with no `llm.model` configured the request carries no model field, so OpenClaw's own default model and credential apply and the plugin holds no model name or key. To make extraction run **immediately at turn end (real time)**, opt into the plugin-owned lane: set `llm.transport` to `"direct"` and provide `llm.model` + `llm.baseURL`. The credential accepts a SecretRef whose source may be `env`, `file`, or **`store`** (the host's shared secret store) — with `store` you reference the entry by name; the plugin primes it asynchronously at startup and reads it synchronously, failing closed (never borrowing an ambient credential, never substituting a default).

@@ -21,6 +21,10 @@
 
 ---
 
+## 1.7.0 更新要點（當前版本）
+
+**移除 OAuth LLM 車道（破壞性變更）。** `llm.auth: "oauth"`、`llm.oauthProvider`、`llm.oauthPath`、內建 `openai-codex` provider，以及 `openclaw memory-cip auth login/status/logout` 命令均已刪除。生成車道一律使用 API Key（`llm.apiKey` / `embedding.apiKey`）走既有 transport。請從既有外掛設定中移除這些鍵。
+
 ## 1.6.0 更新要點
 
 - **外掛自有 LLM 車道（可選）**：`llm.transport` 預設為 `host`（未設定 `llm.model` 時由 OpenClaw 自身的預設模型與憑證生效，外掛不持有任何模型名稱或金鑰）。若要讓抽取在回合結束當場完成（即時），可設為 `"direct"` 並提供 `llm.model` 與 `llm.baseURL`；憑證支援 SecretRef，來源可為 `env`／`file`／**`store`**（宿主共享金鑰庫），`store` 會非同步預熱後同步讀取，解析不到即失敗閉合。
