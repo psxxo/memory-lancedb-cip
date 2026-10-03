@@ -21,6 +21,22 @@
 
 ---
 
+## 1.6.0 更新要点（当前版本）
+
+**1) 插件自有 LLM 车道可用（可选）。** 生成车道默认走宿主（`llm.transport: "host"`）：未配置 `llm.model` 时请求不带模型字段，由 OpenClaw 自己的默认模型与凭据生效，插件不持有任何模型名或密钥。若要让抽取**在回合结束当场完成（实时）**，可显式启用插件自有车道：`llm.transport` 设为 `"direct"`，并给出 `llm.model`、`llm.baseURL`。凭据支持 SecretRef，来源可选 `env` / `file` / **`store`**（宿主共享密钥库）——用 `store` 时只需按条目名引用，凭据由插件在启动时异步预热、同步读取；解析不到即失败闭合，绝不借用环境里的凭据或塞入默认值。
+
+**2) 未自定义配置时自动跟随系统默认。** 未配置 transport 时默认就是宿主车道；只有宿主确实暴露了补全接口才如此，否则退回原有直连行为，保证车道始终可用。
+
+**3) 不再内置任何模型默认值。** `embedding.model` 与 `llm.model` 都是**必填的配置项**：插件本体不含任何默认模型 id、密钥名或密钥路径。缺配置时插件不会静默顶替，而是明确提示"需要配置什么类型的模型"，相关功能保持关闭（真正用到时才报错，注册阶段绝不抛）。
+
+**4) 写入更可靠。** 待抽取队列写入带 `fsync`；超出容量上限不再静默丢弃最旧条目，而是通过 `onTrim` 上报。
+
+**5) 闸门更准确。** 直连车道配好 `baseURL + apiKey` 后按插件自有端点判定可用性，不再拿宿主模型目录去卡它。
+
+> 完整功能面（含默认值与每条的作用）见 **[功能清单 docs/FEATURES.md](docs/FEATURES.md)**——以 manifest 的 `configSchema` 为准，README 历来低估真实功能集。
+
+---
+
 ## 为什么选 memory-lancedb-cip？
 
 大多数 AI 智能体都有"失忆症"——每次新对话，之前聊过的全部清零。
@@ -92,7 +108,7 @@ npm i @psxxo/lancedb-cip
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<你的向量模型 id（必填：插件不自带默认模型）>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -734,6 +750,7 @@ v1.1.0 常用 `metadata` 字段：`l0_abstract`、`l1_overview`、`l2_content`�
 | [记忆架构分析](docs/memory_architecture_analysis.md) | 完整架构深度解析 |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | v1.1.0 行为变更和升级说明 |
 | [长上下文分块](docs/long-context-chunking.md) | 长文档分块策略 |
+| [功能清单](docs/FEATURES.md) | 完整功能面与默认值（以 manifest configSchema 为准） |
 
 ---
 

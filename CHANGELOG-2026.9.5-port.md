@@ -1,3 +1,8 @@
+## 1.6.1
+
+Documentation catch-up for 1.6.0 (README intro/usage plus `docs/FEATURES.md`); no runtime change.
+See `CHANGELOG.md`.
+
 ## 1.6.0
 
 Plugin-owned LLM lane (shared-store SecretRefs, lazy client build, `llm.transport` defaulting to

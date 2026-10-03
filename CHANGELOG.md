@@ -1,3 +1,16 @@
+## 1.6.1
+
+**Documentation catch-up for 1.6.0 — no runtime change.**
+
+- DOCS — `README.md` and `README_CN.md` gain a "what's new in 1.6.0" section covering the
+  plugin-owned LLM lane (a `{source:"store"}` SecretRef resolved from the host's shared secret
+  store), the host-following transport default, and the removal of built-in model defaults. The
+  configuration example no longer shows the removed default embedding model id.
+- DOCS — new `docs/FEATURES.md`: the complete feature surface with defaults, Chinese-first, sourced
+  from the manifest `configSchema` because the README has historically under-reported it.
+- NOTE — the remaining README languages are not updated yet; `docs/FEATURES.md` plus the manifest
+  schema are authoritative until they are.
+
 ## 1.6.0
 
 **Plugin-owned LLM lane + no built-in model defaults.** The generation lane can resolve its

@@ -30,6 +30,22 @@ A LanceDB-backed OpenClaw memory plugin that stores preferences, decisions, and 
 
 ---
 
+## What's new in 1.6.0
+
+**1) A plugin-owned LLM lane (optional).** The generation lane defaults to the host (`llm.transport: "host"`): with no `llm.model` configured the request carries no model field, so OpenClaw's own default model and credential apply and the plugin holds no model name or key. To make extraction run **immediately at turn end (real time)**, opt into the plugin-owned lane: set `llm.transport` to `"direct"` and provide `llm.model` + `llm.baseURL`. The credential accepts a SecretRef whose source may be `env`, `file`, or **`store`** (the host's shared secret store) — with `store` you reference the entry by name; the plugin primes it asynchronously at startup and reads it synchronously, failing closed (never borrowing an ambient credential, never substituting a default).
+
+**2) Unconfigured now follows the system default.** With no transport configured the lane defaults to the host — but only where the host actually exposes its completion surface; otherwise the previous direct behaviour applies so the lane stays usable.
+
+**3) No built-in model defaults.** `embedding.model` and `llm.model` are **required configuration**: the plugin ships no default model id, key name, or key path. When one is missing the plugin does not silently substitute — it reports what kind of model to configure and keeps the dependent feature off (it errors only when actually used; registration never throws).
+
+**4) More durable writes.** Pending-extraction queue writes are fsynced, and cap trims are reported via `onTrim` instead of silently dropping the oldest entries.
+
+**5) A more accurate gate.** A direct lane with `baseURL + apiKey` configured is judged by the plugin's own endpoint rather than against the host model catalog.
+
+> The complete feature surface (with defaults and what each does) is in **[docs/FEATURES.md](docs/FEATURES.md)** — sourced from the manifest `configSchema`, since the README has historically under-reported the real feature set.
+
+---
+
 ## Why memory-lancedb-cip?
 
 Most AI agents have amnesia. They forget everything the moment you start a new chat.
@@ -101,7 +117,7 @@ Add to your `openclaw.json`:
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<your embedding model id (required: the plugin ships no default)>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -973,6 +989,7 @@ openclaw doctor --fix # resolve any stale config after upgrade
 | Document | Description |
 | --- | --- |
 | [OpenClaw Integration Playbook](docs/openclaw-integration-playbook.md) | Deployment modes, verification, regression matrix |
+| [Feature list](docs/FEATURES.md) | Complete feature surface and defaults (authoritative: manifest configSchema) |
 | [Memory Architecture Analysis](docs/memory_architecture_analysis.md) | Full architecture deep-dive |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | v1.1.0 behavior changes and upgrade rationale |
 | [Release Checklist](docs/release-checklist.md) | Package preflight, publish dry run, and post-publish smoke checks |
