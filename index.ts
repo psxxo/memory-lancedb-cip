@@ -4073,6 +4073,11 @@ const memoryLanceDBCipPlugin = {
 
       const AUTO_RECALL_TIMEOUT_MS = parsePositiveInt(config.autoRecallTimeoutMs) ?? 5_000; // configurable; default raised from 3s to 5s for remote embedding APIs behind proxies
       api.on("before_prompt_build", async (event: any, ctx: any) => {
+        // Mark this conversation hook as in flight so the store's write-threshold
+        // index fold yields instead of holding the write lock and pushing this hook
+        // past the host's hook budget.
+        store.beginConversationHook();
+        try {
         const autoRecallDeadlineMs = Date.now() + AUTO_RECALL_TIMEOUT_MS;
         // Skip auto-recall for sub-agent sessions — their context comes from the parent.
         const sessionKey = typeof ctx.sessionKey === "string" ? ctx.sessionKey : "";
@@ -4571,6 +4576,9 @@ const memoryLanceDBCipPlugin = {
         } catch (err) {
           clearTimeout(timeoutId);
           api.logger.warn(`memory-lancedb-cip: recall failed: ${String(err)}`);
+        }
+        } finally {
+          store.endConversationHook();
         }
       }, { priority: 10 });
 

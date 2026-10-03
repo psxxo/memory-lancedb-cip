@@ -1,3 +1,13 @@
+## 1.7.1
+
+**Fix: the write-threshold FTS index fold now yields to an in-flight conversation hook.**
+The store's periodic optimize() fold (triggered every 20 data modifications) used to take the
+write lock unconditionally; when it overlapped the before_prompt_build auto-recall hook it could
+hold the lock long enough for the host's 15s hook budget to expire, dropping that turn's memory
+injection. The store now tracks in-flight conversation hooks and defers the write-threshold fold
+while one is running (the counter stays at or above the threshold, so a later write retries it) —
+no lock semantics change and no effect on the index's eventual coverage.
+
 ## 1.7.0
 
 **Removed the OAuth LLM lane (breaking).** See `CHANGELOG.md` 1.7.0 for the full note: the

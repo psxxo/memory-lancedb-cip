@@ -1013,6 +1013,12 @@ export class MemoryStore {
   private nativeCosineFallbackLogged = false;
   private dataModsSinceIndexFold = 0;
   private indexFoldInFlight = false;
+  /**
+   * Number of conversation hooks (e.g. the auto-recall before_prompt_build handler)
+   * currently in flight. While > 0 the write-threshold index fold defers instead of
+   * taking the write lock, so a fold cannot push a hook past the host's hook budget.
+   */
+  private conversationHookDepth = 0;
   /** Wall-clock duration of the last successful doInitialize(), for doctor. */
   private initDurationMs: number | null = null;
   /** Explicit opt-in/out for corrupt-table quarantine, overriding config/env. */
@@ -1354,8 +1360,32 @@ export class MemoryStore {
    * prune step a no-op; version retention stays under the opt-in
    * storageMaintenance.autoCleanup path (see runStorageMaintenance).
    */
+  /**
+   * Marks a conversation hook (e.g. the auto-recall before_prompt_build handler) as
+   * in flight. While any hook is in flight the write-threshold index fold yields
+   * instead of contending for the write lock, so a fold cannot push a hook past the
+   * host's hook budget.
+   */
+  beginConversationHook(): void {
+    this.conversationHookDepth += 1;
+  }
+
+  /** Clears a conversation-hook mark taken with beginConversationHook(). */
+  endConversationHook(): void {
+    if (this.conversationHookDepth > 0) this.conversationHookDepth -= 1;
+  }
+
   private async foldIndices(reason: string): Promise<void> {
     if (this.indexFoldInFlight || !this.table || typeof this.table.optimize !== "function") {
+      return;
+    }
+    if (reason === "write-threshold" && this.conversationHookDepth > 0) {
+      // Defer: folding now takes the write lock and can push an in-flight conversation
+      // hook past the host's hook budget. The counter stays >= the threshold, so a
+      // later write retries this fold automatically.
+      logDiagnostic(
+        `index fold deferred (reason=${reason}, hookDepth=${this.conversationHookDepth})`,
+      );
       return;
     }
     this.indexFoldInFlight = true;
