@@ -469,37 +469,14 @@ Requirements:
 | フィールド | 型 | デフォルト | 説明 |
 |-------|------|---------|-------------|
 | `smartExtraction` | boolean | `true` | LLM 駆動の10カテゴリ抽出の有効化/無効化 |
-| `llm.auth` | string | `api-key` | `api-key` は `llm.apiKey` / `embedding.apiKey` を使用；`oauth` はデフォルトでプラグインスコープの OAuth トークンファイルを使用 |
 | `llm.apiKey` | string | *（`embedding.apiKey` にフォールバック）* | LLM プロバイダーの API キー |
 | `llm.model` | string | *(unset → host default)* | LLM モデル名 |
 | `llm.baseURL` | string | *（`embedding.baseURL` にフォールバック）* | LLM API エンドポイント |
-| `llm.oauthProvider` | string | `openai-codex` | `llm.auth` が `oauth` の場合に使用する OAuth プロバイダー ID |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth` が `oauth` の場合に使用する OAuth トークンファイル |
 | `llm.timeoutMs` | number | `30000` | LLM リクエストタイムアウト（ミリ秒） |
 | `extractMinMessages` | number | `2` | 抽出がトリガーされる最小メッセージ数 |
 | `extractMaxChars` | number | `8000` | LLM に送信される最大文字数 |
 
 
-OAuth `llm` 設定（既存の Codex / ChatGPT ログインキャッシュを使用して LLM 呼び出しを行う）：
-```json
-{
-  "llm": {
-    "auth": "oauth",
-    "oauthProvider": "openai-codex",
-    "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
-    "timeoutMs": 30000
-  }
-}
-```
-
-`llm.auth: "oauth"` に関する注意点：
-
-- `llm.oauthProvider` は現在 `openai-codex` です。
-- OAuth トークンのデフォルト保存先は `~/.openclaw/.memory-lancedb-cip/oauth.json` です。
-- 別の場所に保存したい場合は `llm.oauthPath` を設定してください。
-- `auth login` は OAuth ファイルの隣に以前の api-key モードの `llm` 設定のスナップショットを保存し、`auth logout` は利用可能な場合にそのスナップショットを復元します。
-- `api-key` から `oauth` への切り替え時、`llm.baseURL` は自動的に引き継がれません。意図的にカスタム ChatGPT/Codex 互換バックエンドを使用する場合のみ、OAuth モードで手動設定してください。
 
 </details>
 
@@ -538,9 +515,6 @@ OAuth `llm` 設定（既存の Codex / ChatGPT ログインキャッシュを使
 openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
 openclaw memory-cip search "クエリ" [--scope global] [--limit 10] [--json]
 openclaw memory-cip stats [--scope global] [--json]
-openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-cip auth status
-openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
@@ -575,13 +549,6 @@ openclaw memory-cip import memories.json --category-map map.json --unknown rejec
 openclaw memory-cip import memories.json --unknown other
 ```
 
-OAuth ログインフロー：
-
-1. `openclaw memory-cip auth login` を実行
-2. `--provider` が省略され、対話型ターミナルの場合、CLI はブラウザを開く前に OAuth プロバイダーピッカーを表示
-3. コマンドは認証 URL を表示し、`--no-browser` が設定されていない限りブラウザを自動的に開く
-4. コールバック成功後、コマンドはプラグイン OAuth ファイル（デフォルト：`~/.openclaw/.memory-lancedb-cip/oauth.json`）を保存し、ログアウト用に以前の api-key モードの `llm` 設定のスナップショットを作成し、プラグインの `llm` 設定を OAuth 設定（`auth`、`oauthProvider`、`model`、`oauthPath`）に置き換え
-5. `openclaw memory-cip auth logout` はその OAuth ファイルを削除し、スナップショットが存在する場合は以前の api-key モードの `llm` 設定を復元
 
 ---
 

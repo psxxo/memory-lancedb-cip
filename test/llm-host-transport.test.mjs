@@ -489,15 +489,4 @@ describe("LLM host->direct fallback: warn dedupe and credential hygiene", () => 
     }
   });
 
-  it("reaches the OAuth client on host fallback without an apiKey (auth precedes the apiKey requirement)", () => {
-    const llm = createLlmClient({
-      transport: "host",
-      auth: "oauth",
-      oauthProvider: "anthropic",
-      oauthPath: "/tmp/synthetic-oauth-fixture.json",
-      model: "openrouter/anthropic/claude-opus-4-8",
-      warnLog: () => {},
-    });
-    assert.equal(typeof llm.completeJson, "function", "expected a constructed OAuth fallback client");
-  });
 });

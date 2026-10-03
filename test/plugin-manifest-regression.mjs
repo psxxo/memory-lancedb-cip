@@ -78,24 +78,12 @@ for (const key of [
   );
 }
 
-assert.ok(
-  Object.prototype.hasOwnProperty.call(manifest.configSchema.properties.llm.properties, "auth"),
-  "configSchema should declare llm.auth",
-);
 for (const toolName of ["memory_recall", "memory_search", "memory_get", "memory_fact_query", "memory_store", "memory_extract_pending"]) {
   assert.ok(
     manifest.contracts.tools.includes(toolName),
     `contracts.tools should declare ${toolName}`,
   );
 }
-assert.ok(
-  Object.prototype.hasOwnProperty.call(manifest.configSchema.properties.llm.properties, "oauthPath"),
-  "configSchema should declare llm.oauthPath",
-);
-assert.ok(
-  Object.prototype.hasOwnProperty.call(manifest.configSchema.properties.llm.properties, "oauthProvider"),
-  "configSchema should declare llm.oauthProvider",
-);
 assert.ok(
   manifest.configSchema.properties.llm.properties.transport.enum.includes("host"),
   "llm.transport schema should declare the host transport option",

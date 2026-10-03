@@ -469,37 +469,14 @@ Query → BM25 FTS ─────┘
 | Поле | Тип | По умолчанию | Описание |
 |-------|------|---------|-------------|
 | `smartExtraction` | boolean | `true` | Включить/выключить извлечение по 10 категориям на базе LLM |
-| `llm.auth` | string | `api-key` | `api-key` использует `llm.apiKey` / `embedding.apiKey`; `oauth` по умолчанию использует OAuth-файл токена в области плагина |
 | `llm.apiKey` | string | *(по умолчанию берется из `embedding.apiKey`)* | API-ключ провайдера LLM |
 | `llm.model` | string | *(unset → host default)* | Имя модели LLM |
 | `llm.baseURL` | string | *(по умолчанию берется из `embedding.baseURL`)* | URL LLM API |
-| `llm.oauthProvider` | string | `openai-codex` | Идентификатор OAuth-провайдера, используемый при `llm.auth = "oauth"` |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | Путь к OAuth-файлу токена при `llm.auth = "oauth"` |
 | `llm.timeoutMs` | number | `30000` | Таймаут запроса к LLM в миллисекундах |
 | `extractMinMessages` | number | `2` | Минимум сообщений до срабатывания извлечения |
 | `extractMaxChars` | number | `8000` | Максимум символов, отправляемых в LLM |
 
 
-OAuth `llm` config (использует существующий кэш логина Codex / ChatGPT для LLM-запросов):
-```json
-{
-  "llm": {
-    "auth": "oauth",
-    "oauthProvider": "openai-codex",
-    "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
-    "timeoutMs": 30000
-  }
-}
-```
-
-Примечания для `llm.auth: "oauth"`:
-
-- `llm.oauthProvider` сейчас равен `openai-codex`.
-- По умолчанию OAuth token хранится в `~/.openclaw/.memory-lancedb-cip/oauth.json`.
-- Если хотите хранить этот файл в другом месте, можно задать `llm.oauthPath`.
-- `auth login` сохраняет снимок предыдущего `llm` конфига в режиме api-key рядом с OAuth-файлом, а `auth logout` восстанавливает этот снимок, если он доступен.
-- При переключении с `api-key` на `oauth` значение `llm.baseURL` автоматически не переносится. Указывайте его вручную в OAuth-режиме только если вам действительно нужен кастомный ChatGPT/Codex-compatible backend.
 
 </details>
 
@@ -538,9 +515,6 @@ OAuth `llm` config (использует существующий кэш лог�
 openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
 openclaw memory-cip search "запрос" [--scope global] [--limit 10] [--json]
 openclaw memory-cip stats [--scope global] [--json]
-openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-cip auth status
-openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
@@ -575,13 +549,6 @@ openclaw memory-cip import memories.json --category-map map.json --unknown rejec
 openclaw memory-cip import memories.json --unknown other
 ```
 
-Поток OAuth-авторизации:
-
-1. Запустите `openclaw memory-cip auth login`
-2. Если `--provider` не указан и терминал интерактивный, CLI покажет выбор OAuth-провайдера перед открытием браузера
-3. Команда выведет URL авторизации и откроет браузер, если не задан `--no-browser`
-4. После успешного обратного вызова команда сохранит OAuth-файл плагина (по умолчанию: `~/.openclaw/.memory-lancedb-cip/oauth.json`), снимет текущий `llm` конфиг режима api-key для будущего выхода и заменит конфиг `llm` на OAuth-настройки (`auth`, `oauthProvider`, `model`, `oauthPath`)
-5. `openclaw memory-cip auth logout` удаляет этот OAuth-файл и восстанавливает прежний `llm` конфиг api-key, если снимок существует
 
 ---
 

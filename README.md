@@ -623,37 +623,14 @@ When `smartExtraction` is enabled (default: `true`), the plugin uses an LLM to i
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `smartExtraction` | boolean | `true` | Enable/disable LLM-powered 10-category extraction |
-| `llm.auth` | string | `api-key` | `api-key` uses `llm.apiKey` / `embedding.apiKey`; `oauth` uses a plugin-scoped OAuth token file by default |
 | `llm.apiKey` | string | *(falls back to `embedding.apiKey`)* | API key for the LLM provider |
 | `llm.model` | string | *(unset → host default)* | LLM model name |
 | `llm.baseURL` | string | *(falls back to `embedding.baseURL`)* | LLM API endpoint |
-| `llm.oauthProvider` | string | `openai-codex` | OAuth provider id used when `llm.auth` is `oauth` |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | OAuth token file used when `llm.auth` is `oauth` |
 | `llm.timeoutMs` | number | `30000` | LLM request timeout in milliseconds |
 | `extractMinMessages` | number | `2` | Minimum messages before extraction triggers |
 | `extractMaxChars` | number | `8000` | Maximum characters sent to the LLM |
 
 
-OAuth `llm` config (use existing Codex / ChatGPT login cache for LLM calls):
-```json
-{
-  "llm": {
-    "auth": "oauth",
-    "oauthProvider": "openai-codex",
-    "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
-    "timeoutMs": 30000
-  }
-}
-```
-
-Notes for `llm.auth: "oauth"`:
-
-- `llm.oauthProvider` is currently `openai-codex`.
-- OAuth tokens default to `~/.openclaw/.memory-lancedb-cip/oauth.json`.
-- You can set `llm.oauthPath` if you want to store that file somewhere else.
-- `auth login` snapshots the previous api-key `llm` config next to the OAuth file, and `auth logout` restores that snapshot when available.
-- Switching from `api-key` to `oauth` does not automatically carry over `llm.baseURL`. Set it manually in OAuth mode only when you intentionally want a custom ChatGPT/Codex-compatible backend.
 
 </details>
 
@@ -709,9 +686,6 @@ Config keys (under `retrieval`):
 openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
 openclaw memory-cip search "query" [--scope global] [--limit 10] [--json]
 openclaw memory-cip stats [--scope global] [--json]
-openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-cip auth status
-openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
@@ -746,13 +720,6 @@ openclaw memory-cip import memories.json --category-map map.json --unknown rejec
 openclaw memory-cip import memories.json --unknown other
 ```
 
-OAuth login flow:
-
-1. Run `openclaw memory-cip auth login`
-2. If `--provider` is omitted in an interactive terminal, the CLI shows an OAuth provider picker before opening the browser
-3. The command prints an authorization URL and opens your browser unless `--no-browser` is set
-4. After the callback succeeds, the command saves the plugin OAuth file (default: `~/.openclaw/.memory-lancedb-cip/oauth.json`), snapshots the previous api-key `llm` config for logout, and replaces the plugin `llm` config with OAuth settings (`auth`, `oauthProvider`, `model`, `oauthPath`)
-5. `openclaw memory-cip auth logout` deletes that OAuth file and restores the previous api-key `llm` config when that snapshot exists
 
 ---
 

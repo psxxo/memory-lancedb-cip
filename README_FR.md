@@ -469,37 +469,14 @@ Quand `smartExtraction` est activé (par défaut : `true`), le plugin utilise un
 | Champ | Type | Défaut | Description |
 |-------|------|---------|-------------|
 | `smartExtraction` | boolean | `true` | Activer/désactiver l'extraction LLM en 10 catégories |
-| `llm.auth` | string | `api-key` | `api-key` utilise `llm.apiKey` / `embedding.apiKey` ; `oauth` utilise un fichier token OAuth au niveau plugin |
 | `llm.apiKey` | string | *(repli sur `embedding.apiKey`)* | Clé API pour le fournisseur LLM |
 | `llm.model` | string | *(unset → host default)* | Nom du modèle LLM |
 | `llm.baseURL` | string | *(repli sur `embedding.baseURL`)* | Point de terminaison API LLM |
-| `llm.oauthProvider` | string | `openai-codex` | ID du fournisseur OAuth utilisé quand `llm.auth` est `oauth` |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | Fichier token OAuth utilisé quand `llm.auth` est `oauth` |
 | `llm.timeoutMs` | number | `30000` | Timeout des requêtes LLM en millisecondes |
 | `extractMinMessages` | number | `2` | Nombre minimum de messages avant le déclenchement de l'extraction |
 | `extractMaxChars` | number | `8000` | Nombre maximum de caractères envoyés au LLM |
 
 
-OAuth `llm` config (utiliser le cache de connexion Codex / ChatGPT existant pour les appels LLM) :
-```json
-{
-  "llm": {
-    "auth": "oauth",
-    "oauthProvider": "openai-codex",
-    "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
-    "timeoutMs": 30000
-  }
-}
-```
-
-Notes pour `llm.auth: "oauth"` :
-
-- `llm.oauthProvider` est actuellement `openai-codex`.
-- Les tokens OAuth sont stockés par défaut dans `~/.openclaw/.memory-lancedb-cip/oauth.json`.
-- Vous pouvez définir `llm.oauthPath` si vous souhaitez stocker ce fichier ailleurs.
-- `auth login` sauvegarde la configuration `llm` api-key précédente à côté du fichier OAuth, et `auth logout` restaure cette sauvegarde lorsqu'elle est disponible.
-- Passer de `api-key` à `oauth` ne transfère pas automatiquement `llm.baseURL`. Définissez-le manuellement en mode OAuth uniquement si vous souhaitez intentionnellement un backend personnalisé compatible ChatGPT/Codex.
 
 </details>
 
@@ -538,9 +515,6 @@ Clés de config (sous `retrieval`) :
 openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
 openclaw memory-cip search "requête" [--scope global] [--limit 10] [--json]
 openclaw memory-cip stats [--scope global] [--json]
-openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-cip auth status
-openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
@@ -575,13 +549,6 @@ openclaw memory-cip import memories.json --category-map map.json --unknown rejec
 openclaw memory-cip import memories.json --unknown other
 ```
 
-Flux de connexion OAuth :
-
-1. Exécutez `openclaw memory-cip auth login`
-2. Si `--provider` est omis dans un terminal interactif, la CLI affiche un sélecteur de fournisseur OAuth avant d'ouvrir le navigateur
-3. La commande affiche une URL d'autorisation et ouvre votre navigateur sauf si `--no-browser` est défini
-4. Après le succès du callback, la commande sauvegarde le fichier OAuth du plugin (par défaut : `~/.openclaw/.memory-lancedb-cip/oauth.json`), sauvegarde la configuration `llm` api-key précédente pour la déconnexion, et remplace la configuration `llm` du plugin par les paramètres OAuth (`auth`, `oauthProvider`, `model`, `oauthPath`)
-5. `openclaw memory-cip auth logout` supprime ce fichier OAuth et restaure la configuration `llm` api-key précédente lorsque la sauvegarde existe
 
 ---
 

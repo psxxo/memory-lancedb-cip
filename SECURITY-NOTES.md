@@ -37,7 +37,7 @@ Rule family: network access.
 
 - `src/embedder.ts` — `fetch` to the embeddings endpoint
 - `src/llm-client.ts` — `fetch` to the completion endpoint
-- `src/retriever.ts`, `src/llm-oauth.ts` — retrieval and OAuth token requests
+- `src/retriever.ts` — retrieval requests
 
 Why: embeddings and extraction completions are remote calls. The plugin ships
 no credential of its own; it follows the host's provider configuration.

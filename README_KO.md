@@ -469,37 +469,14 @@ Jina 호환 리랭크 엔드포인트도 사용 가능합니다 — `rerankProvi
 | 필드 | 타입 | 기본값 | 설명 |
 |-------|------|---------|-------------|
 | `smartExtraction` | boolean | `true` | LLM 기반 10개 카테고리 추출 활성화/비활성화 |
-| `llm.auth` | string | `api-key` | `api-key`는 `llm.apiKey` / `embedding.apiKey`를 사용; `oauth`는 기본적으로 플러그인 범위의 OAuth 토큰 파일을 사용 |
 | `llm.apiKey` | string | *(`embedding.apiKey`로 폴백)* | LLM 프로바이더용 API 키 |
 | `llm.model` | string | *(unset → host default)* | LLM 모델명 |
 | `llm.baseURL` | string | *(`embedding.baseURL`로 폴백)* | LLM API 엔드포인트 |
-| `llm.oauthProvider` | string | `openai-codex` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 프로바이더 ID |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth`가 `oauth`일 때 사용되는 OAuth 토큰 파일 |
 | `llm.timeoutMs` | number | `30000` | LLM 요청 타임아웃 (밀리초) |
 | `extractMinMessages` | number | `2` | 추출이 시작되는 최소 메시지 수 |
 | `extractMaxChars` | number | `8000` | LLM에 전송되는 최대 문자 수 |
 
 
-OAuth `llm` 설정 (기존 Codex / ChatGPT 로그인 캐시를 LLM 호출에 사용):
-```json
-{
-  "llm": {
-    "auth": "oauth",
-    "oauthProvider": "openai-codex",
-    "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
-    "timeoutMs": 30000
-  }
-}
-```
-
-`llm.auth: "oauth"` 참고사항:
-
-- `llm.oauthProvider`는 현재 `openai-codex`입니다.
-- OAuth 토큰은 기본적으로 `~/.openclaw/.memory-lancedb-cip/oauth.json`에 저장됩니다.
-- 파일을 다른 곳에 저장하려면 `llm.oauthPath`를 설정하세요.
-- `auth login`은 OAuth 파일 옆에 이전 api-key `llm` 설정의 스냅샷을 저장하며, `auth logout`은 해당 스냅샷이 있을 때 복원합니다.
-- `api-key`에서 `oauth`로 전환할 때 `llm.baseURL`이 자동으로 이전되지 않습니다. OAuth 모드에서 의도적으로 사용자 정의 ChatGPT/Codex 호환 백엔드를 원하는 경우에만 수동으로 설정하세요.
 
 </details>
 
@@ -538,9 +515,6 @@ OAuth `llm` 설정 (기존 Codex / ChatGPT 로그인 캐시를 LLM 호출에 사
 openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
 openclaw memory-cip search "query" [--scope global] [--limit 10] [--json]
 openclaw memory-cip stats [--scope global] [--json]
-openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-cip auth status
-openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
@@ -575,13 +549,6 @@ openclaw memory-cip import memories.json --category-map map.json --unknown rejec
 openclaw memory-cip import memories.json --unknown other
 ```
 
-OAuth 로그인 흐름:
-
-1. `openclaw memory-cip auth login` 실행
-2. `--provider`를 생략하고 대화형 터미널에서 실행하면, 브라우저를 열기 전에 CLI가 OAuth 프로바이더 선택기를 표시합니다
-3. 명령어가 인증 URL을 출력하고 `--no-browser`가 설정되지 않은 한 브라우저를 엽니다
-4. 콜백이 성공하면, 명령어가 플러그인 OAuth 파일 (기본값: `~/.openclaw/.memory-lancedb-cip/oauth.json`)을 저장하고, 이전 api-key `llm` 설정의 스냅샷을 로그아웃용으로 저장하며, 플러그인 `llm` 설정을 OAuth 설정 (`auth`, `oauthProvider`, `model`, `oauthPath`)으로 교체합니다
-5. `openclaw memory-cip auth logout`은 해당 OAuth 파일을 삭제하고 스냅샷이 존재하면 이전 api-key `llm` 설정을 복원합니다
 
 ---
 

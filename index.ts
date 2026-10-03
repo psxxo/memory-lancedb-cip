@@ -318,12 +318,9 @@ interface PluginConfig {
   // Smart extraction config
   smartExtraction?: boolean;
   llm?: {
-    auth?: "api-key" | "oauth";
     apiKey?: SecretCredential;
     model?: string;
     baseURL?: string;
-    oauthProvider?: string;
-    oauthPath?: string;
     timeoutMs?: number;
     /** Completion transport: "host" (default) follows OpenClaw's own default model via the host-managed runtime LLM catalog; "direct" (opt-in) posts to llm.baseURL with llm.model + llm.apiKey via the bundled client. */
     transport?: "direct" | "host";
@@ -1299,7 +1296,7 @@ function asNonEmptyString(value: unknown): string | undefined {
 /**
  * Feature-detect the OpenClaw host-managed runtime LLM completion surface
  * (api.runtime.llm.complete). Returns undefined on older hosts that do not
- * expose it yet, so callers can fall back to the direct/oauth transport.
+ * expose it yet, so callers can fall back to the direct transport.
  */
 export function resolveRuntimeLlmComplete(api: OpenClawPluginApi): RuntimeLlmCompleteFn | undefined {
   let runtimeLlm: { complete?: unknown } | undefined;
@@ -2914,7 +2911,6 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
   const admissionRejectionAuditWriter = createAdmissionRejectionAuditWriter(config, resolvedDbPath, api);
 
   const buildMemoryLlmClient = () => {
-    const llmAuth = config.llm?.auth || "api-key";
     // A host-transport setup should never silently fall back to the
     // embedding lane's credentials if the runtime.llm.complete surface
     // turns out to be unavailable and createLlmClient falls back to a
@@ -2927,33 +2923,25 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
     // has settled. env/file/literal and host-transport keys resolve as before.
     const llmApiKeyIsStoreRef =
       isSecretRefConfig(config.llm?.apiKey) && (config.llm.apiKey as SecretRefConfig).source === "store";
-    const llmApiKey = llmAuth === "oauth"
+    const llmApiKey = llmApiKeyIsStoreRef
       ? undefined
-      : llmApiKeyIsStoreRef
-        ? undefined
-        : config.llm?.apiKey
-          ? resolveSecretCredential(api, config.llm.apiKey, "llm.apiKey")
-          : llmIsHostTransport
-            ? undefined
-            : resolveFirstApiKey(api, config.embedding.apiKey);
+      : config.llm?.apiKey
+        ? resolveSecretCredential(api, config.llm.apiKey, "llm.apiKey")
+        : llmIsHostTransport
+          ? undefined
+          : resolveFirstApiKey(api, config.embedding.apiKey);
     /** Resolve the (possibly store-backed) llm.apiKey at call time. */
     const resolveLlmApiKey = (): string | undefined =>
       llmApiKeyIsStoreRef
         ? resolveSecretCredential(api, config.llm?.apiKey as SecretCredential, "llm.apiKey")
         : llmApiKey;
-    const llmBaseURL = llmAuth === "oauth"
-      ? (config.llm?.baseURL ? resolveEnvVars(config.llm.baseURL) : undefined)
-      : config.llm?.baseURL
-        ? resolveEnvVars(config.llm.baseURL)
-        : llmIsHostTransport
-          ? undefined
-          : config.embedding.baseURL;
+    const llmBaseURL = config.llm?.baseURL
+      ? resolveEnvVars(config.llm.baseURL)
+      : llmIsHostTransport
+        ? undefined
+        : config.embedding.baseURL;
     const llmModel = config.llm?.model || (llmIsHostTransport ? "" : undefined);
     const llmModelExplicit = Boolean(asNonEmptyString(config.llm?.model));
-    const llmOauthPath = llmAuth === "oauth"
-      ? resolveOptionalPathWithEnv(api, config.llm?.oauthPath, ".memory-lancedb-cip/oauth.json")
-      : undefined;
-    const llmOauthProvider = llmAuth === "oauth" ? config.llm?.oauthProvider : undefined;
     const llmTimeoutMs = resolveLlmTimeoutMs(config);
     const makeClientForModel = (
       model: string,
@@ -2961,13 +2949,10 @@ function _initPluginState(api: OpenClawPluginApi): PluginSingletonState {
       modelExplicit: boolean = llmModelExplicit,
     ) =>
       createLlmClient({
-        auth: llmAuth,
         apiKey: resolveLlmApiKey(),
         model,
         modelExplicit,
         baseURL: llmBaseURL,
-        oauthProvider: llmOauthProvider,
-        oauthPath: llmOauthPath,
         timeoutMs: llmTimeoutMs,
         log: (msg: string) => api.logger.debug(msg),
         warnLog: (msg: string) => api.logger.warn(msg),
@@ -4027,37 +4012,23 @@ const memoryLanceDBCipPlugin = {
         loadSafety: loadSafetyReport,
         llmClient: smartExtractor ? (() => {
           try {
-            const llmAuth = config.llm?.auth || "api-key";
             const llmIsHostTransport = resolveLlmTransport(config) === "host";
-            const llmApiKey = llmAuth === "oauth"
-              ? undefined
-              : config.llm?.apiKey
-                ? resolveSecretCredential(api, config.llm.apiKey, "llm.apiKey")
-                : llmIsHostTransport
-                  ? undefined
-                  : resolveFirstApiKey(api, config.embedding.apiKey);
-            const llmBaseURL = llmAuth === "oauth"
-              ? (config.llm?.baseURL ? resolveEnvVars(config.llm.baseURL) : undefined)
-              : config.llm?.baseURL
-                ? resolveEnvVars(config.llm.baseURL)
-                : llmIsHostTransport
-                  ? undefined
-                  : config.embedding.baseURL;
-            const llmOauthPath = llmAuth === "oauth"
-              ? resolveOptionalPathWithEnv(api, config.llm?.oauthPath, ".memory-lancedb-cip/oauth.json")
-              : undefined;
-            const llmOauthProvider = llmAuth === "oauth"
-              ? config.llm?.oauthProvider
-              : undefined;
+            const llmApiKey = config.llm?.apiKey
+              ? resolveSecretCredential(api, config.llm.apiKey, "llm.apiKey")
+              : llmIsHostTransport
+                ? undefined
+                : resolveFirstApiKey(api, config.embedding.apiKey);
+            const llmBaseURL = config.llm?.baseURL
+              ? resolveEnvVars(config.llm.baseURL)
+              : llmIsHostTransport
+                ? undefined
+                : config.embedding.baseURL;
             const llmTimeoutMs = resolveLlmTimeoutMs(config);
             return createLlmClient({
-              auth: llmAuth,
               apiKey: llmApiKey,
               model: asNonEmptyString(config.llm?.model),
               modelExplicit: Boolean(asNonEmptyString(config.llm?.model)),
               baseURL: llmBaseURL,
-              oauthProvider: llmOauthProvider,
-              oauthPath: llmOauthPath,
               timeoutMs: llmTimeoutMs,
               log: (msg: string) => api.logger.debug(msg),
               transport: resolveLlmTransport(config),

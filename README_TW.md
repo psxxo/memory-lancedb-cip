@@ -469,37 +469,14 @@ Requirements:
 | 欄位 | 類型 | 預設值 | 說明 |
 |------|------|--------|------|
 | `smartExtraction` | boolean | `true` | 是否啟用 LLM 智慧 10 類別擷取 |
-| `llm.auth` | string | `api-key` | `api-key` 使用 `llm.apiKey` / `embedding.apiKey`；`oauth` 預設使用外掛級 OAuth token 檔案 |
 | `llm.apiKey` | string | *（複用 `embedding.apiKey`）* | LLM 服務商 API Key |
 | `llm.model` | string | *(unset → host default)* | LLM 模型名稱 |
 | `llm.baseURL` | string | *（複用 `embedding.baseURL`）* | LLM API 端點 |
-| `llm.oauthProvider` | string | `openai-codex` | `llm.auth` 為 `oauth` 時使用的 OAuth provider id |
-| `llm.oauthPath` | string | `~/.openclaw/.memory-lancedb-cip/oauth.json` | `llm.auth` 為 `oauth` 時使用的 OAuth token 檔案 |
 | `llm.timeoutMs` | number | `30000` | LLM 請求逾時（毫秒） |
 | `extractMinMessages` | number | `2` | 觸發擷取的最小訊息數 |
 | `extractMaxChars` | number | `8000` | 傳送給 LLM 的最大字元數 |
 
 
-OAuth `llm` 設定（使用現有 Codex / ChatGPT 登入快取來發送 LLM 請求）：
-```json
-{
-  "llm": {
-    "auth": "oauth",
-    "oauthProvider": "openai-codex",
-    "model": "gpt-5.4",
-    "oauthPath": "${HOME}/.openclaw/.memory-lancedb-cip/oauth.json",
-    "timeoutMs": 30000
-  }
-}
-```
-
-`llm.auth: "oauth"` 說明：
-
-- `llm.oauthProvider` 目前僅支援 `openai-codex`。
-- OAuth token 預設存放在 `~/.openclaw/.memory-lancedb-cip/oauth.json`。
-- 如需自訂路徑，可設定 `llm.oauthPath`。
-- `auth login` 會在 OAuth 檔案旁邊快照原來的 `api-key` 模式 `llm` 設定；`auth logout` 在可用時會恢復這份快照。
-- 從 `api-key` 切到 `oauth` 時不會自動沿用 `llm.baseURL`；只有在你明確需要自訂 ChatGPT/Codex 相容後端時，才應在 `oauth` 模式下手動設定。
 
 </details>
 
@@ -538,9 +515,6 @@ OAuth `llm` 設定（使用現有 Codex / ChatGPT 登入快取來發送 LLM 請�
 openclaw memory-cip list [--scope global] [--category fact] [--limit 20] [--json]
 openclaw memory-cip search "查詢" [--scope global] [--limit 10] [--json]
 openclaw memory-cip stats [--scope global] [--json]
-openclaw memory-cip auth login [--provider openai-codex] [--model gpt-5.4] [--oauth-path /abs/path/oauth.json]
-openclaw memory-cip auth status
-openclaw memory-cip auth logout
 openclaw memory-cip delete <id>
 openclaw memory-cip delete-bulk --scope global [--before 2025-01-01] [--dry-run]
 openclaw memory-cip export [--scope global] [--output memories.json]
@@ -575,13 +549,6 @@ openclaw memory-cip import memories.json --category-map map.json --unknown rejec
 openclaw memory-cip import memories.json --unknown other
 ```
 
-OAuth 登入流程：
-
-1. 執行 `openclaw memory-cip auth login`
-2. 如果省略 `--provider` 且目前終端可互動，CLI 會先顯示 OAuth 服務商選擇器
-3. 指令會列印授權 URL，並在未指定 `--no-browser` 時自動開啟瀏覽器
-4. 回呼成功後，指令會儲存外掛 OAuth 檔案（預設：`~/.openclaw/.memory-lancedb-cip/oauth.json`）、為 logout 快照原來的 `api-key` 模式 `llm` 設定，並把外掛 `llm` 設定切換為 OAuth 欄位（`auth`、`oauthProvider`、`model`、`oauthPath`）
-5. `openclaw memory-cip auth logout` 會刪除這份 OAuth 檔案，並在存在快照時恢復之前的 `api-key` 模式 `llm` 設定
 
 ---
 

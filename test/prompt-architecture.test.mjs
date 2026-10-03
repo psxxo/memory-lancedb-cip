@@ -9,9 +9,8 @@
  * - The admission utility prompt honestly frames a reflection-sourced excerpt
  *   as a source document rather than a live conversation.
  * - LlmClient.completeJson() threads an optional system-message override
- *   through both the api-key (messages array) and OAuth (instructions field)
- *   request shapes, defaulting to the historical generic system text when
- *   omitted.
+ *   through the api-key (messages array) request shape, defaulting to the
+ *   historical generic system text when omitted.
  *
  * Fixtures are entirely synthetic — no real fleet data.
  */
@@ -220,108 +219,6 @@ describe("LlmClient system-message threading (api-key path)", () => {
   });
 });
 
-describe("LlmClient system-message threading (OAuth path)", () => {
-  const originalFetch = globalThis.fetch;
-
-  function encodeSegment(value) {
-    return Buffer.from(JSON.stringify(value)).toString("base64url");
-  }
-  function makeJwt(payload) {
-    return [encodeSegment({ alg: "none", typ: "JWT" }), encodeSegment(payload), "signature"].join(".");
-  }
-
-  it("threads the systemPrompt override into the Responses API instructions field", async () => {
-    const fs = await import("node:fs");
-    const os = await import("node:os");
-    const path = await import("node:path");
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "memory-llm-oauth-arch-"));
-    try {
-      const accessToken = makeJwt({
-        exp: Math.floor((Date.now() + 3_600_000) / 1000),
-        "https://api.openai.com/auth": { chatgpt_account_id: "acct_test_arch" },
-      });
-      const authPath = path.join(tempDir, "auth.json");
-      fs.writeFileSync(
-        authPath,
-        JSON.stringify({ tokens: { access_token: accessToken, refresh_token: "refresh-token" } }),
-        "utf8",
-      );
-
-      let requestBody;
-      globalThis.fetch = async (_url, init) => {
-        requestBody = JSON.parse(init?.body);
-        const eventPayload = JSON.stringify({ type: "response.output_text.done", text: "{}" });
-        return new Response(
-          ["event: response.output_text.done", `data: ${eventPayload}`, ""].join("\n"),
-          { status: 200 },
-        );
-      };
-
-      const llm = createLlmClient({
-        auth: "oauth",
-        model: "openai/gpt-5.4",
-        oauthPath: authPath,
-        timeoutMs: 5_000,
-      });
-
-      await llm.completeJson("user data", "merge-memory", "You are a merge writer.");
-
-      assert.equal(requestBody.instructions, "You are a merge writer.");
-      assert.deepEqual(requestBody.input, [
-        { role: "user", content: [{ type: "input_text", text: "user data" }] },
-      ]);
-    } finally {
-      globalThis.fetch = originalFetch;
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it("defaults instructions to the historical generic system text when systemPrompt is omitted", async () => {
-    const fs = await import("node:fs");
-    const os = await import("node:os");
-    const path = await import("node:path");
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "memory-llm-oauth-arch-default-"));
-    try {
-      const accessToken = makeJwt({
-        exp: Math.floor((Date.now() + 3_600_000) / 1000),
-        "https://api.openai.com/auth": { chatgpt_account_id: "acct_test_arch2" },
-      });
-      const authPath = path.join(tempDir, "auth.json");
-      fs.writeFileSync(
-        authPath,
-        JSON.stringify({ tokens: { access_token: accessToken, refresh_token: "refresh-token" } }),
-        "utf8",
-      );
-
-      let requestBody;
-      globalThis.fetch = async (_url, init) => {
-        requestBody = JSON.parse(init?.body);
-        const eventPayload = JSON.stringify({ type: "response.output_text.done", text: "{}" });
-        return new Response(
-          ["event: response.output_text.done", `data: ${eventPayload}`, ""].join("\n"),
-          { status: 200 },
-        );
-      };
-
-      const llm = createLlmClient({
-        auth: "oauth",
-        model: "openai/gpt-5.4",
-        oauthPath: authPath,
-        timeoutMs: 5_000,
-      });
-
-      await llm.completeJson("hello");
-
-      assert.equal(
-        requestBody.instructions,
-        "You are a memory extraction assistant. Always respond with valid JSON only.",
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-});
 
 // ============================================================================
 // admission-control.ts buildUtilityPrompt — identity, split, reflection framing

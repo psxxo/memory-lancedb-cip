@@ -1,3 +1,19 @@
+## 1.7.0
+
+**Removed the OAuth LLM lane (breaking).** The plugin's `llm.auth: "oauth"` mode is gone: the built-in
+`openai-codex` provider definition, the `auth login/status/logout` CLI subcommands, the
+`llm.oauthProvider` / `llm.oauthPath` config keys, and the OAuth token transport. The LLM lane now
+always authenticates with an API key (`llm.apiKey` / `embedding.apiKey`) over the configured transport.
+
+- BREAKING - `llm.auth`, `llm.oauthProvider`, and `llm.oauthPath` are no longer accepted by the
+  manifest `configSchema` (`additionalProperties: false`). Remove them from existing plugin configs;
+  keep `llm.apiKey` / `llm.baseURL` / `llm.model`. `openclaw memory-cip auth ...` no longer exists.
+- REMOVED - `src/llm-oauth.ts` and the OAuth client branch in `src/llm-client.ts`; the `auth` CLI
+  command tree; the two OAuth test files; the OAuth rows and sections in every README and SECURITY-NOTES.
+- WHY - the lane baked a provider id, three endpoints, a client id, a model id, and a model-acceptance
+  regex into the source, which the no-built-in-defaults rule forbids; the plugin ships no provider or
+  model ids of its own.
+
 ## 1.6.3
 
 **Three points in one line — the feature surface now matches across the manifest schema, the feature list, and all 11 READMEs (documentation only).**

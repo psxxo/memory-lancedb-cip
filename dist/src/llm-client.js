@@ -3,7 +3,6 @@
  * Uses OpenAI-compatible API (reuses the embedding provider config).
  */
 import OpenAI from "openai";
-import { buildOauthEndpoint, extractOutputTextFromSse, loadOAuthSession, needsRefresh, normalizeOauthModel, refreshOAuthSession, saveOAuthSession, } from "./llm-oauth.js";
 /**
  * Strips a core-style provider prefix (e.g. "openrouter/anthropic/claude-...")
  * down to the bare "<vendor>/<model>" form a direct OpenRouter-compatible API
@@ -190,19 +189,6 @@ function repairCommonJson(text) {
         result += ch;
     }
     return result;
-}
-function looksLikeSseResponse(bodyText) {
-    const trimmed = bodyText.trimStart();
-    return trimmed.startsWith("event:") || trimmed.startsWith("data:");
-}
-function createTimeoutSignal(timeoutMs) {
-    const effectiveTimeoutMs = typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30_000;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
-    return {
-        signal: controller.signal,
-        dispose: () => clearTimeout(timer),
-    };
 }
 /**
  * Bounds a host-transport call with an application-level timer. The runtime
@@ -441,9 +427,7 @@ function createApiKeyClient(config, log, warnLog) {
                 };
                 // Transmit the internal call label as a request header so gateway-side
                 // observability (tracing UIs, proxy logs) can distinguish call sites
-                // without any change to the prompt or sampling parameters. Applied on
-                // the openai-compatible path only; the OAuth path posts to a foreign
-                // endpoint with a fixed request shape and is left untouched.
+                // without any change to the prompt or sampling parameters.
                 const response = await client.chat.completions.create(request, {
                     headers: { "x-memory-call-label": sanitizeLabelHeader(label) },
                 });
@@ -543,193 +527,6 @@ function createApiKeyClient(config, log, warnLog) {
         },
     };
 }
-function createOauthClient(config, log, warnLog) {
-    if (!config.oauthPath) {
-        throw new Error("LLM oauth mode requires llm.oauthPath");
-    }
-    let cachedSessionPromise = null;
-    let lastError = null;
-    async function getSession() {
-        if (!cachedSessionPromise) {
-            cachedSessionPromise = loadOAuthSession(config.oauthPath).catch((error) => {
-                cachedSessionPromise = null;
-                throw error;
-            });
-        }
-        let session = await cachedSessionPromise;
-        if (needsRefresh(session)) {
-            session = await refreshOAuthSession(session, config.timeoutMs);
-            await saveOAuthSession(config.oauthPath, session);
-            cachedSessionPromise = Promise.resolve(session);
-        }
-        return session;
-    }
-    return {
-        async completeJson(prompt, label = "generic", systemPrompt, _temperature) {
-            lastError = null;
-            try {
-                const session = await getSession();
-                const { signal, dispose } = createTimeoutSignal(config.timeoutMs);
-                const endpoint = buildOauthEndpoint(config.baseURL, config.oauthProvider);
-                try {
-                    const response = await fetch(endpoint, {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${session.accessToken}`,
-                            "Content-Type": "application/json",
-                            Accept: "text/event-stream",
-                            "OpenAI-Beta": "responses=experimental",
-                            "chatgpt-account-id": session.accountId,
-                            originator: "codex_cli_rs",
-                        },
-                        signal,
-                        body: JSON.stringify({
-                            model: normalizeOauthModel(config.model),
-                            instructions: systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
-                            input: [
-                                {
-                                    role: "user",
-                                    content: [
-                                        {
-                                            type: "input_text",
-                                            text: prompt,
-                                        },
-                                    ],
-                                },
-                            ],
-                            store: false,
-                            stream: true,
-                            text: {
-                                format: { type: "text" },
-                            },
-                        }),
-                    });
-                    if (!response.ok) {
-                        const detail = await response.text().catch(() => "");
-                        throw new Error(`HTTP ${response.status} ${response.statusText}: ${detail.slice(0, 500)}`);
-                    }
-                    const raw = extractOauthOutputText(response, await response.text());
-                    if (!raw) {
-                        lastError =
-                            `memory-lancedb-cip: llm-client [${label}] empty OAuth response content from model ${config.model}`;
-                        log(lastError);
-                        return null;
-                    }
-                    const jsonStr = extractJsonFromResponse(raw);
-                    if (!jsonStr) {
-                        lastError =
-                            `memory-lancedb-cip: llm-client [${label}] no JSON object found in OAuth response (chars=${raw.length}, preview=${JSON.stringify(previewText(raw))})`;
-                        log(lastError);
-                        return null;
-                    }
-                    try {
-                        return JSON.parse(jsonStr);
-                    }
-                    catch (err) {
-                        const repairedJsonStr = repairCommonJson(jsonStr);
-                        if (repairedJsonStr !== jsonStr) {
-                            try {
-                                const repaired = JSON.parse(repairedJsonStr);
-                                log(`memory-lancedb-cip: llm-client [${label}] recovered malformed OAuth JSON via heuristic repair (jsonChars=${jsonStr.length})`);
-                                return repaired;
-                            }
-                            catch (repairErr) {
-                                lastError =
-                                    `memory-lancedb-cip: llm-client [${label}] OAuth JSON.parse failed: ${err instanceof Error ? err.message : String(err)}; repair failed: ${repairErr instanceof Error ? repairErr.message : String(repairErr)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
-                                log(lastError);
-                                return null;
-                            }
-                        }
-                        lastError =
-                            `memory-lancedb-cip: llm-client [${label}] OAuth JSON.parse failed: ${err instanceof Error ? err.message : String(err)} (jsonChars=${jsonStr.length}, jsonPreview=${JSON.stringify(previewText(jsonStr))})`;
-                        log(lastError);
-                        return null;
-                    }
-                }
-                finally {
-                    dispose();
-                }
-            }
-            catch (err) {
-                lastError =
-                    `memory-lancedb-cip: llm-client [${label}] OAuth request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
-                (warnLog ?? log)(lastError);
-                return null;
-            }
-        },
-        async completeText(prompt, label = "generic", systemPrompt, _temperature) {
-            lastError = null;
-            try {
-                const session = await getSession();
-                const { signal, dispose } = createTimeoutSignal(config.timeoutMs);
-                const endpoint = buildOauthEndpoint(config.baseURL, config.oauthProvider);
-                try {
-                    const response = await fetch(endpoint, {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${session.accessToken}`,
-                            "Content-Type": "application/json",
-                            Accept: "text/event-stream",
-                            "OpenAI-Beta": "responses=experimental",
-                            "chatgpt-account-id": session.accountId,
-                            originator: "codex_cli_rs",
-                        },
-                        signal,
-                        body: JSON.stringify({
-                            model: normalizeOauthModel(config.model),
-                            ...(systemPrompt !== undefined ? { instructions: systemPrompt } : {}),
-                            input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
-                            store: false,
-                            stream: true,
-                            text: { format: { type: "text" } },
-                        }),
-                    });
-                    if (!response.ok) {
-                        const detail = await response.text().catch(() => "");
-                        throw new Error(`HTTP ${response.status} ${response.statusText}: ${detail.slice(0, 500)}`);
-                    }
-                    const text = (extractOauthOutputText(response, await response.text()) ?? "").trim();
-                    if (!text) {
-                        lastError =
-                            `memory-lancedb-cip: llm-client [${label}] empty OAuth response content from model ${config.model}`;
-                        log(lastError);
-                        return null;
-                    }
-                    return text;
-                }
-                finally {
-                    dispose();
-                }
-            }
-            catch (err) {
-                lastError =
-                    `memory-lancedb-cip: llm-client [${label}] OAuth request failed for model ${config.model}: ${err instanceof Error ? err.message : String(err)}`;
-                (warnLog ?? log)(lastError);
-                return null;
-            }
-        },
-        getLastError() {
-            return lastError;
-        },
-    };
-}
-function extractOauthOutputText(response, bodyText) {
-    if (response.headers.get("content-type")?.includes("text/event-stream") || looksLikeSseResponse(bodyText)) {
-        return extractOutputTextFromSse(bodyText);
-    }
-    try {
-        const parsed = JSON.parse(bodyText);
-        const output = Array.isArray(parsed.output) ? parsed.output : [];
-        const first = output.find((item) => item && typeof item === "object" && Array.isArray(item.content));
-        if (!first)
-            return null;
-        const content = first.content.find((part) => part?.type === "output_text" && typeof part.text === "string");
-        return typeof content?.text === "string" ? content.text : null;
-    }
-    catch {
-        return null;
-    }
-}
 /** OpenRouter's direct API base URL, used as the host->direct fallback's default when llm.baseURL is not configured. */
 // Module-level (not per-client) so the "runtime surface unavailable"
 // warning is emitted once per process even though createLlmClient is
@@ -774,12 +571,6 @@ export function createLlmClient(config) {
         // Only this fallback path normalizes -- an explicitly configured direct
         // transport keeps sending whatever model string it was given, unchanged.
         config = { ...config, model: normalizeDirectModelRef(config.model) };
-        if (config.auth === "oauth") {
-            // The OAuth client owns its endpoint and credential contract, so it is
-            // reachable on fallback without an apiKey (checking apiKey first used
-            // to make host-unavailable OAuth setups unreachable).
-            return createOauthClient(config, log, warnLog);
-        }
         if (!config.apiKey) {
             throw new Error("memory-lancedb-cip: llm-client transport \"host\" fell back to the direct transport, but no llm.apiKey is configured. " +
                 "The direct fallback does not inherit embedding.apiKey when transport is \"host\" -- set llm.apiKey explicitly.");
@@ -791,9 +582,6 @@ export function createLlmClient(config) {
         }
         config = { ...config, baseURL: explicitFallbackBaseURL };
         return createApiKeyClient(config, log, warnLog);
-    }
-    if (config.auth === "oauth") {
-        return createOauthClient(config, log, warnLog);
     }
     return createApiKeyClient(config, log, warnLog);
 }

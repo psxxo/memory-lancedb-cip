@@ -112,7 +112,7 @@ describe("systemSessionMemory before_reset", { concurrency: false }, () => {
       {
         reason: "new",
         messages: [
-          { role: "user", content: "Need to fix the OAuth endpoint." },
+          { role: "user", content: "Need to fix the login endpoint." },
           { role: "assistant", content: "Patched the endpoint and verified the login flow." },
         ],
       },
@@ -135,7 +135,7 @@ describe("systemSessionMemory before_reset", { concurrency: false }, () => {
     assert.equal(metadata.sessionKey, "agent:main:telegram:group:-100123:topic:42");
     assert.match(entry.text, /Source: telegram/);
     assert.match(entry.text, /Conversation Summary:/);
-    assert.match(entry.text, /user: Need to fix the OAuth endpoint\./);
+    assert.match(entry.text, /user: Need to fix the login endpoint\./);
     assert.match(entry.text, /assistant: Patched the endpoint and verified the login flow\./);
   });
 
