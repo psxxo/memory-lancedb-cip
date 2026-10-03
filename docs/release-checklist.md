@@ -42,7 +42,9 @@ Documentation is part of the release, never a follow-up. Confirm before publishi
 - `docs/FEATURES.md` matches the manifest `configSchema` (it is the authoritative feature list, since
   the READMEs under-report the real surface);
 - no README still shows a removed default (e.g. a built-in model id) in its configuration example;
-- every README links `docs/FEATURES.md`.
+- every README links `docs/FEATURES.md`;
+- `docs/notes/extraction-realtime-lane-A.md` matches the shipped code — triggers, transport
+  resolution, queue semantics, and runbook (a behaviour change updates it in the same release).
 
 If any of these is missing, finish it in the same cycle — do not publish first and patch the docs
 afterwards.
