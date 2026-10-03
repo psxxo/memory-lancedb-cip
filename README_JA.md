@@ -21,6 +21,16 @@ LanceDB ベースの OpenClaw 長期メモリプラグイン。好み・意思�
 
 ---
 
+## 1.6.0 の更新ポイント
+
+- **プラグイン自身の LLM レーン（任意）**：`llm.transport` は既定で `host`（`llm.model` 未設定時は OpenClaw 自身の既定モデルと資格情報が使われ、プラグインはモデル名も鍵も保持しません）。抽出をターン終了時に即時実行したい場合は `"direct"` を指定し、`llm.model` と `llm.baseURL` を渡します。資格情報は SecretRef に対応し、`env`／`file`／**`store`**（ホスト共有シークレットストア）を選べます。`store` は起動時に非同期で事前解決し同期読み出します（解決できなければフェイルクローズ）。
+- **未設定ならシステム既定に追従**：transport 未設定ならホストレーン（ホストが補完サーフェスを公開している場合のみ）。なければ従来どおり直接レーン。
+- **モデルの既定値は一切同梱しません**：`embedding.model` と `llm.model` は必須の設定項目で、欠けている場合は何を設定すべきかを明示し、該当機能はオフのまま（登録時に例外は投げません）。
+- **書き込みの耐久性向上**：保留中の抽出キューは `fsync` 付きで書き込み、上限超過は静黙に破棄せず `onTrim` で報告します。
+- 完全な機能一覧（既定値つき）は **[docs/FEATURES.md](docs/FEATURES.md)** を参照（manifest `configSchema` が正）。
+
+---
+
 ## なぜ memory-lancedb-cip なのか？
 
 ほとんどの AI エージェントは「記憶喪失」です——新しいチャットを始めるたびに、以前の会話内容はすべてリセットされます。
@@ -92,7 +102,7 @@ npm i @psxxo/lancedb-cip
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<埋め込みモデル ID（必須：既定モデルは同梱されません）>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -676,6 +686,7 @@ LanceDB 0.26+ では、一部の数値カラムが `BigInt` として返され�
 | ドキュメント | 説明 |
 | --- | --- |
 | [OpenClaw 統合プレイブック](docs/openclaw-integration-playbook.md) | デプロイモード、検証、リグレッションマトリックス |
+| [機能一覧](docs/FEATURES.md) | 完全な機能面と既定値（manifest configSchema が正） |
 | [メモリアーキテクチャ分析](docs/memory_architecture_analysis.md) | 完全なアーキテクチャ詳細解説 |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | v1.1.0 の動作変更とアップグレード根拠 |
 | [ロングコンテキストチャンキング](docs/long-context-chunking.md) | 長文ドキュメントのチャンキング戦略 |

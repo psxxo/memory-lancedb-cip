@@ -21,6 +21,16 @@ Um plugin de memória de longo prazo para OpenClaw baseado em LanceDB que armaze
 
 ---
 
+## Novidades da 1.6.0
+
+- **Faixa de LLM própria do plugin (opcional)**: `llm.transport` é `host` por padrão; sem `llm.model`, valem o modelo e as credenciais padrão do OpenClaw (o plugin não guarda nome de modelo nem chave). Para extrair imediatamente ao fim do turno, use `"direct"` com `llm.model` e `llm.baseURL`. A credencial aceita SecretRef com origem `env`, `file` ou **`store`** (cofre de segredos compartilhado do host): `store` é pré-resolvido de forma assíncrona na inicialização e lido de forma síncrona; se não resolver, falha fechado.
+- **Sem configuração = segue o padrão do sistema**: sem transport configurado, vale a faixa do host (apenas se o host realmente expõe sua superfície de conclusão); caso contrário, mantém-se o comportamento direto anterior.
+- **Nenhum valor padrão de modelo embutido**: `embedding.model` e `llm.model` são obrigatórios; se faltarem, o plugin informa o que configurar e mantém o recurso desligado (nunca lança exceção no registro).
+- **Escritas mais duráveis**: a fila de extração é gravada com `fsync`; o excesso de capacidade é reportado via `onTrim` em vez de descartado silenciosamente.
+- Lista completa de recursos (com padrões): **[docs/FEATURES.md](docs/FEATURES.md)** (autoridade: `configSchema` do manifest).
+
+---
+
 ## Por que memory-lancedb-cip?
 
 A maioria dos agentes de IA sofre de amnésia. Eles esquecem tudo no momento em que você inicia um novo chat.
@@ -92,7 +102,7 @@ Adicione ao seu `openclaw.json`:
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<id do modelo de embedding (obrigatório: sem padrão embutido)>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -676,6 +686,7 @@ No LanceDB 0.26+, algumas colunas numéricas podem ser retornadas como `BigInt`.
 | Documento | Descrição |
 | --- | --- |
 | [Playbook de integração OpenClaw](docs/openclaw-integration-playbook.md) | Modos de implantação, verificação, matriz de regressão |
+| [Lista de recursos](docs/FEATURES.md) | Superfície completa e padrões (referência: configSchema do manifest) |
 | [Análise da arquitetura de memória](docs/memory_architecture_analysis.md) | Análise aprofundada da arquitetura completa |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | Mudanças de comportamento v1.1.0 e justificativa de upgrade |
 | [Chunking de contexto longo](docs/long-context-chunking.md) | Estratégia de chunking para documentos longos |

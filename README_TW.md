@@ -21,6 +21,16 @@
 
 ---
 
+## 1.6.0 更新要點
+
+- **外掛自有 LLM 車道（可選）**：`llm.transport` 預設為 `host`（未設定 `llm.model` 時由 OpenClaw 自身的預設模型與憑證生效，外掛不持有任何模型名稱或金鑰）。若要讓抽取在回合結束當場完成（即時），可設為 `"direct"` 並提供 `llm.model` 與 `llm.baseURL`；憑證支援 SecretRef，來源可為 `env`／`file`／**`store`**（宿主共享金鑰庫），`store` 會非同步預熱後同步讀取，解析不到即失敗閉合。
+- **未自訂設定時自動跟隨系統預設**：未設定 transport 即走宿主車道（僅在宿主確實提供補全介面時），否則退回原有直連行為。
+- **不再內建任何模型預設值**：`embedding.model` 與 `llm.model` 皆為必填；缺少設定時會明確提示需要設定什麼，相關功能保持關閉（註冊階段絕不拋錯）。
+- **寫入更可靠**：待抽取佇列寫入帶 `fsync`；超出上限不再靜默丟棄，改以 `onTrim` 上報。
+- 完整功能面（含預設值）見 **[功能清單 docs/FEATURES.md](docs/FEATURES.md)**（以 manifest `configSchema` 為準）。
+
+---
+
 ## 為什麼選 memory-lancedb-cip？
 
 大多數 AI 智慧體都有「失憶症」——每次新對話，之前聊過的全部清零。
@@ -92,7 +102,7 @@ npm i @psxxo/lancedb-cip
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<你的向量模型 id（必填：外掛不自帶預設模型）>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -676,6 +686,7 @@ v1.1.0 常用 `metadata` 欄位：`l0_abstract`、`l1_overview`、`l2_content`�
 | 文件 | 說明 |
 | --- | --- |
 | [OpenClaw 整合手冊](docs/openclaw-integration-playbook.md) | 部署模式、驗證、迴歸矩陣 |
+| [功能清單](docs/FEATURES.md) | 完整功能面與預設值（以 manifest configSchema 為準） |
 | [記憶架構分析](docs/memory_architecture_analysis.md) | 完整架構深度解析 |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | v1.1.0 行為變更和升級說明 |
 | [長上下文分塊](docs/long-context-chunking.md) | 長文件分塊策略 |

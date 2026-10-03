@@ -21,6 +21,16 @@ LanceDB 기반 OpenClaw 메모리 플러그인으로, 사용자 선호도·의�
 
 ---
 
+## 1.6.0 업데이트 요점
+
+- **플러그인 자체 LLM 레인(선택)**：`llm.transport` 기본값은 `host`이며, `llm.model`을 설정하지 않으면 OpenClaw 자체 기본 모델과 자격 증명이 사용됩니다(플러그인은 모델명도 키도 보유하지 않음). 추출을 턴 종료 시 즉시 실행하려면 `"direct"`로 두고 `llm.model`과 `llm.baseURL`을 지정하세요. 자격 증명은 SecretRef를 지원하며 `env`/`file`/**`store`**(호스트 공유 시크릿 저장소)를 쓸 수 있습니다. `store`는 시작 시 비동기로 예열한 뒤 동기로 읽고, 해석되지 않으면 실패 폐쇄합니다.
+- **미설정 시 시스템 기본값을 따름**：transport 미설정이면 호스트 레인(호스트가 완성 표면을 실제로 노출할 때만), 그렇지 않으면 기존 직접 레인.
+- **모델 기본값을 일절 내장하지 않음**：`embedding.model`과 `llm.model`은 필수 설정이며, 없으면 무엇을 설정해야 하는지 명확히 알리고 해당 기능은 꺼진 상태로 둡니다(등록 단계에서 예외를 던지지 않음).
+- **쓰기 내구성 향상**：대기 중 추출 큐는 `fsync`로 기록하고, 상한 초과 시 조용히 버리지 않고 `onTrim`으로 보고합니다.
+- 전체 기능 목록(기본값 포함)은 **[docs/FEATURES.md](docs/FEATURES.md)** 참조(manifest `configSchema`가 기준).
+
+---
+
 ## 왜 memory-lancedb-cip인가?
 
 대부분의 AI 에이전트는 건망증이 있습니다. 새 채팅을 시작하는 순간 모든 것을 잊어버립니다.
@@ -92,7 +102,7 @@ npm i @psxxo/lancedb-cip
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<임베딩 모델 id（필수: 기본 모델이 포함되지 않습니다）>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -676,6 +686,7 @@ LanceDB 0.26 이상에서 일부 숫자 열이 `BigInt`로 반환될 수 있습�
 | 문서 | 설명 |
 | --- | --- |
 | [OpenClaw 통합 플레이북](docs/openclaw-integration-playbook.md) | 배포 모드, 검증, 회귀 매트릭스 |
+| [기능 목록](docs/FEATURES.md) | 전체 기능과 기본값(manifest configSchema 기준) |
 | [메모리 아키텍처 분석](docs/memory_architecture_analysis.md) | 전체 아키텍처 심층 분석 |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | v1.1.0 동작 변경사항 및 업그레이드 근거 |
 | [장문 컨텍스트 청킹](docs/long-context-chunking.md) | 긴 문서를 위한 청킹 전략 |

@@ -1,3 +1,9 @@
+## 1.6.2
+
+Documentation completeness: localized 1.6.0 sections for the nine remaining README languages, with
+corrected configuration examples and the feature-list link; supersedes the 1.6.1 submission. See
+`CHANGELOG.md`.
+
 ## 1.6.1
 
 Documentation catch-up for 1.6.0 (README intro/usage plus `docs/FEATURES.md`); no runtime change.

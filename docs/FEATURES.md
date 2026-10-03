@@ -108,5 +108,5 @@
 
 ## 10. 已知边界
 
-- README 的其余语言版本（DE/ES/FR/IT/JA/KO/PT-BR/RU/TW）尚未随 1.6.0 更新，可能与本文不一致——**以本文件与 manifest `configSchema` 为准**。
+- README 的 11 个语言版本均已加入 1.6.0 要点与本文入口；各语言版本给的是本地化摘要，**完整功能面以本文件与 manifest `configSchema` 为准**。
 - `dreaming` 下形如 `dreaming.model` 的键属于兼容占位，插件自带引擎不读取它们。

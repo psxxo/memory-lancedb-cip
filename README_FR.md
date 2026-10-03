@@ -21,6 +21,16 @@ Un plugin de mémoire long terme pour OpenClaw basé sur LanceDB qui stocke les 
 
 ---
 
+## Nouveautés de la 1.6.0
+
+- **Voie LLM propre au plugin (optionnelle)** : `llm.transport` vaut `host` par défaut ; sans `llm.model`, ce sont le modèle et les identifiants par défaut d'OpenClaw qui s'appliquent (le plugin ne détient ni nom de modèle ni clé). Pour une extraction immédiate en fin de tour, passez à `"direct"` avec `llm.model` et `llm.baseURL`. Les identifiants acceptent un SecretRef de source `env`, `file` ou **`store`** (magasin de secrets partagé de l'hôte) — `store` est pré-résolu de façon asynchrone au démarrage puis lu de façon synchrone, avec échec fermé si non résolu.
+- **Non configuré = suit le défaut système** : sans transport configuré, la voie hôte s'applique (uniquement si l'hôte expose réellement sa surface de complétion), sinon le comportement direct précédent.
+- **Aucune valeur par défaut de modèle embarquée** : `embedding.model` et `llm.model` sont requis ; en leur absence le plugin indique quoi configurer et laisse la fonctionnalité désactivée (jamais d'exception à l'enregistrement).
+- **Écritures plus durables** : la file d'extraction est écrite avec `fsync` ; les dépassements de capacité sont signalés via `onTrim` au lieu d'être supprimés silencieusement.
+- Liste complète des fonctionnalités (avec valeurs par défaut) : **[docs/FEATURES.md](docs/FEATURES.md)** (source d'autorité : `configSchema` du manifest).
+
+---
+
 ## Pourquoi memory-lancedb-cip ?
 
 La plupart des agents IA souffrent d'amnésie. Ils oublient tout dès que vous démarrez une nouvelle conversation.
@@ -92,7 +102,7 @@ Ajoutez à votre `openclaw.json` :
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<identifiant du modèle d'embedding (requis : aucun défaut embarqué)>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -676,6 +686,7 @@ Avec LanceDB 0.26+, certaines colonnes numériques peuvent être retournées en 
 | Document | Description |
 | --- | --- |
 | [Playbook d'intégration OpenClaw](docs/openclaw-integration-playbook.md) | Modes de déploiement, vérification, matrice de régression |
+| [Liste des fonctionnalités](docs/FEATURES.md) | Surface complète et valeurs par défaut (référence : configSchema du manifest) |
 | [Analyse de l'architecture mémoire](docs/memory_architecture_analysis.md) | Analyse approfondie de l'architecture complète |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | Changements de comportement v1.1.0 et justification de la mise à niveau |
 | [Chunking long contexte](docs/long-context-chunking.md) | Stratégie de chunking pour les longs documents |

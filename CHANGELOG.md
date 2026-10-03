@@ -1,3 +1,16 @@
+## 1.6.2
+
+**Complete documentation set — the nine remaining README languages.**
+
+- DOCS — README_TW/JA/KO/FR/ES/DE/IT/RU/PT-BR each gained a localized "what's new in 1.6.0" section
+  (the plugin-owned LLM lane with a `{source:"store"}` SecretRef, the host-following transport
+  default, no built-in model defaults, fsync'd queue writes, and the endpoint-based availability
+  gate), a corrected configuration example that no longer names the removed default embedding model
+  id, and a link to `docs/FEATURES.md`.
+- DOCS — all 11 READMEs now link the authoritative feature list, and no README still shows the
+  removed default in its configuration example.
+- NOTE — supersedes the 1.6.1 submission, which carried only the English and Chinese READMEs.
+
 ## 1.6.1
 
 **Documentation catch-up for 1.6.0 — no runtime change.**
@@ -8,8 +21,7 @@
   configuration example no longer shows the removed default embedding model id.
 - DOCS — new `docs/FEATURES.md`: the complete feature surface with defaults, Chinese-first, sourced
   from the manifest `configSchema` because the README has historically under-reported it.
-- NOTE — the remaining README languages are not updated yet; `docs/FEATURES.md` plus the manifest
-  schema are authoritative until they are.
+- NOTE — the remaining README languages were not updated in this submission; they follow in 1.6.2.
 
 ## 1.6.0
 

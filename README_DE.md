@@ -21,6 +21,16 @@ Ein LanceDB-basiertes OpenClaw-Langzeitgedächtnis-Plugin, das Präferenzen, Ent
 
 ---
 
+## Neuerungen in 1.6.0
+
+- **Plugin-eigene LLM-Spur (optional)**: `llm.transport` ist standardmäßig `host`; ohne `llm.model` gelten OpenClaws eigenes Standardmodell und dessen Zugangsdaten (das Plugin hält weder Modellname noch Schlüssel). Für eine Extraktion direkt am Turn-Ende `"direct"` setzen und `llm.model` + `llm.baseURL` angeben. Zugangsdaten akzeptieren ein SecretRef mit Quelle `env`, `file` oder **`store`** (gemeinsamer Secret-Store des Hosts) — `store` wird beim Start asynchron voraufgelöst und synchron gelesen; ohne Auflösung schlägt es geschlossen fehl.
+- **Unkonfiguriert folgt dem Systemstandard**: ohne konfigurierten transport greift die Host-Spur (nur wenn der Host seine Completion-Oberfläche tatsächlich bereitstellt), sonst bleibt das bisherige direkte Verhalten.
+- **Keine eingebauten Modell-Standardwerte**: `embedding.model` und `llm.model` sind Pflichtangaben; fehlen sie, nennt das Plugin, was zu konfigurieren ist, und lässt die Funktion aus (bei der Registrierung wird nie eine Exception geworfen).
+- **Robustere Schreibvorgänge**: Die Extraktions-Warteschlange wird mit `fsync` geschrieben; Überschreitungen der Obergrenze werden über `onTrim` gemeldet statt still verworfen.
+- Vollständige Funktionsliste (mit Standardwerten): **[docs/FEATURES.md](docs/FEATURES.md)** (maßgeblich: `configSchema` des Manifests).
+
+---
+
 ## Warum memory-lancedb-cip?
 
 Die meisten KI-Agenten leiden unter Amnesie. Sie vergessen alles, sobald Sie einen neuen Chat starten.
@@ -92,7 +102,7 @@ Fügen Sie zu Ihrer `openclaw.json` hinzu:
           "embedding": {
             "provider": "openai-compatible",
             "apiKey": "${OPENAI_API_KEY}",
-            "model": "text-embedding-3-small"
+            "model": "<Embedding-Modell-ID (erforderlich: kein Standardwert enthalten)>"
           },
           "autoCapture": true,
           "autoRecall": true,
@@ -676,6 +686,7 @@ Bei LanceDB 0.26+ können einige numerische Spalten als `BigInt` zurückgegeben 
 | Dokument | Beschreibung |
 | --- | --- |
 | [OpenClaw Integrations-Playbook](docs/openclaw-integration-playbook.md) | Bereitstellungsmodi, Verifizierung, Regressionsmatrix |
+| [Funktionsliste](docs/FEATURES.md) | Vollständige Funktionsfläche und Standardwerte (maßgeblich: configSchema des Manifests) |
 | [Gedächtnisarchitektur-Analyse](docs/memory_architecture_analysis.md) | Vollständige Architektur-Tiefenanalyse |
 | [CHANGELOG v1.1.0](docs/CHANGELOG-v1.1.0.md) | Verhaltensänderungen v1.1.0 und Upgrade-Begründung |
 | [Langkontext-Chunking](docs/long-context-chunking.md) | Chunking-Strategie für lange Dokumente |
